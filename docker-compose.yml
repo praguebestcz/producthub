@@ -1,0 +1,29 @@
+# Lokální PostgreSQL pro vývoj producthub.
+# Spuštění:  docker compose up -d      (na pozadí)
+# Zastavení: docker compose down       (data zůstanou ve volume)
+# POSTGRES_PASSWORD se čte z .env (stejná hodnota jako v DATABASE_URL).
+#
+# Port na hostiteli je 5433 (ne výchozích 5432), aby nekolidoval s Postgresem
+# aplikace vratky, pokud běží současně. Uvnitř kontejneru je to pořád 5432.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: producthub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: producthub_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: producthub
+    ports:
+      - "5433:5432"
+    volumes:
+      - producthub_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U producthub_app -d producthub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  producthub_pgdata:

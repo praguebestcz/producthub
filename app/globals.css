@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* === Design tokeny — Tailwind v4 @theme ===
+   Neutrální základ; barvy laděné až s prvním reálným UI. */
+@theme {
+  /* PB brand */
+  --color-pb: #da2a49;
+  --color-pb-bright: #ff3057;
+  --color-pb-soft: rgba(218, 42, 73, 0.06);
+
+  /* Neutrály */
+  --color-ink: #0a0a0a;
+  --color-ink-2: #525252;
+  --color-ink-3: #737373;
+  --color-ink-4: #a3a3a3;
+
+  --color-line: #e5e5e5;
+  --color-line-soft: #f0f0f0;
+
+  --color-bg: #fafafa;
+  --color-bg-card: #ffffff;
+
+  /* Stavy */
+  --color-success: #16a34a;
+  --color-error: #dc2626;
+  --color-warning: #d97706;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
