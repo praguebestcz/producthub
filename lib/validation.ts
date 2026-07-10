@@ -6,6 +6,7 @@ import { z } from "zod";
 export const projectCreateSchema = z.object({
   name: z.string().trim().min(1, "Zadejte název").max(200),
   description: z.string().trim().max(5_000).optional(),
+  clientId: z.number().int().positive().nullable().optional(),
 });
 
 export const projectPatchSchema = z.object({
@@ -13,6 +14,13 @@ export const projectPatchSchema = z.object({
   description: z.string().trim().max(5_000).nullable().optional(),
   // Omezení projektu — vkládá se do každého Claude promptu (M8).
   constraints: z.string().trim().max(5_000).nullable().optional(),
+  // Po expert review (M3.5): změnu klienta smí jen canCreateProjects — hlídá route.
+  clientId: z.number().int().positive().nullable().optional(),
+});
+
+// Klient (složka projektů). Trim už tady; case-insensitive duplicitu hlídá route.
+export const clientCreateSchema = z.object({
+  name: z.string().trim().min(1, "Zadejte název klienta").max(120),
 });
 
 export const projectRoleSchema = z.enum(["AUTHOR", "COMMENTER", "READER"]);

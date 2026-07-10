@@ -26,6 +26,7 @@ export function AppShell({
           email: user.email,
           avatarUrl: user.avatarUrl,
           isAdmin: user.isAdmin,
+          canCreateProjects: user.canCreateProjects,
         }}
       />
       <SidebarInset>

@@ -92,6 +92,7 @@ model User {
   createdAt         DateTime @default(now())
 
   createdProjects      Project[]         @relation("ProjectCreator")
+  createdClients       Client[]          @relation("ClientCreator")
   memberships          ProjectMember[]
   sentInvitations      Invitation[]      @relation("InvitationSender")
   uploadedVersions     DocumentVersion[] @relation("VersionUploader")
@@ -104,11 +105,31 @@ model User {
   actedNotifications   Notification[]    @relation("NotificationActor")
 }
 
+// Klient — složka seskupující projekty (DDS, Foto Škoda, Harfasport, … i PB).
+// Kopíruje strukturu práce PB (repos.infra/{klient}/). Jen štítek/složka —
+// přístupová práva se řídí členstvím v projektech, ne klientem.
+model Client {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  createdById Int
+  createdBy   User     @relation("ClientCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projects Project[]
+
+  @@index([createdById])
+}
+
 // Projekt — hlavní objekt systému. Obsahuje dokumenty (HTML specifikace) a členy.
 model Project {
   id          Int      @id @default(autoincrement())
   name        String
   description String?  @db.Text
+  // Volitelné zařazení pod klienta. Restrict: klient s projekty nejde smazat
+  // (nejdřív projekty přesunout/smazat) — projekty nesmí zmizet s klientem.
+  clientId    Int?
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: Restrict)
   // Omezení projektu (např. „neměnit design systém") — vkládá se do každého Claude promptu.
   constraints String?  @db.Text
   createdById Int
@@ -124,6 +145,7 @@ model Project {
   notifications Notification[]
 
   @@index([createdById])
+  @@index([clientId]) // FK index (zásada z expert review)
 }
 
 // Členství uživatele v projektu s rolí.

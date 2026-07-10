@@ -27,6 +27,7 @@ export default async function ProjectSettingsPage({
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
+      client: { select: { id: true, name: true } },
       members: {
         include: {
           user: {
@@ -49,6 +50,15 @@ export default async function ProjectSettingsPage({
     },
   });
   if (!project) notFound();
+
+  // Klienti pro výběr — jen tým s canCreateProjects (expert review M3.5:
+  // AUTHOR bez tohoto práva seznam klientů nevidí a zařazení nemění).
+  const clients = user.canCreateProjects
+    ? await prisma.client.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
 
   return (
     <AppShell user={user}>
@@ -82,7 +92,11 @@ export default async function ProjectSettingsPage({
               name: project.name,
               description: project.description,
               constraints: project.constraints,
+              clientId: project.clientId,
+              clientName: project.client?.name ?? null,
             }}
+            clients={clients}
+            canChangeClient={user.canCreateProjects}
           />
         </section>
 

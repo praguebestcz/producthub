@@ -41,6 +41,17 @@ describe("invitationCreateSchema", () => {
   });
 });
 
+describe("clientCreateSchema", () => {
+  it("ořeže mezery a hlídá délku", async () => {
+    const { clientCreateSchema } = await import("@/lib/validation");
+    expect(clientCreateSchema.parse({ name: "  DDS  " }).name).toBe("DDS");
+    expect(clientCreateSchema.safeParse({ name: "   " }).success).toBe(false);
+    expect(
+      clientCreateSchema.safeParse({ name: "x".repeat(121) }).success,
+    ).toBe(false);
+  });
+});
+
 describe("memberPatchSchema", () => {
   it("vyžaduje aspoň jednu změnu", () => {
     expect(memberPatchSchema.safeParse({}).success).toBe(false);

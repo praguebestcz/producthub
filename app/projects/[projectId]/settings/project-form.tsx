@@ -8,24 +8,41 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Úprava základních údajů projektu. `constraints` se v M8 vkládají do každého
-// Claude promptu — proto jsou tady od začátku.
+// Claude promptu — proto jsou tady od začátku. Zařazení pod klienta mění jen
+// tým s canCreateProjects (expert review M3.5).
 export function ProjectForm({
   project,
+  clients,
+  canChangeClient,
 }: {
   project: {
     id: number;
     name: string;
     description: string | null;
     constraints: string | null;
+    clientId: number | null;
+    clientName: string | null;
   };
+  clients: { id: number; name: string }[];
+  canChangeClient: boolean;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? "");
   const [constraints, setConstraints] = useState(project.constraints ?? "");
+  const [clientId, setClientId] = useState<string>(
+    project.clientId ? String(project.clientId) : "none",
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +55,10 @@ export function ProjectForm({
           name,
           description: description || null,
           constraints: constraints || null,
+          // clientId posílat jen když ho uživatel smí měnit (server to hlídá taky)
+          ...(canChangeClient
+            ? { clientId: clientId === "none" ? null : Number(clientId) }
+            : {}),
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -74,6 +95,36 @@ export function ProjectForm({
               placeholder="Krátce: co se připomínkuje a pro koho."
             />
           </div>
+          {canChangeClient ? (
+            <div className="grid gap-1.5">
+              <Label>Klient</Label>
+              <Select
+                value={clientId}
+                onValueChange={(v) => setClientId(v ?? "none")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Bez klienta —</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            project.clientName && (
+              <div className="grid gap-1.5">
+                <Label>Klient</Label>
+                <p className="text-sm text-muted-foreground">
+                  {project.clientName}
+                </p>
+              </div>
+            )
+          )}
           <div className="grid gap-1.5">
             <Label htmlFor="pf-constraints">Omezení pro implementaci</Label>
             <Textarea

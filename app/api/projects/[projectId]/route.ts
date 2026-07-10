@@ -68,10 +68,36 @@ export async function PATCH(
     );
   }
 
+  // Po expert review (M3.5): změnu klienta smí jen canCreateProjects — AUTHOR
+  // bez tohoto práva by jinak zkoušením clientId četl názvy cizích klientů.
+  if (body.data.clientId !== undefined) {
+    if (!user.canCreateProjects) {
+      return NextResponse.json(
+        { error: "Zařazení pod klienta smí měnit jen tým s právem zakládat projekty" },
+        { status: 403 },
+      );
+    }
+    if (body.data.clientId !== null) {
+      const client = await prisma.client.findUnique({
+        where: { id: body.data.clientId },
+        select: { id: true },
+      });
+      if (!client) {
+        return NextResponse.json({ error: "Klient nenalezen" }, { status: 400 });
+      }
+    }
+  }
+
   const project = await prisma.project.update({
     where: { id: projectId },
     data: body.data,
-    select: { id: true, name: true, description: true, constraints: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      constraints: true,
+      clientId: true,
+    },
   });
   return NextResponse.json(project);
 }

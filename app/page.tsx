@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FolderOpen, MailOpen, Users, FileText } from "lucide-react";
+import { Building2, FolderOpen, MailOpen, Users, FileText } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
@@ -11,7 +11,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { NewProjectDialog } from "@/components/new-project-dialog";
 
-// Dashboard — seznam projektů, kde je uživatel členem.
+type ProjectCard = {
+  id: number;
+  name: string;
+  description: string | null;
+  role: "AUTHOR" | "COMMENTER" | "READER";
+  documents: number;
+  members: number;
+};
+
+// Dashboard — projekty uživatele seskupené podle klienta (přání Hany).
 export default async function Home() {
   const user = await getSessionUser();
   // Proxy nepřihlášené přesměruje už dřív; tohle je pojistka (obrana do hloubky).
@@ -21,18 +30,53 @@ export default async function Home() {
     where: { userId: user.id },
     include: {
       project: {
-        include: { _count: { select: { members: true, documents: true } } },
+        include: {
+          client: { select: { id: true, name: true } },
+          _count: { select: { members: true, documents: true } },
+        },
       },
     },
     orderBy: { project: { updatedAt: "desc" } },
   });
+
+  // Seskupení podle klienta: klienti abecedně, „Nezařazené" nakonec.
+  const groups = new Map<string, ProjectCard[]>();
+  for (const m of memberships) {
+    const key = m.project.client?.name ?? "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push({
+      id: m.project.id,
+      name: m.project.name,
+      description: m.project.description,
+      role: m.role,
+      documents: m.project._count.documents,
+      members: m.project._count.members,
+    });
+  }
+  const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
+    if (a === "") return 1; // Nezařazené nakonec
+    if (b === "") return -1;
+    return a.localeCompare(b, "cs");
+  });
+
+  // Klienti pro výběr v dialogu Nový projekt (jen tým s canCreateProjects).
+  const clients = user.canCreateProjects
+    ? await prisma.client.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
 
   return (
     <AppShell user={user}>
       <PageHeader
         title="Projekty"
         description="Specifikace, prototypy a wireframy k připomínkování."
-        actions={user.canCreateProjects ? <NewProjectDialog /> : undefined}
+        actions={
+          user.canCreateProjects ? (
+            <NewProjectDialog clients={clients} />
+          ) : undefined
+        }
       />
 
       {memberships.length === 0 ? (
@@ -70,41 +114,52 @@ export default async function Home() {
           </CardContent>
         </Card>
       ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {memberships.map((m) => (
-            <Link key={m.project.id} href={`/projects/${m.project.id}`}>
-              <Card className="h-full transition-all hover:border-pb/40 hover:shadow-md">
-                <CardContent className="flex h-full flex-col">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="font-semibold leading-snug">
-                      {m.project.name}
-                    </h2>
-                    <Badge
-                      variant={m.role === "AUTHOR" ? "default" : "secondary"}
-                    >
-                      {ROLE_LABELS[m.role]}
-                    </Badge>
-                  </div>
-                  {m.project.description && (
-                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                      {m.project.description}
-                    </p>
-                  )}
-                  <div className="mt-auto flex items-center gap-4 pt-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <FileText size={13} aria-hidden="true" />
-                      {m.project._count.documents}{" "}
-                      {plural(m.project._count.documents, "dokument", "dokumenty", "dokumentů")}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users size={13} aria-hidden="true" />
-                      {m.project._count.members}{" "}
-                      {plural(m.project._count.members, "člen", "členové", "členů")}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+        <div className="mt-8 grid gap-10">
+          {sortedGroups.map(([clientName, projects]) => (
+            <section key={clientName || "__none"}>
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <Building2 size={15} aria-hidden="true" />
+                {clientName || "Nezařazené"}
+                <span className="font-normal">({projects.length})</span>
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {projects.map((p) => (
+                  <Link key={p.id} href={`/projects/${p.id}`}>
+                    <Card className="h-full transition-all hover:border-pb/40 hover:shadow-md">
+                      <CardContent className="flex h-full flex-col">
+                        <div className="flex items-start justify-between gap-3">
+                          <h3 className="font-semibold leading-snug">
+                            {p.name}
+                          </h3>
+                          <Badge
+                            variant={p.role === "AUTHOR" ? "default" : "secondary"}
+                          >
+                            {ROLE_LABELS[p.role]}
+                          </Badge>
+                        </div>
+                        {p.description && (
+                          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                            {p.description}
+                          </p>
+                        )}
+                        <div className="mt-auto flex items-center gap-4 pt-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <FileText size={13} aria-hidden="true" />
+                            {p.documents}{" "}
+                            {plural(p.documents, "dokument", "dokumenty", "dokumentů")}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users size={13} aria-hidden="true" />
+                            {p.members}{" "}
+                            {plural(p.members, "člen", "členové", "členů")}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

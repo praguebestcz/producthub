@@ -30,6 +30,7 @@ export default async function ProjectPage({
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
+      client: { select: { name: true } },
       members: {
         include: {
           user: {
@@ -51,12 +52,17 @@ export default async function ProjectPage({
         title={project.name}
         description={project.description ?? undefined}
         breadcrumbs={
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Projekty
-          </Link>
+          <nav className="flex gap-1.5 text-sm text-muted-foreground">
+            <Link href="/" className="hover:text-foreground">
+              Projekty
+            </Link>
+            {project.client && (
+              <>
+                <span>/</span>
+                <span>{project.client.name}</span>
+              </>
+            )}
+          </nav>
         }
         actions={
           isAuthor ? (

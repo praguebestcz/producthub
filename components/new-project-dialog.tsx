@@ -17,15 +17,28 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Dialog pro založení projektu (jen uživatelé s canCreateProjects — tlačítko
 // se jinde ani nevykreslí). Po založení přesměruje na detail projektu.
-export function NewProjectDialog() {
+export function NewProjectDialog({
+  clients,
+}: {
+  clients: { id: number; name: string }[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  // "none" = bez klienta (Select neumí prázdnou hodnotu)
+  const [clientId, setClientId] = useState<string>("none");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +50,7 @@ export function NewProjectDialog() {
         body: JSON.stringify({
           name,
           description: description || undefined,
+          clientId: clientId === "none" ? null : Number(clientId),
         }),
       });
       const data = await res.json();
@@ -91,6 +105,27 @@ export function NewProjectDialog() {
                 maxLength={5000}
               />
             </div>
+            {clients.length > 0 && (
+              <div className="grid gap-1.5">
+                <Label>Klient</Label>
+                <Select
+                  value={clientId}
+                  onValueChange={(v) => setClientId(v ?? "none")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Bez klienta —</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

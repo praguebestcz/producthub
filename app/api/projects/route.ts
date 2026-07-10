@@ -57,10 +57,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Zařazení pod klienta — klient musí existovat.
+  if (body.data.clientId) {
+    const client = await prisma.client.findUnique({
+      where: { id: body.data.clientId },
+      select: { id: true },
+    });
+    if (!client) {
+      return NextResponse.json({ error: "Klient nenalezen" }, { status: 400 });
+    }
+  }
+
   const project = await prisma.project.create({
     data: {
       name: body.data.name,
       description: body.data.description || null,
+      clientId: body.data.clientId ?? null,
       createdById: user.id,
       members: {
         create: { userId: user.id, role: "AUTHOR", isInternal: true },
