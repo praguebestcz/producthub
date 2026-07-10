@@ -40,17 +40,6 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     if (e instanceof EmailConflictError) return toLogin("email-conflict");
     console.error("Google callback selhal:", e);
-    // DOČASNÁ diagnostika (odstranit po vyřešení): zápis chyby do souboru,
-    // protože výstup dev serveru není vždy po ruce.
-    try {
-      const { appendFile } = await import("node:fs/promises");
-      await appendFile(
-        "_auth-debug.log",
-        `${new Date().toISOString()} ${e instanceof Error ? e.stack ?? e.message : String(e)}\n\n`,
-      );
-    } catch {
-      /* diagnostika nesmí shodit odpověď */
-    }
     return toLogin("google-failed");
   }
 }

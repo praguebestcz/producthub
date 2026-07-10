@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Table,
@@ -32,33 +32,30 @@ export default async function AdminUsersPage() {
   });
 
   return (
-    <>
-      <AppHeader user={user} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-        <PageHeader
-          title="Správa uživatelů"
-          description="Účet vzniká automaticky prvním přihlášením přes Google. Tady rozhodujete, kdo smí zakládat projekty. Admin se nastavuje v proměnné ADMIN_EMAILS."
-        />
+    <AppShell user={user}>
+      <PageHeader
+        title="Správa uživatelů"
+        description="Účet vzniká automaticky prvním přihlášením přes Google. Tady rozhodujete, kdo smí zakládat projekty. Admin se nastavuje v proměnné ADMIN_EMAILS."
+      />
 
-        <div className="mt-8 rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Uživatel</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Registrace</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Smí zakládat projekty</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((u) => (
-                <UserRow key={u.id} user={u} />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </main>
-    </>
+      <div className="mt-8 rounded-xl border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Uživatel</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Registrace</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Smí zakládat projekty</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((u) => (
+              <UserRow key={u.id} user={u} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </AppShell>
   );
 }

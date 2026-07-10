@@ -142,6 +142,11 @@ Verdikt: SCHVÁLENO S VÝHRADAMI. Nálezy nad schématem a docker-compose zaprac
   * Zod limity textů: `body ≤ 10 000`, `elementHtml ≤ 20 000`, `domPath ≤ 2 000`, `dataReviewId ≤ 200` znaků + limit velikosti request body. API v v1 nesmí přijímat pole `screenshot`.
   * @zmínka jen na členy projektu (jinak únik existence/názvu projektu nečlenovi).
 
+## Backlog (nápady mimo rozsah v1 milníků)
+
+* **Aplikační logy (požadavek Hany, 2026-07-10):** stránka s logy po vzoru vratek - `lib/event-log.ts` (události error/warn do PostgreSQL, maskování tajemství: tokeny, hesla; e-mail se nemaskuje kvůli vyhledávání) + admin stránka `/admin/logs`. NEMUSÍ být v bočním menu - stačí URL, případně odkaz ze správy uživatelů. Vhodný okamžik: společně s M9 (dokončení) nebo hned po nasazení M4, až bude co logovat (importy, generování promptů, chyby přihlášení).
+* Smazání `components/legacy/` a pomocných souborů `_auth-debug.log`, `_txtest.mjs`, `_mktoken.mjs` - čeká na výslovné svolení Hany.
+
 ## Ověření (celkově)
 
 Po každém milníku ruční test Hany podle návodu (viz milníky). Automaticky: `npm test` (vitest - prompt-template, anchor-migration, ssrf-guard, zip sanitizace, přístupové kontroly), `npm run typecheck`, `npm run lint`. Před nasazením na Railway vždy výslovné svolení Hany. Design dokument (tento plán) se po schválení uloží i do `producthub/docs/` jako referenční spec.

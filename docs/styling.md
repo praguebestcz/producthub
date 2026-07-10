@@ -28,13 +28,15 @@
 * **Base UI idiom:** místo Radix `asChild` se používá **`render` prop**: `<DialogTrigger render={<Button variant="outline" />}>` nebo `<DropdownMenuItem render={<Link href="…" />}>`.
 * Odkaz vypadající jako tlačítko: `className={cn(buttonVariants({ variant, size }))}` na `<a>`/`<Link>`.
 
-**Vlastní (`components/`):** `ui/Logo.tsx` (ProductHub, size md/lg), `ui/ThemeToggle.tsx` (next-themes), `ui/PageHeader.tsx` (nadpis stránky + popis + akce), `app-header.tsx` (sticky hlavička s blur), `user-menu.tsx` (avatar dropdown s odhlášením).
+**Vlastní (`components/`):** `ui/Logo.tsx` (ProductHub, size md/lg), `ui/ThemeToggle.tsx` (next-themes), `ui/PageHeader.tsx` (nadpis stránky + popis + akce), `app-shell.tsx` (kostra přihlášené aplikace: sbalitelný sidebar + tenký topbar), `app-sidebar.tsx` (boční menu: logo, navigace, uživatel dole s odhlášením).
+
+**Nepoužívané:** `app-header.tsx` a `user-menu.tsx` (nahrazeny sidebar layoutem), `components/legacy/` (před-shadcn komponenty) - čekají na schválení smazání.
 
 **`components/legacy/`** - původní ruční komponenty před migrací na shadcn. NEPOUŽÍVAT; čekají na schválení smazání.
 
 ## Vzory obrazovek
 
-* **Stránka aplikace:** `<AppHeader user>` + `<main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">` + `<PageHeader>` + obsah.
+* **Stránka aplikace:** `<AppShell user>` (sbalitelné boční menu vlevo - preference Hany; stav si pamatuje cookie) + `<PageHeader>` + obsah. Styleguide v menu záměrně není (jen URL /styleguide).
 * **Prázdný stav:** `<Card className="border-dashed">`, ikona lucide v kruhu `bg-pb-soft text-pb`, nadpis, 1-2 věty vysvětlení dalšího kroku.
 * **Tabulka:** shadcn Table v `<div className="rounded-xl border">`.
 * **Formulář:** `<Label>` + prvek + nápověda `text-xs text-muted-foreground`; chyba = `aria-invalid` + `text-destructive`.
