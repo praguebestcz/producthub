@@ -28,3 +28,13 @@ export const getAdminEmails = (): string[] =>
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
+
+export const getGoogleClientId = () =>
+  required("GOOGLE_CLIENT_ID", (v) => v.length > 10, "z Google Cloud Console");
+
+export const getGoogleClientSecret = () =>
+  required(
+    "GOOGLE_CLIENT_SECRET",
+    (v) => v.length > 10,
+    "z Google Cloud Console",
+  );

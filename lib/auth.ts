@@ -1,0 +1,107 @@
+import { cookies } from "next/headers";
+import type { User } from "@prisma/client";
+import { prisma } from "./prisma";
+import { verifySessionToken } from "./jwt";
+import { getAdminEmails } from "./env";
+import type { GoogleProfile } from "./google-oauth";
+
+// Autentizace a autorizace — jediné místo, přes které jde zjišťování
+// přihlášeného uživatele. Přístupové kontroly na projekt (requireProjectRole)
+// přibudou v M3.
+
+export const SESSION_COOKIE = "session";
+
+// Přihlášený uživatel z session cookie, nebo null.
+// Kontroluje podpis, typ tokenu i `iat >= tokenValidFrom` (zneplatnění relací).
+export async function getSessionUser(): Promise<User | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  const payload = await verifySessionToken(token);
+  if (!payload) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  if (!user) return null;
+  // Lístek vydaný před razítkem tokenValidFrom = neplatný (odhlášení všech relací).
+  if (payload.iat < Math.floor(user.tokenValidFrom.getTime() / 1000)) {
+    return null;
+  }
+  return user;
+}
+
+// Chyba, kterou callback umí přeložit na čitelnou hlášku (ne 500).
+export class EmailConflictError extends Error {
+  constructor() {
+    super("E-mail už patří jinému účtu");
+  }
+}
+
+// Založí/aktualizuje uživatele podle Google profilu a převezme čekající pozvánky.
+// Vrací uživatele. Po expert review:
+//  - párování primárně přes googleId (sub) — e-mail se na Googlu může změnit
+//  - kolize e-mailu s jiným účtem → EmailConflictError (čitelná chyba, ne 500)
+//  - admin bootstrap podle ADMIN_EMAILS (idempotentní, při každém přihlášení)
+export async function ensureUserFromGoogle(
+  profile: GoogleProfile,
+): Promise<User> {
+  const isBootstrapAdmin = getAdminEmails().includes(profile.email);
+
+  return prisma.$transaction(async (tx) => {
+    const byGoogleId = await tx.user.findUnique({
+      where: { googleId: profile.googleId },
+    });
+
+    // E-mail nesmí patřit jinému účtu (jiné googleId) — unikátní sloupec.
+    const byEmail = await tx.user.findUnique({
+      where: { email: profile.email },
+    });
+    if (byEmail && byEmail.googleId !== profile.googleId) {
+      throw new EmailConflictError();
+    }
+
+    const adminFlags = isBootstrapAdmin
+      ? { isAdmin: true, canCreateProjects: true }
+      : {};
+
+    const user = byGoogleId
+      ? await tx.user.update({
+          where: { id: byGoogleId.id },
+          data: {
+            email: profile.email,
+            name: profile.name,
+            avatarUrl: profile.avatarUrl,
+            ...adminFlags,
+          },
+        })
+      : await tx.user.create({
+          data: {
+            googleId: profile.googleId,
+            email: profile.email,
+            name: profile.name,
+            avatarUrl: profile.avatarUrl,
+            ...adminFlags,
+          },
+        });
+
+    // Převzetí čekajících pozvánek (párování přes lowercase e-mail).
+    const pending = await tx.invitation.findMany({
+      where: { email: user.email, acceptedAt: null },
+    });
+    if (pending.length > 0) {
+      await tx.projectMember.createMany({
+        data: pending.map((inv) => ({
+          projectId: inv.projectId,
+          userId: user.id,
+          role: inv.role,
+          isInternal: inv.isInternal,
+        })),
+        skipDuplicates: true,
+      });
+      await tx.invitation.updateMany({
+        where: { id: { in: pending.map((inv) => inv.id) } },
+        data: { acceptedAt: new Date() },
+      });
+    }
+
+    return user;
+  });
+}
