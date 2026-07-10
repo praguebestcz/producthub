@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { APP_NAME, APP_DESCRIPTION } from "@/lib/app-info";
+import { Logo } from "@/components/ui/Logo";
+import { Alert } from "@/components/ui/Alert";
 
 // Chybové hlášky pro ?error= z OAuth callbacku — česky a srozumitelně.
 const ERRORS: Record<string, string> = {
@@ -9,7 +10,8 @@ const ERRORS: Record<string, string> = {
     "Přihlášení vypršelo nebo bylo přerušeno. Zkuste to prosím znovu.",
   "email-conflict":
     "Tento e-mail už patří jinému účtu. Kontaktujte prosím správce aplikace.",
-  "google-failed": "Přihlášení přes Google se nepovedlo. Zkuste to prosím znovu.",
+  "google-failed":
+    "Přihlášení přes Google se nepovedlo. Zkuste to prosím znovu.",
 };
 
 export default async function LoginPage({
@@ -21,51 +23,64 @@ export default async function LoginPage({
   if (await getSessionUser()) redirect("/");
 
   const { error } = await searchParams;
-  const errorMessage = error ? (ERRORS[error] ?? ERRORS["google-failed"]) : null;
+  const errorMessage = error
+    ? (ERRORS[error] ?? ERRORS["google-failed"])
+    : null;
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-bg-card p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
-        <p className="mt-2 text-sm text-ink-3">{APP_DESCRIPTION}</p>
+    <main className="relative flex flex-1 items-center justify-center p-6">
+      {/* Dekorativní barevné záře v pozadí */}
+      <div className="ph-login-bg" aria-hidden="true" />
 
-        {errorMessage && (
-          <p
-            className="mt-6 rounded-lg border border-error/30 bg-error/5 p-3 text-sm text-error"
-            role="alert"
+      <div className="relative w-full max-w-sm">
+        <div className="rounded-2xl border border-line bg-bg-card p-8 shadow-[var(--shadow-pop)]">
+          <div className="flex flex-col items-center text-center">
+            <Logo size="lg" />
+            <h1 className="mt-6 text-xl font-semibold tracking-tight">
+              Vítejte zpět
+            </h1>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-3">
+              Připomínkování a revize HTML specifikací
+            </p>
+          </div>
+
+          {errorMessage && (
+            <div className="mt-6">
+              <Alert tone="danger">{errorMessage}</Alert>
+            </div>
+          )}
+
+          <a
+            href="/api/auth/google"
+            className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-line bg-bg-card px-4 py-3 text-sm font-medium text-ink shadow-sm transition-all hover:border-ink-4/40 hover:shadow-md active:translate-y-px"
           >
-            {errorMessage}
-          </p>
-        )}
+            {/* Google logo (oficiální barvy, inline SVG) */}
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+              <path
+                fill="#EA4335"
+                d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+              />
+              <path
+                fill="#4285F4"
+                d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+              />
+              <path
+                fill="#34A853"
+                d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+              />
+            </svg>
+            Přihlásit se přes Google
+          </a>
+        </div>
 
-        <a
-          href="/api/auth/google"
-          className="mt-8 flex w-full items-center justify-center gap-3 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-line-soft"
-        >
-          {/* Google logo (oficiální barvy, inline SVG) */}
-          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-            <path
-              fill="#EA4335"
-              d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-            />
-            <path
-              fill="#34A853"
-              d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-            />
-          </svg>
-          Přihlásit se přes Google
-        </a>
-
-        <p className="mt-6 text-xs text-ink-4">
+        <p className="mt-6 text-center text-xs leading-relaxed text-ink-4">
           Do projektů se dostanete až po pozvání jejich autorem.
+          <br />
+          Přihlášením nevzniká žádný přístup navíc.
         </p>
       </div>
     </main>

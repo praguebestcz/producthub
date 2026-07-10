@@ -27,7 +27,17 @@ export default function RootLayout({
     <html
       lang="cs"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Nastaví tmavý režim ještě před vykreslením — žádné probliknutí */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('ph-theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}",
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

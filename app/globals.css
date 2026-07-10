@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
-/* === Design tokeny — Tailwind v4 @theme ===
-   Neutrální základ; barvy laděné až s prvním reálným UI. */
+/* Dark mode řízený třídou .dark (ne systémem) — vzor vratky */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* === Design tokeny (docs/styling.md) — Tailwind v4 @theme ===
+   Převzato z vratky admin (PB brand): červený akcent, čisté neutrály. */
 @theme {
   /* PB brand */
   --color-pb: #da2a49;
@@ -19,14 +22,103 @@
 
   --color-bg: #fafafa;
   --color-bg-card: #ffffff;
+  --color-bg-subtle: #fafafa;
 
   /* Stavy */
   --color-success: #16a34a;
   --color-error: #dc2626;
   --color-warning: #d97706;
+
+  /* PB oranžová — jen pro gradientní akcenty (logo dlaždice, dekor pozadí) */
+  --color-pb-orange: #ff6b35;
+
+  /* Radiusy */
+  --radius-card: 12px;
+  --radius-card-lg: 16px;
+
+  /* Stíny — jemná hloubka (karty, vyvýšené prvky) */
+  --shadow-card: 0 1px 2px rgba(10, 10, 10, 0.04), 0 4px 16px rgba(10, 10, 10, 0.04);
+  --shadow-pop: 0 4px 12px rgba(10, 10, 10, 0.08), 0 12px 40px rgba(10, 10, 10, 0.10);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* === Dark mode — přepis tokenů pod třídou .dark (vzor vratky) === */
+.dark {
+  --color-ink: #f5f5f5;
+  --color-ink-2: #d4d4d4;
+  --color-ink-3: #a3a3a3;
+  --color-ink-4: #6b6b6b;
+
+  --color-line: #2a2a2e;
+  --color-line-soft: #232327;
+
+  --color-bg: #0f0f11;
+  --color-bg-card: #1a1a1d;
+  --color-bg-subtle: #161618;
+
+  /* PB brand na tmavém o kousek jasnější */
+  --color-pb: #ff3057;
+  --color-pb-soft: rgba(218, 42, 73, 0.16);
+
+  /* Stíny na tmavém — tmavší a měkčí */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Dekorativní pozadí přihlašovací stránky — dvě velmi jemné barevné záře.
+   Čistě dekorace: pointer-events none, v tmavém režimu ještě jemnější. */
+.ph-login-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 400px at 15% 10%, rgba(218, 42, 73, 0.07), transparent 70%),
+    radial-gradient(700px 500px at 85% 90%, rgba(255, 107, 53, 0.06), transparent 70%);
+}
+.dark .ph-login-bg {
+  background:
+    radial-gradient(600px 400px at 15% 10%, rgba(255, 48, 87, 0.08), transparent 70%),
+    radial-gradient(700px 500px at 85% 90%, rgba(255, 107, 53, 0.05), transparent 70%);
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-ink);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Plynulé příjezdy pro toast a modal (moderní, nenápadné). */
+@keyframes ph-toast-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ph-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ph-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ph-animate-toast { animation: ph-toast-in 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+.ph-animate-modal { animation: ph-modal-in 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+.ph-animate-fade { animation: ph-fade-in 0.2s ease-out; }
+
+/* Automatické vyplňování prohlížeče (Chrome/Edge) jinak přebije pozadí pole bílou —
+   v dark mode to vypadá rozbitě. Dorovnáme barvy na kartu a text na barvu písma. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-bg-card) inset;
+  caret-color: var(--color-ink);
+  transition: background-color 9999s ease-in-out 0s;
 }

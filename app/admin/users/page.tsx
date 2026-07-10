@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Table } from "@/components/ui/Table";
 import { UserRow } from "./user-row";
 
 // Správa uživatelů — jen pro adminy. Ostatní přesměrujeme na dashboard.
@@ -16,6 +18,7 @@ export default async function AdminUsersPage() {
       id: true,
       email: true,
       name: true,
+      avatarUrl: true,
       canCreateProjects: true,
       isAdmin: true,
       createdAt: true,
@@ -26,32 +29,19 @@ export default async function AdminUsersPage() {
     <>
       <AppHeader user={user} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Správa uživatelů
-        </h1>
-        <p className="mt-2 text-sm text-ink-3">
-          Účet vzniká automaticky prvním přihlášením přes Google. Tady
-          rozhodujete, kdo smí zakládat projekty. Admin se nastavuje
-          v proměnné ADMIN_EMAILS, ne tady.
-        </p>
+        <PageHeader
+          title="Správa uživatelů"
+          description="Účet vzniká automaticky prvním přihlášením přes Google. Tady rozhodujete, kdo smí zakládat projekty. Admin se nastavuje v proměnné ADMIN_EMAILS."
+        />
 
-        <div className="mt-8 overflow-x-auto rounded-xl border border-line bg-bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-3">
-              <tr>
-                <th className="px-4 py-3">Jméno</th>
-                <th className="px-4 py-3">E-mail</th>
-                <th className="px-4 py-3">Registrace</th>
-                <th className="px-4 py-3">Admin</th>
-                <th className="px-4 py-3">Smí zakládat projekty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <UserRow key={u.id} user={u} />
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-8">
+          <Table
+            head={["Uživatel", "E-mail", "Registrace", "Role", "Smí zakládat projekty"]}
+          >
+            {users.map((u) => (
+              <UserRow key={u.id} user={u} />
+            ))}
+          </Table>
         </div>
       </main>
     </>

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { FolderOpen, MailOpen } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 // Dashboard — po přihlášení. Seznam projektů přijde v M3; zatím prázdný stav.
 export default async function Home() {
@@ -12,19 +14,40 @@ export default async function Home() {
     <>
       <AppHeader user={user} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">Projekty</h1>
+        <PageHeader
+          title="Projekty"
+          description="Specifikace, prototypy a wireframy k připomínkování."
+        />
 
-        <div className="mt-8 rounded-xl border border-dashed border-line bg-bg-card p-10 text-center">
+        {/* Prázdný stav — ikona v měkkém kruhu, vysvětlení dalšího kroku */}
+        <div className="mt-10 flex flex-col items-center rounded-2xl border border-dashed border-line bg-bg-card px-8 py-16 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-pb-soft text-pb">
+            {user.canCreateProjects ? (
+              <FolderOpen size={26} strokeWidth={1.8} aria-hidden="true" />
+            ) : (
+              <MailOpen size={26} strokeWidth={1.8} aria-hidden="true" />
+            )}
+          </span>
           {user.canCreateProjects ? (
-            <p className="text-ink-3">
-              Zatím tu nejsou žádné projekty. Založení projektu přijde
-              v milníku M3.
-            </p>
+            <>
+              <h2 className="mt-5 text-lg font-semibold">
+                Zatím žádné projekty
+              </h2>
+              <p className="mt-1.5 max-w-md text-sm leading-relaxed text-ink-3">
+                Založení prvního projektu přijde v milníku M3 — pak sem
+                nahrajete specifikaci a pozvete recenzenty.
+              </p>
+            </>
           ) : (
-            <p className="text-ink-3">
-              Zatím nevidíte žádné projekty. Počkejte, až vás autor projektu
-              pozve — pak se projekt objeví tady.
-            </p>
+            <>
+              <h2 className="mt-5 text-lg font-semibold">
+                Čekáte na pozvánku
+              </h2>
+              <p className="mt-1.5 max-w-md text-sm leading-relaxed text-ink-3">
+                Zatím nevidíte žádné projekty. Jakmile vás autor projektu
+                pozve, projekt se objeví tady.
+              </p>
+            </>
           )}
         </div>
       </main>
