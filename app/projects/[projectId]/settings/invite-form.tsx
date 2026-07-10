@@ -83,14 +83,17 @@ export function InviteForm({ projectId }: { projectId: number }) {
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
+              {/* V seznamu jen názvy rolí — dlouhé popisky rozbíjely šířku
+                  popupu (screenshot Hany 2026-07-10). Vysvětlení je pod polem. */}
               <SelectContent>
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>
-                    {ROLE_LABELS[r]} — {ROLE_HINTS[r]}
+                    {ROLE_LABELS[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">{ROLE_HINTS[role]}</p>
           </div>
           <div className="flex items-end pb-2">
             <label className="flex items-center gap-2 text-sm">
