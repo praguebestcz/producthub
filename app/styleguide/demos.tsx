@@ -1,61 +1,103 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { Toast } from "@/components/ui/Toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-// Interaktivní ukázky pro styleguide — modal a toast potřebují klientský stav.
-export function ModalDemo() {
+// Interaktivní ukázky pro styleguide — dialog, potvrzení mazání a toasty.
+export function DialogDemo() {
   const [open, setOpen] = useState(false);
   return (
-    <>
-      <Button variant="secondary" onClick={() => setOpen(true)}>
-        Otevřít modal
-      </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Ukázkový modal">
-        <p className="text-sm leading-relaxed text-ink-2">
-          Zavře se křížkem, klávesou Esc nebo klikem mimo okno. Na mobilu
-          najíždí zespodu, na desktopu je vycentrovaný.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setOpen(false)}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="outline" />}>
+        Otevřít dialog
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Ukázkový dialog</DialogTitle>
+          <DialogDescription>
+            Zavře se křížkem, klávesou Esc nebo klikem mimo okno.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Zrušit
           </Button>
           <Button onClick={() => setOpen(false)}>Potvrdit</Button>
-        </div>
-      </Modal>
-    </>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function AlertDialogDemo() {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger render={<Button variant="destructive" />}>
+        Smazat (s potvrzením)
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Opravdu smazat?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Destruktivní akce vždy používají AlertDialog — vyžadují výslovné
+            potvrzení a nejdou zavřít omylem klikem mimo.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Zrušit</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => toast.success("Smazáno (jen ukázka).")}
+          >
+            Smazat
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
 export function ToastDemo() {
-  const [tone, setTone] = useState<"success" | "info" | "danger" | null>(null);
   return (
-    <>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" onClick={() => setTone("success")}>
-          Toast: úspěch
-        </Button>
-        <Button variant="secondary" onClick={() => setTone("info")}>
-          Toast: info
-        </Button>
-        <Button variant="secondary" onClick={() => setTone("danger")}>
-          Toast: chyba
-        </Button>
-      </div>
-      <Toast
-        open={tone !== null}
-        tone={tone ?? "info"}
-        message={
-          tone === "success"
-            ? "Uloženo. Vše proběhlo v pořádku."
-            : tone === "danger"
-              ? "Něco se pokazilo. Zkuste to znovu."
-              : "Toto je informační oznámení."
-        }
-        onClose={() => setTone(null)}
-      />
-    </>
+    <div className="flex flex-wrap gap-2">
+      <Button
+        variant="outline"
+        onClick={() => toast.success("Uloženo. Vše proběhlo v pořádku.")}
+      >
+        Toast: úspěch
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.info("Toto je informační oznámení.")}
+      >
+        Toast: info
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.error("Něco se pokazilo. Zkuste to znovu.")}
+      >
+        Toast: chyba
+      </Button>
+    </div>
   );
 }

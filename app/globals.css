@@ -1,71 +1,148 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Dark mode řízený třídou .dark (ne systémem) — vzor vratky */
+/* Dark mode řízený třídou .dark na <html> (přepíná next-themes) */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* === Design tokeny (docs/styling.md) — Tailwind v4 @theme ===
-   Převzato z vratky admin (PB brand): červený akcent, čisté neutrály. */
+/* === PB brand tokeny navíc k shadcn (docs/styling.md) ===
+   Základ vzhledu drží shadcn tokeny (--background, --card, --primary, …).
+   Tady jsou jen barvy značky pro gradientní akcenty a stavové odstíny. */
 @theme {
-  /* PB brand */
   --color-pb: #da2a49;
   --color-pb-bright: #ff3057;
   --color-pb-soft: rgba(218, 42, 73, 0.06);
-
-  /* Neutrály */
-  --color-ink: #0a0a0a;
-  --color-ink-2: #525252;
-  --color-ink-3: #737373;
-  --color-ink-4: #a3a3a3;
-
-  --color-line: #e5e5e5;
-  --color-line-soft: #f0f0f0;
-
-  --color-bg: #fafafa;
-  --color-bg-card: #ffffff;
-  --color-bg-subtle: #fafafa;
-
-  /* Stavy */
-  --color-success: #16a34a;
-  --color-error: #dc2626;
-  --color-warning: #d97706;
-
-  /* PB oranžová — jen pro gradientní akcenty (logo dlaždice, dekor pozadí) */
+  /* PB oranžová — jen pro gradient značky (logo dlaždice, dekor pozadí) */
   --color-pb-orange: #ff6b35;
 
-  /* Radiusy */
-  --radius-card: 12px;
-  --radius-card-lg: 16px;
-
-  /* Stíny — jemná hloubka (karty, vyvýšené prvky) */
-  --shadow-card: 0 1px 2px rgba(10, 10, 10, 0.04), 0 4px 16px rgba(10, 10, 10, 0.04);
-  --shadow-pop: 0 4px 12px rgba(10, 10, 10, 0.08), 0 12px 40px rgba(10, 10, 10, 0.10);
+  /* Stavy nad rámec shadcn (destructive) — štítky úspěch/varování */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Literální názvy fontů — @theme inline neumí runtime proměnné next/font
+     (známá past: var(--font-geist-sans) by se nevyhodnotil). */
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-heading: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* === Dark mode — přepis tokenů pod třídou .dark (vzor vratky) === */
+/* === shadcn tokeny — světlý režim ===
+   Neutrály nechány na shadcn defaultech (neutral), --primary přepnuto na PB červenou. */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* PB červená jako primární akcent */
+  --primary: #da2a49;
+  --primary-foreground: #ffffff;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: rgba(218, 42, 73, 0.55);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Stíny — jemná hloubka (login karta, vyvýšené prvky) */
+  --shadow-pop: 0 4px 12px rgba(10, 10, 10, 0.08), 0 12px 40px rgba(10, 10, 10, 0.1);
+}
+
+/* === shadcn tokeny — tmavý režim === */
 .dark {
-  --color-ink: #f5f5f5;
-  --color-ink-2: #d4d4d4;
-  --color-ink-3: #a3a3a3;
-  --color-ink-4: #6b6b6b;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  /* PB červená na tmavém o kousek jasnější */
+  --primary: #ff3057;
+  --primary-foreground: #ffffff;
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: rgba(255, 48, 87, 0.6);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 
-  --color-line: #2a2a2e;
-  --color-line-soft: #232327;
-
-  --color-bg: #0f0f11;
-  --color-bg-card: #1a1a1d;
-  --color-bg-subtle: #161618;
-
-  /* PB brand na tmavém o kousek jasnější */
-  --color-pb: #ff3057;
   --color-pb-soft: rgba(218, 42, 73, 0.16);
-
-  /* Stíny na tmavém — tmavší a měkčí */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
@@ -85,29 +162,6 @@
     radial-gradient(700px 500px at 85% 90%, rgba(255, 107, 53, 0.05), transparent 70%);
 }
 
-body {
-  background: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-}
-
-/* Plynulé příjezdy pro toast a modal (moderní, nenápadné). */
-@keyframes ph-toast-in {
-  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes ph-modal-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes ph-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.ph-animate-toast { animation: ph-toast-in 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
-.ph-animate-modal { animation: ph-modal-in 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
-.ph-animate-fade { animation: ph-fade-in 0.2s ease-out; }
-
 /* Automatické vyplňování prohlížeče (Chrome/Edge) jinak přebije pozadí pole bílou —
    v dark mode to vypadá rozbitě. Dorovnáme barvy na kartu a text na barvu písma. */
 input:-webkit-autofill,
@@ -117,8 +171,20 @@ textarea:-webkit-autofill,
 textarea:-webkit-autofill:hover,
 textarea:-webkit-autofill:focus,
 select:-webkit-autofill {
-  -webkit-text-fill-color: var(--color-ink);
-  -webkit-box-shadow: 0 0 0 1000px var(--color-bg-card) inset;
-  caret-color: var(--color-ink);
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset;
+  caret-color: var(--foreground);
   transition: background-color 9999s ease-in-out 0s;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

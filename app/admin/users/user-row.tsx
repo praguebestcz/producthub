@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import { Tr, Td } from "@/components/ui/Table";
-import { Badge } from "@/components/ui/Badge";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { toast } from "sonner";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type AdminUser = {
   id: number;
@@ -17,16 +18,13 @@ type AdminUser = {
 };
 
 // Řádek uživatele s přepínačem „smí zakládat projekty".
-// Klientská komponenta — přepínač volá PATCH API a ukazuje výsledek hned.
+// Klientská komponenta — přepínač volá PATCH API; výsledek hlásí toastem.
 export function UserRow({ user }: { user: AdminUser }) {
   const [canCreate, setCanCreate] = useState(user.canCreateProjects);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function toggle() {
+  async function toggle(next: boolean) {
     setSaving(true);
-    setError(null);
-    const next = !canCreate;
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",
@@ -35,57 +33,55 @@ export function UserRow({ user }: { user: AdminUser }) {
       });
       if (!res.ok) throw new Error();
       setCanCreate(next);
+      toast.success(
+        next
+          ? `${user.name} teď smí zakládat projekty.`
+          : `${user.name} už nesmí zakládat projekty.`,
+      );
     } catch {
-      setError("Uložení se nepovedlo");
+      toast.error("Uložení se nepovedlo. Zkuste to znovu.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Tr>
-      <Td className="font-medium text-ink">
+    <TableRow>
+      <TableCell className="font-medium">
         <span className="flex items-center gap-2.5">
-          {user.avatarUrl ? (
-            <Image
-              src={user.avatarUrl}
-              alt=""
-              width={28}
-              height={28}
-              className="rounded-full ring-1 ring-line"
-              unoptimized
-            />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-pb to-pb-orange text-xs font-semibold text-white"
-            >
+          <Avatar className="h-7 w-7">
+            <AvatarImage src={user.avatarUrl ?? undefined} alt="" />
+            <AvatarFallback className="bg-gradient-to-br from-pb to-pb-orange text-xs font-semibold text-white">
               {user.name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
+            </AvatarFallback>
+          </Avatar>
           {user.name}
         </span>
-      </Td>
-      <Td>{user.email}</Td>
-      <Td>{new Date(user.createdAt).toLocaleDateString("cs-CZ")}</Td>
-      <Td>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{user.email}</TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Date(user.createdAt).toLocaleDateString("cs-CZ")}
+      </TableCell>
+      <TableCell>
         {user.isAdmin ? (
-          <Badge tone="pb">Admin</Badge>
+          <Badge>Admin</Badge>
         ) : (
-          <Badge tone="neutral">Uživatel</Badge>
+          <Badge variant="secondary">Uživatel</Badge>
         )}
-      </Td>
-      <Td>
+      </TableCell>
+      <TableCell>
         <span className="flex items-center gap-2">
-          <Checkbox
+          <Switch
             checked={canCreate}
-            onChange={toggle}
+            onCheckedChange={toggle}
             disabled={saving}
-            label={canCreate ? "Ano" : "Ne"}
+            aria-label={`Smí zakládat projekty: ${user.name}`}
           />
-          {error && <span className="text-xs text-error">{error}</span>}
+          <span className="text-sm text-muted-foreground">
+            {canCreate ? "Ano" : "Ne"}
+          </span>
         </span>
-      </Td>
-    </Tr>
+      </TableCell>
+    </TableRow>
   );
 }
