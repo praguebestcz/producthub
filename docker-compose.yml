@@ -16,7 +16,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: producthub
     ports:
-      - "5433:5432"
+      # Po expert review: bind jen na localhost — bez "127.0.0.1:" by byla DB
+      # s vývojovým heslem dostupná z celé sítě (např. veřejná Wi-Fi).
+      - "127.0.0.1:5433:5432"
     volumes:
       - producthub_pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -1,0 +1,370 @@
+// Prisma schema pro ProductHub.
+// Zdroj pravdy pro strukturu databáze — Prisma z něj generuje TypeScript typy i SQL migrace.
+//
+// Návrh vychází z design dokumentu docs/design-2026-07-10-producthub.md.
+// Před první migrací prošlo schéma review subagentem db-security-expert
+// (2026-07-10, verdikt: schváleno s výhradami). Zapracované nálezy jsou
+// označené komentářem „po expert review"; závazné podmínky pro další
+// milníky (M2 auth, M5 SSRF, M6 limity) jsou v design docu, sekce
+// „Závazné podmínky ze security review".
+// První migrace navíc obsahuje ruční CHECK constrainty na velikost
+// Asset.data a Comment.screenshot (obrana do hloubky pod aplikačními limity).
+//
+// Zásady onDelete:
+//  - Restrict = chraň historii (autoři obsahu, nahrané verze) — smazání uživatele
+//    s obsahem není v v1 podporované
+//  - Cascade  = data patří rodiči (smazání projektu smaže vše pod ním)
+//  - SetNull  = odkaz je jen informativní (schvalovatel, aktér notifikace)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// === Enumy ===
+
+// Role člena v projektu. AUTHOR spravuje projekt a schvaluje požadavky,
+// COMMENTER komentuje a diskutuje, READER jen čte.
+enum ProjectRole {
+  AUTHOR
+  COMMENTER
+  READER
+}
+
+// Odkud přišla verze dokumentu: nahraný soubor/ZIP, nebo stažení z URL.
+enum DocumentSource {
+  UPLOAD
+  URL
+}
+
+// Viditelnost komentáře. INTERNAL vidí jen interní členové (klient NE).
+enum CommentVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+// Stav komentářového vlákna (jen na kořenovém komentáři).
+enum CommentStatus {
+  OPEN
+  RESOLVED
+  REOPENED
+}
+
+// Workflow požadavku: návrh → schváleno → vygenerován prompt → zapracováno → uzavřeno.
+enum RequirementStatus {
+  DRAFT
+  APPROVED
+  PROMPT_GENERATED
+  IMPLEMENTED
+  CLOSED
+}
+
+// Typ notifikace (zvoneček v aplikaci).
+enum NotificationType {
+  NEW_COMMENT
+  NEW_REPLY
+  MENTION
+  COMMENT_STATUS_CHANGED
+  REQUIREMENT_APPROVED
+  REQUIREMENT_CLOSED
+  PROJECT_INVITED
+}
+
+// === Modely ===
+
+// Uživatel — účet vzniká při prvním přihlášení přes Google. Žádná hesla.
+model User {
+  id                Int      @id @default(autoincrement())
+  // Stabilní identifikátor z Google (claim `sub` v id_tokenu) — e-mail se může změnit.
+  googleId          String   @unique
+  email             String   @unique // vždy lowercase (normalizuje aplikace při zápisu)
+  name              String
+  avatarUrl         String?
+  // Zakládání projektů jen pro označené uživatele (nastavuje admin v /admin/users).
+  canCreateProjects Boolean  @default(false)
+  isAdmin           Boolean  @default(false)
+  // Zneplatnění session: tokeny vydané před tímto časem neplatí (vzor vratky).
+  tokenValidFrom    DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  createdProjects      Project[]         @relation("ProjectCreator")
+  memberships          ProjectMember[]
+  sentInvitations      Invitation[]      @relation("InvitationSender")
+  uploadedVersions     DocumentVersion[] @relation("VersionUploader")
+  comments             Comment[]         @relation("CommentAuthor")
+  resolvedComments     Comment[]         @relation("CommentResolver")
+  mentions             Mention[]
+  createdRequirements  Requirement[]     @relation("RequirementCreator")
+  approvedRequirements Requirement[]     @relation("RequirementApprover")
+  notifications        Notification[]    @relation("NotificationRecipient")
+  actedNotifications   Notification[]    @relation("NotificationActor")
+}
+
+// Projekt — hlavní objekt systému. Obsahuje dokumenty (HTML specifikace) a členy.
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  // Omezení projektu (např. „neměnit design systém") — vkládá se do každého Claude promptu.
+  constraints String?  @db.Text
+  createdById Int
+  createdBy   User     @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members       ProjectMember[]
+  invitations   Invitation[]
+  documents     Document[]
+  comments      Comment[]
+  requirements  Requirement[]
+  notifications Notification[]
+
+  @@index([createdById])
+}
+
+// Členství uživatele v projektu s rolí.
+model ProjectMember {
+  id         Int         @id @default(autoincrement())
+  projectId  Int
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       ProjectRole
+  // Interní člen vidí INTERNAL komentáře (tým PB). Klient má false.
+  // Člen s rolí AUTHOR se považuje za interního vždy — vynucuje aplikace.
+  isInternal Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// Pozvánka do projektu. Čeká, dokud se pozvaný poprvé nepřihlásí Googlem —
+// pak se převede na ProjectMember (párování přes lowercase e-mail).
+model Invitation {
+  id          Int         @id @default(autoincrement())
+  projectId   Int
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  email       String // vždy lowercase
+  role        ProjectRole
+  isInternal  Boolean     @default(false)
+  invitedById Int
+  invitedBy   User        @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime    @default(now())
+  acceptedAt  DateTime?
+
+  @@unique([projectId, email])
+  @@index([email]) // vyhledání čekajících pozvánek při prvním přihlášení
+  @@index([invitedById]) // po expert review: FK index
+}
+
+// Dokument — jedna „specifikace" v projektu. Je to celý balík stránek
+// (rozcestník + podstránky + assety), ne jediné HTML. Obsah nesou verze.
+model Document {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions     DocumentVersion[]
+  comments     Comment[]
+  requirements Requirement[]
+
+  @@index([projectId])
+}
+
+// Verze dokumentu — neměnný snapshot všech souborů v okamžiku nahrání/importu.
+// Aktuální verze = nejvyšší versionNumber. Staré verze se nemažou (historie).
+model DocumentVersion {
+  id            Int            @id @default(autoincrement())
+  documentId    Int
+  document      Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  // Vstupní stránka balíku (např. "index.html") — na ni se otevře prohlížeč.
+  entryPath     String         @default("index.html")
+  source        DocumentSource
+  sourceUrl     String? // jen u source=URL
+  uploadedById  Int
+  uploadedBy    User           @relation("VersionUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime       @default(now())
+
+  assets   Asset[]
+  comments Comment[]
+
+  @@unique([documentId, versionNumber])
+  @@index([uploadedById]) // po expert review: FK index
+}
+
+// Soubor uvnitř verze dokumentu (HTML stránky, CSS, JS, obrázky, fonty).
+// Ukládá se přímo v PostgreSQL (bytea) — žádné externí úložiště.
+model Asset {
+  id                Int             @id @default(autoincrement())
+  documentVersionId Int
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  // Relativní cesta v balíku (sanitizovaná — bez „..", bez absolutních cest).
+  path              String
+  contentType       String
+  size              Int
+  data              Bytes
+
+  @@unique([documentVersionId, path])
+}
+
+// Komentář — kořen vlákna (parentId = null) nese kotvu na element a stav;
+// odpovědi nesou jen text. Kotva: preferovaně data-review-id, fallback DOM cesta.
+model Comment {
+  id                Int             @id @default(autoincrement())
+  // Denormalizace projectId: rychlé přístupové kontroly a SSE kanál per projekt.
+  projectId         Int
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentId        Int
+  document          Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  // Verze, ve které komentář vznikl (historie). Po expert review: NoAction
+  // místo Cascade/Restrict — PostgreSQL vyhodnocuje NO ACTION až na konci
+  // příkazu, takže smazání celého dokumentu projde (komentáře už smazala
+  // kaskáda přes documentId), ale smazání JEDNOTLIVÉ verze s komentáři selže
+  // chybou. Komentáře tak nejde ztratit omylem (např. ručně v Prisma Studiu).
+  documentVersionId Int
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
+  // Která HTML stránka uvnitř verze (relativní cesta, např. "wf.html").
+  pagePath          String
+  authorId          Int
+  author            User            @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  // Vlákno: odpovědi odkazují na kořenový komentář. Mazání kořene smaže odpovědi.
+  parentId          Int?
+  parent            Comment?        @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies           Comment[]       @relation("Thread")
+
+  body       String            @db.Text
+  visibility CommentVisibility @default(PUBLIC)
+  status     CommentStatus     @default(OPEN)
+
+  // Kotva na element (jen kořen vlákna):
+  dataReviewId   String?
+  domPath        String? @db.Text
+  // HTML výstřižek elementu v okamžiku komentáře — kontext pro diskusi i Claude prompt.
+  elementHtml    String? @db.Text
+  // Screenshot v v1 nevyužitý (rozhodnutí z brainstormingu) — sloupec připraven pro v2.
+  screenshot     Bytes?
+  viewportWidth  Int?
+  viewportHeight Int?
+  // Element v nové verzi dokumentu nenalezen (po migraci kotev).
+  isOrphaned     Boolean @default(false)
+
+  resolvedById Int?
+  resolvedBy   User?     @relation("CommentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mentions         Mention[]
+  requirementLinks RequirementComment[]
+  notifications    Notification[]
+
+  @@index([documentId, pagePath, status])
+  @@index([projectId, createdAt])
+  @@index([parentId])
+  @@index([documentVersionId])
+  @@index([authorId])
+  @@index([resolvedById]) // po expert review: FK index
+}
+
+// Zmínka @uživatel v komentáři — pro notifikace a našeptávač.
+model Mention {
+  id        Int     @id @default(autoincrement())
+  commentId Int
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+}
+
+// Požadavek — strukturovaný výstup diskuse, podklad pro Claude Code prompt.
+model Requirement {
+  id          Int       @id @default(autoincrement())
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Hlavní dotčený dokument (informativní — může zaniknout nezávisle na požadavku).
+  documentId  Int?
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdById Int
+  createdBy   User      @relation("RequirementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  title              String
+  description        String            @db.Text
+  acceptanceCriteria String            @db.Text
+  // Textový popis dotčeného elementu (data-review-id / DOM cesta).
+  affectedElement    String?
+  status             RequirementStatus @default(DRAFT)
+
+  generatedPrompt   String?   @db.Text
+  promptGeneratedAt DateTime?
+  // Po expert review: Restrict místo SetNull — schválení je bezpečnostně
+  // významná akce, audit „kdo schválil" se nesmí ztratit.
+  approvedById      Int?
+  approvedBy        User?     @relation("RequirementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt        DateTime?
+  closedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  commentLinks  RequirementComment[]
+  notifications Notification[]
+
+  @@index([projectId, status])
+  // Po expert review: FK indexy
+  @@index([documentId])
+  @@index([createdById])
+  @@index([approvedById])
+}
+
+// Vazba požadavek ↔ komentáře, ze kterých vznikl (diskuse jde do promptu).
+model RequirementComment {
+  id            Int         @id @default(autoincrement())
+  requirementId Int
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  commentId     Int
+  comment       Comment     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([requirementId, commentId])
+  @@index([commentId])
+}
+
+// Notifikace v aplikaci (zvoneček). Doručuje se i živě přes SSE.
+model Notification {
+  id            Int              @id @default(autoincrement())
+  userId        Int // příjemce
+  user          User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  type          NotificationType
+  projectId     Int
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commentId     Int?
+  comment       Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  requirementId Int?
+  requirement   Requirement?     @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  // Kdo akci vyvolal (informativní — při smazání uživatele se jen odpojí).
+  actorId       Int?
+  actor         User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  // Po expert review: indexy na FK — Notification je největší rostoucí tabulka
+  // a kaskádová mazání komentářů/vláken by bez nich dělala seq scan.
+  @@index([projectId])
+  @@index([commentId])
+  @@index([requirementId])
+}

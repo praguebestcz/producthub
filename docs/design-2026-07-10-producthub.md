@@ -119,6 +119,26 @@ API: auth (4 routes) · projects CRUD · members/invitations · documents (multi
 7. Vynucení viditelnosti interních komentářů na 3 místech (REST, SSE, notifikace) - explicitní testy + položka security review.
 8. URL crawl najde jen odkazy přítomné v HTML - stránky/assety generované JavaScriptem až za běhu nestáhne. Specifikace PB jsou statické HTML, takže OK; kdyby něco chybělo, autor doplní ZIP uploadem.
 
+## Závazné podmínky ze security review (M1, db-security-expert, 2026-07-10)
+
+Verdikt: SCHVÁLENO S VÝHRADAMI. Nálezy nad schématem a docker-compose zapracovány před první migrací (NoAction na Comment.documentVersionId, indexy Notification + FK indexy, Restrict na approvedById, bind DB na 127.0.0.1, CHECK constrainty na velikost bytea). Zbývající nálezy jsou ZÁVAZNÉ pro implementaci milníků:
+
+* **M2 (auth):**
+  * Ověření id_tokenu: `aud === GOOGLE_CLIENT_ID`, `iss ∈ {accounts.google.com, https://accounts.google.com}` a `email_verified === true` (bez toho jde převzít pozvánku přes neověřený e-mail).
+  * Session cookie: `httpOnly`, `secure` v produkci, `sameSite: "lax"`, `path: "/"`, expirace ~8 h s klouzavým obnovením, kontrola `iat >= tokenValidFrom`.
+  * Tokeny mají claim `typ`: `"session"` vs. `"view"` - proxy odmítne jiný typ než session, view route jiný typ než view (view token je v URL, nesmí jít použít jako session).
+  * Upsert podle googleId s kolizí e-mailu (změna e-mailu na Googlu na už existující účet) → čitelná chyba, ne 500.
+* **M5 (view route + import):**
+  * View route znovu ověřuje členství v projektu (ne jen při vydání tokenu) + kontrola `tokenValidFrom`.
+  * View odpovědi mají `Referrer-Policy: no-referrer` (token v URL nesmí utéct přes Referer do cizích domén odkazovaných z prototypu).
+  * SSRF: DNS pinning (připojit na již ověřenou IP, ne znovu resolvovat), rozsahy navíc: `0.0.0.0/8`, `100.64.0.0/10`, `fe80::/10`, IPv4-mapped IPv6 (`::ffff:0:0/96`), jen porty 80/443.
+  * `<base href={sourceUrl}>` plošně nefunguje (rozbil by navigaci ve snapshotu) - fallback na původní doménu řešit jinak (např. při 404 na asset).
+  * Jednoduchý rate-limit na URL import už v M5 (ne až M9), limit komprimované velikosti ZIPu a počtu záznamů před rozbalením.
+* **M6 (komentáře):**
+  * Interní komentáře mají 4. kanál úniku: detail požadavku a `generatedPrompt` (přepis diskuse). Výpis propojených komentářů filtrovat dle `canSeeInternal`; prompt skládat jen z PUBLIC komentářů, nebo zobrazení omezit na interní členy. Testy vynucení = 4 místa.
+  * Zod limity textů: `body ≤ 10 000`, `elementHtml ≤ 20 000`, `domPath ≤ 2 000`, `dataReviewId ≤ 200` znaků + limit velikosti request body. API v v1 nesmí přijímat pole `screenshot`.
+  * @zmínka jen na členy projektu (jinak únik existence/názvu projektu nečlenovi).
+
 ## Ověření (celkově)
 
 Po každém milníku ruční test Hany podle návodu (viz milníky). Automaticky: `npm test` (vitest - prompt-template, anchor-migration, ssrf-guard, zip sanitizace, přístupové kontroly), `npm run typecheck`, `npm run lint`. Před nasazením na Railway vždy výslovné svolení Hany. Design dokument (tento plán) se po schválení uloží i do `producthub/docs/` jako referenční spec.
