@@ -5,6 +5,7 @@ import { ChevronDown, LogOut, Shield } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -45,12 +46,15 @@ export function UserMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="min-w-52">
-        <DropdownMenuLabel>
-          <span className="block text-sm font-medium">{user.name}</span>
-          <span className="block truncate text-xs font-normal text-muted-foreground">
-            {user.email}
-          </span>
-        </DropdownMenuLabel>
+        {/* Base UI: GroupLabel smí existovat jen uvnitř Group — jinak celé menu spadne */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            <span className="block text-sm font-medium">{user.name}</span>
+            <span className="block truncate text-xs font-normal text-muted-foreground">
+              {user.email}
+            </span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {user.isAdmin && (
           <DropdownMenuItem
