@@ -7,7 +7,6 @@ import {
   FolderOpen,
   LogOut,
   MessagesSquare,
-  Palette,
   Shield,
 } from "lucide-react";
 import {

@@ -1,15 +1,48 @@
 import { cookies } from "next/headers";
-import type { User } from "@prisma/client";
+import type { ProjectMember, ProjectRole, User } from "@prisma/client";
 import { prisma } from "./prisma";
 import { verifySessionToken } from "./jwt";
 import { getAdminEmails } from "./env";
 import type { GoogleProfile } from "./google-oauth";
 
 // Autentizace a autorizace — jediné místo, přes které jde zjišťování
-// přihlášeného uživatele. Přístupové kontroly na projekt (requireProjectRole)
-// přibudou v M3.
+// přihlášeného uživatele a členství v projektu. KAŽDÝ projektový endpoint
+// musí projít přes requireProjectRole (položka security review).
 
 export const SESSION_COOKIE = "session";
+
+// Pořadí rolí pro porovnávání „aspoň": AUTHOR > COMMENTER > READER.
+const ROLE_ORDER: Record<ProjectRole, number> = {
+  AUTHOR: 3,
+  COMMENTER: 2,
+  READER: 1,
+};
+
+// Čistá funkce (testovatelná bez DB): má role aspoň požadovanou úroveň?
+export function roleAtLeast(role: ProjectRole, min: ProjectRole): boolean {
+  return ROLE_ORDER[role] >= ROLE_ORDER[min];
+}
+
+// Interní člen vidí INTERNAL komentáře. AUTHOR je interní vždy (vynucení v kódu,
+// jak předepisuje schéma — viz komentář u ProjectMember.isInternal).
+export function canSeeInternal(member: Pick<ProjectMember, "role" | "isInternal">): boolean {
+  return member.isInternal || member.role === "AUTHOR";
+}
+
+// Členství uživatele v projektu s minimální rolí, jinak null.
+// Volající vrací 404 (ne 403) — neprozrazovat existenci projektu nečlenům.
+export async function requireProjectRole(
+  userId: number,
+  projectId: number,
+  min: ProjectRole,
+): Promise<ProjectMember | null> {
+  if (!Number.isInteger(projectId) || projectId <= 0) return null;
+  const member = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId } },
+  });
+  if (!member || !roleAtLeast(member.role, min)) return null;
+  return member;
+}
 
 // Přihlášený uživatel z session cookie, nebo null.
 // Kontroluje podpis, typ tokenu i `iat >= tokenValidFrom` (zneplatnění relací).

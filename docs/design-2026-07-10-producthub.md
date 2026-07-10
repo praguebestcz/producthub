@@ -145,7 +145,11 @@ Verdikt: SCHVÁLENO S VÝHRADAMI. Nálezy nad schématem a docker-compose zaprac
 ## Backlog (nápady mimo rozsah v1 milníků)
 
 * **Aplikační logy (požadavek Hany, 2026-07-10):** stránka s logy po vzoru vratek - `lib/event-log.ts` (události error/warn do PostgreSQL, maskování tajemství: tokeny, hesla; e-mail se nemaskuje kvůli vyhledávání) + admin stránka `/admin/logs`. NEMUSÍ být v bočním menu - stačí URL, případně odkaz ze správy uživatelů. Vhodný okamžik: společně s M9 (dokončení) nebo hned po nasazení M4, až bude co logovat (importy, generování promptů, chyby přihlášení).
-* Smazání `components/legacy/` a pomocných souborů `_auth-debug.log`, `_txtest.mjs`, `_mktoken.mjs` - čeká na výslovné svolení Hany.
+* **Složky klientů (požadavek Hany, 2026-07-10):** entita Klient (DDS, Foto Škoda, Harfasport, … včetně PB) seskupující projekty pod sebou - kopíruje strukturu `repos.infra/{klient}/`. Znamená model `Client` + `Project.clientId` + seskupený dashboard. Navrhované zařazení: **M3.5** (hned po schválení M3, dokud je schéma mladé a migrace levná).
+* **Čítače na kartě projektu (požadavek Hany, 2026-07-10):** počet nevyřešených komentářů (a případně požadavků čekajících na schválení) přímo na kartě projektu na dashboardu. Realizovat až budou existovat komentáře (M6) / požadavky (M8) - pak jen `_count` s filtrem stavu.
+* **Přehledový dashboard (požadavek Hany, 2026-07-10):** úvodní stránka s přehledem přes projekty (poslední aktivita, otevřené komentáře, čekající požadavky) + odkazy na logy a styleguide. Vhodné po M7 (až bude co přehledově ukazovat).
+* **Mapování projekt ↔ repozitář (požadavek Hany, 2026-07-10):** u projektu evidovat repozitář (URL, větev) jako přípravu na integraci GitLabu - PB používá GitLab (zadání zmiňovalo GitHub, v2 integrace má počítat s OBĚMA). Dlouhodobě: stažení/propojení repozitáře přímo v aplikaci. Pole `Project.repoUrl`/`repoBranch` lze přidat levně kdykoli; plná integrace = v2.
+* Smazání `components/legacy/`, `components/app-header.tsx`, `components/user-menu.tsx` a pomocných souborů `_auth-debug.log`, `_txtest.mjs`, `_mktoken.mjs` + záloh cache ve scratchpadu - čeká na výslovné svolení Hany.
 
 ## Ověření (celkově)
 
