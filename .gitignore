@@ -37,6 +37,7 @@ STAV.md
 _*.mjs
 _*.html
 _*.zip
+_*.log
 
 # typescript
 *.tsbuildinfo

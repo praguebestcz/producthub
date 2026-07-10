@@ -54,7 +54,12 @@ export async function exchangeCode(code: string): Promise<string> {
     }),
   });
   if (!res.ok) {
-    throw new Error(`Google token endpoint vrátil ${res.status}`);
+    // Tělo odpovědi obsahuje konkrétní kód chyby od Googlu
+    // (invalid_client = špatný secret, invalid_grant = prošlý/použitý kód…).
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Google token endpoint vrátil ${res.status}: ${body.slice(0, 300)}`,
+    );
   }
   const data = (await res.json()) as { id_token?: string };
   if (!data.id_token) {

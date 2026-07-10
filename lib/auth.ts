@@ -45,63 +45,70 @@ export async function ensureUserFromGoogle(
 ): Promise<User> {
   const isBootstrapAdmin = getAdminEmails().includes(profile.email);
 
-  return prisma.$transaction(async (tx) => {
-    const byGoogleId = await tx.user.findUnique({
-      where: { googleId: profile.googleId },
-    });
+  return prisma.$transaction(
+    async (tx) => {
+      const byGoogleId = await tx.user.findUnique({
+        where: { googleId: profile.googleId },
+      });
 
-    // E-mail nesmí patřit jinému účtu (jiné googleId) — unikátní sloupec.
-    const byEmail = await tx.user.findUnique({
-      where: { email: profile.email },
-    });
-    if (byEmail && byEmail.googleId !== profile.googleId) {
-      throw new EmailConflictError();
-    }
+      // E-mail nesmí patřit jinému účtu (jiné googleId) — unikátní sloupec.
+      const byEmail = await tx.user.findUnique({
+        where: { email: profile.email },
+      });
+      if (byEmail && byEmail.googleId !== profile.googleId) {
+        throw new EmailConflictError();
+      }
 
-    const adminFlags = isBootstrapAdmin
-      ? { isAdmin: true, canCreateProjects: true }
-      : {};
+      const adminFlags = isBootstrapAdmin
+        ? { isAdmin: true, canCreateProjects: true }
+        : {};
 
-    const user = byGoogleId
-      ? await tx.user.update({
-          where: { id: byGoogleId.id },
-          data: {
-            email: profile.email,
-            name: profile.name,
-            avatarUrl: profile.avatarUrl,
-            ...adminFlags,
-          },
-        })
-      : await tx.user.create({
-          data: {
-            googleId: profile.googleId,
-            email: profile.email,
-            name: profile.name,
-            avatarUrl: profile.avatarUrl,
-            ...adminFlags,
-          },
+      const user = byGoogleId
+        ? await tx.user.update({
+            where: { id: byGoogleId.id },
+            data: {
+              email: profile.email,
+              name: profile.name,
+              avatarUrl: profile.avatarUrl,
+              ...adminFlags,
+            },
+          })
+        : await tx.user.create({
+            data: {
+              googleId: profile.googleId,
+              email: profile.email,
+              name: profile.name,
+              avatarUrl: profile.avatarUrl,
+              ...adminFlags,
+            },
+          });
+
+      // Převzetí čekajících pozvánek (párování přes lowercase e-mail).
+      const pending = await tx.invitation.findMany({
+        where: { email: user.email, acceptedAt: null },
+      });
+      if (pending.length > 0) {
+        await tx.projectMember.createMany({
+          data: pending.map((inv) => ({
+            projectId: inv.projectId,
+            userId: user.id,
+            role: inv.role,
+            isInternal: inv.isInternal,
+          })),
+          skipDuplicates: true,
         });
+        await tx.invitation.updateMany({
+          where: { id: { in: pending.map((inv) => inv.id) } },
+          data: { acceptedAt: new Date() },
+        });
+      }
 
-    // Převzetí čekajících pozvánek (párování přes lowercase e-mail).
-    const pending = await tx.invitation.findMany({
-      where: { email: user.email, acceptedAt: null },
-    });
-    if (pending.length > 0) {
-      await tx.projectMember.createMany({
-        data: pending.map((inv) => ({
-          projectId: inv.projectId,
-          userId: user.id,
-          role: inv.role,
-          isInternal: inv.isInternal,
-        })),
-        skipDuplicates: true,
-      });
-      await tx.invitation.updateMany({
-        where: { id: { in: pending.map((inv) => inv.id) } },
-        data: { acceptedAt: new Date() },
-      });
-    }
-
-    return user;
-  });
+      return user;
+    },
+    // Po ladění 2026-07-10: studený start Prisma enginu na Windows trvá ~2 s
+    // a výchozí maxWait (2 s) přihlášení náhodně shazoval („Unable to start
+    // a transaction in the given time"). Přihlášení nesmí být závislé na
+    // zahřátém enginu — dev i Railway po probuzení.
+    { maxWait: 10_000, timeout: 15_000 },
+  );
 }
