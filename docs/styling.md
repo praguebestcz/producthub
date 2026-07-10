@@ -6,7 +6,7 @@
 
 ## Principy
 
-1. **Skládej ze shadcn komponent** - žádné vlastní `<button>`, `<input>`, `<select>`, vlastní tabulky ani modaly. Když komponenta chybí, nejdřív `npx shadcn@latest add`, teprve pak vlastní tvorba.
+1. **shadcn jako základ, originalita vítaná (preference Hany).** Standardní prvky (tlačítka, formuláře, tabulky, dialogy) skládej ze shadcn - není důvod je vymýšlet znovu. Ale aplikace NEMÁ vypadat jako každá druhá shadcn aplikace: vlastní, originální komponenty jsou žádoucí všude, kde dávají aplikaci charakter (komentovací vrstva, špendlíky, vlákna, náhled promptu, prázdné stavy…). **Podmínka: každou vlastní komponentu průběžně přidat do `/styleguide` a zapsat do tohoto dokumentu** - styleguide je vždy úplný obraz designu.
 2. **Tokeny, ne napevno psané barvy** - `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`(výchozí u `border`), `ring-ring`. PB značka: `--primary` = PB červená (automaticky v Button, Badge, Switch…).
 3. **Dark mode zdarma** - next-themes přepíná `.dark` na `<html>` (ThemeToggle v hlavičce). Stavíš-li z tokenů, tmavý režim funguje sám.
 4. **Destruktivní akce = AlertDialog** (ne Dialog) - mazání vždy s výslovným potvrzením.
@@ -45,6 +45,7 @@
 
 * Nezavádět nové barvy mimo tokeny; žádné `blue-500` apod.
 * Nepoužívat gradient na tlačítka, texty a velké plochy.
-* Nepřepisovat shadcn komponenty „na vlastní pěst" - úpravy dělat uvnitř `components/ui/*.tsx` (patří nám), ale střídmě a s komentářem.
+* Nevytvářet vlastní verzi něčeho, co shadcn už umí stejně dobře (druhé tlačítko, druhá tabulka) - originalita patří do prvků, které shadcn nemá.
+* Nezapomenout vlastní komponentu ukázat v `/styleguide` a zapsat sem - jinak se design rozjede.
 * Nepoužívat Dialog na potvrzení mazání (patří AlertDialog).
 * Nemíchat hustoty a radiusy; držet `--radius` systém.
