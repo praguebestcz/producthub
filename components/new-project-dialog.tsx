@@ -111,6 +111,13 @@ export function NewProjectDialog({
                 <Select
                   value={clientId}
                   onValueChange={(v) => setClientId(v ?? "none")}
+                  items={[
+                    { value: "none", label: "— Bez klienta —" },
+                    ...clients.map((c) => ({
+                      value: String(c.id),
+                      label: c.name,
+                    })),
+                  ]}
                 >
                   <SelectTrigger>
                     <SelectValue />

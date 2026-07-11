@@ -177,6 +177,10 @@ export function MembersTable({
                         patchMember(m.id, { role: v as ProjectRole })
                       }
                       disabled={busy}
+                      items={ROLES.map((r) => ({
+                        value: r,
+                        label: ROLE_LABELS[r],
+                      }))}
                     >
                       <SelectTrigger className="w-36">
                         <SelectValue />

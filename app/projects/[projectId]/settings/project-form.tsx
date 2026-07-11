@@ -101,6 +101,15 @@ export function ProjectForm({
               <Select
                 value={clientId}
                 onValueChange={(v) => setClientId(v ?? "none")}
+                // items = mapa hodnota → popisek; bez ní SelectValue ukazuje
+                // syrové ID (bug nahlášený Hanou)
+                items={[
+                  { value: "none", label: "— Bez klienta —" },
+                  ...clients.map((c) => ({
+                    value: String(c.id),
+                    label: c.name,
+                  })),
+                ]}
               >
                 <SelectTrigger>
                   <SelectValue />

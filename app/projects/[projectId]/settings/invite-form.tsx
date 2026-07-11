@@ -79,6 +79,7 @@ export function InviteForm({ projectId }: { projectId: number }) {
             <Select
               value={role}
               onValueChange={(v) => setRole(v as ProjectRole)}
+              items={ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
             >
               <SelectTrigger>
                 <SelectValue />

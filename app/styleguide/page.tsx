@@ -154,7 +154,16 @@ export default async function StyleguidePage() {
             </div>
             <div className="grid gap-1.5">
               <Label>Role</Label>
-              <Select defaultValue="commenter">
+              {/* items = mapa hodnota → popisek; bez ní by trigger ukazoval
+                  syrovou hodnotu („commenter") místo popisku */}
+              <Select
+                defaultValue="commenter"
+                items={[
+                  { value: "author", label: "Autor" },
+                  { value: "commenter", label: "Komentátor" },
+                  { value: "reader", label: "Čtenář" },
+                ]}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
