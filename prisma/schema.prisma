@@ -106,7 +106,7 @@ model User {
 }
 
 // Klient — složka seskupující projekty (DDS, Foto Škoda, Harfasport, … i PB).
-// Kopíruje strukturu práce PB (repos.infra/{klient}/). Jen štítek/složka —
+// Kopíruje strukturu práce PB (clients/{klient}/). Jen štítek/složka —
 // přístupová práva se řídí členstvím v projektech, ne klientem.
 model Client {
   id          Int      @id @default(autoincrement())
