@@ -13,6 +13,8 @@ import { importFromUrl } from "./url-import";
 
 export const urlImportSchema = z.object({
   url: z.string().url("Zadejte platnou URL").max(2000),
+  // Nepovinný název dokumentu (např. „Frontend" / „Backend").
+  name: z.string().trim().max(200).optional(),
 });
 
 function singleHtml(name: string, data: Buffer): ImportResult {

@@ -140,6 +140,7 @@ export function DocumentViewer({
             <UploadDocumentDialog
               postUrl={`/api/documents/${documentId}/versions`}
               title="Nová verze"
+              showName={false}
               trigger={
                 <Button variant="outline" size="sm">
                   <Plus />

@@ -82,6 +82,7 @@ export async function POST(
           { status: 400 },
         );
       }
+      name = body.data.name || undefined;
       prepared = await prepareFromUrl(body.data.url);
     }
 

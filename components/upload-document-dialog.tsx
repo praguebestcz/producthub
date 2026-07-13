@@ -24,17 +24,21 @@ export function UploadDocumentDialog({
   postUrl,
   trigger,
   title = "Nový dokument",
+  // U nové verze existujícího dokumentu se název nezadává (patří k dokumentu).
+  showName = true,
   onDone,
 }: {
   postUrl: string;
   trigger: React.ReactElement;
   title?: string;
+  showName?: boolean;
   onDone?: (created: { documentId?: number; versionId: number }) => void;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
+  const [name, setName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function send(body: BodyInit, headers?: HeadersInit) {
@@ -46,6 +50,7 @@ export function UploadDocumentDialog({
       toast.success("Dokument nahrán.");
       setOpen(false);
       setUrl("");
+      setName("");
       if (fileRef.current) fileRef.current.value = "";
       if (onDone) onDone(data);
       else router.refresh();
@@ -58,7 +63,9 @@ export function UploadDocumentDialog({
 
   function submitUrl(e: React.FormEvent) {
     e.preventDefault();
-    send(JSON.stringify({ url }), { "Content-Type": "application/json" });
+    send(JSON.stringify({ url, name: name || undefined }), {
+      "Content-Type": "application/json",
+    });
   }
 
   function submitFile(e: React.FormEvent) {
@@ -70,6 +77,7 @@ export function UploadDocumentDialog({
     }
     const form = new FormData();
     form.set("file", file);
+    if (name) form.set("name", name);
     send(form);
   }
 
@@ -83,6 +91,19 @@ export function UploadDocumentDialog({
             Naimportujte nasazenou specifikaci z odkazu, nebo nahrajte soubor.
           </DialogDescription>
         </DialogHeader>
+
+        {showName && (
+          <div className="grid gap-1.5">
+            <Label htmlFor="up-name">Název dokumentu (nepovinné)</Label>
+            <Input
+              id="up-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Např. Frontend, Backend, Wireframy…"
+              maxLength={200}
+            />
+          </div>
+        )}
 
         <Tabs defaultValue="url" className="mt-2">
           <TabsList className="w-full">
