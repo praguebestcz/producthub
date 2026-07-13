@@ -19,8 +19,15 @@ function required(
 export const getJwtSecret = () =>
   required("JWT_SECRET", (v) => v.length >= 32, "min. 32 znaků");
 
+// Lomítka na konci se odstraňují — APP_URL s koncovým „/" jinak vyrobí
+// dvojité lomítko v redirect_uri a Google přihlášení odmítne (stalo se při
+// prvním nasazení na Railway 2026-07-13).
 export const getAppUrl = () =>
-  required("APP_URL", (v) => v.startsWith("http"), "např. http://localhost:3000");
+  required(
+    "APP_URL",
+    (v) => v.startsWith("http"),
+    "např. http://localhost:3000",
+  ).replace(/\/+$/, "");
 
 // E-maily adminů oddělené čárkou — při přihlášení dostanou isAdmin + canCreateProjects.
 export const getAdminEmails = (): string[] =>
