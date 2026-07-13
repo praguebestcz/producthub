@@ -75,6 +75,35 @@ function extractLinks(
   return { pages, assets };
 }
 
+// Odkazy, které stránka načítá až JavaScriptem za běhu — `fetch('spec.md')`,
+// `fetch("data.json")` apod. Statický parser HTML je nevidí, proto zvlášť
+// regexem prohledáme zdroj (vč. inline i stažených skriptů). PB specifikace
+// takhle načítají markdown obsah (funkční spec, popis komponent).
+// Exportováno kvůli testu.
+export function extractFetchUrls(
+  source: string,
+  pageUrl: URL,
+  origin: string,
+): URL[] {
+  const out: URL[] = [];
+  const re = /fetch\(\s*['"`]([^'"`]+)['"`]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source)) !== null) {
+    const raw = m[1].trim();
+    if (raw === "" || raw.startsWith("http") === false && raw.includes("${")) {
+      continue; // šablonový řetězec — neumíme vyhodnotit
+    }
+    try {
+      const abs = new URL(raw, pageUrl);
+      abs.hash = "";
+      if (abs.origin === origin) out.push(abs);
+    } catch {
+      /* neplatná URL — přeskoč */
+    }
+  }
+  return out;
+}
+
 export async function importFromUrl(rawUrl: string): Promise<ImportResult> {
   let entry: URL;
   try {
@@ -124,12 +153,13 @@ export async function importFromUrl(rawUrl: string): Promise<ImportResult> {
       addFile(path, ct, res.body);
 
       if (isHtmlContentType(res.contentType)) {
-        const { pages, assets } = extractLinks(
-          res.body.toString("utf-8"),
-          url,
-          origin,
-        );
+        const source = res.body.toString("utf-8");
+        const { pages, assets } = extractLinks(source, url, origin);
         for (const a of assets) assetUrls.add(a.toString());
+        // Odkazy načítané za běhu přes fetch() (např. spec.md).
+        for (const f of extractFetchUrls(source, url, origin)) {
+          assetUrls.add(f.toString());
+        }
         if (depth < LIMITS.maxCrawlDepth) {
           for (const p of pages) {
             if (!visitedPages.has(urlToPath(p))) {
