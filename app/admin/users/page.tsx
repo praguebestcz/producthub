@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { getAdminEmails } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,7 +30,34 @@ export default async function AdminUsersPage() {
       isAdmin: true,
       deactivatedAt: true,
       createdAt: true,
+      // Počty pro rozhodnutí, zda jde účet smazat (musí být všechny 0).
+      _count: {
+        select: {
+          memberships: true,
+          createdProjects: true,
+          createdClients: true,
+          sentInvitations: true,
+          uploadedVersions: true,
+          comments: true,
+          createdRequirements: true,
+          approvedRequirements: true,
+          resolvedComments: true,
+        },
+      },
     },
+  });
+
+  const adminEmails = getAdminEmails();
+  // Smazat lze účet bez obsahu, který není já ani (živý) admin.
+  const rows = users.map((u) => {
+    const contentCount = Object.values(u._count).reduce((a, b) => a + b, 0);
+    return {
+      ...u,
+      canDelete:
+        contentCount === 0 &&
+        u.id !== user.id &&
+        !adminEmails.includes(u.email.toLowerCase()),
+    };
   });
 
   return (
@@ -52,8 +80,13 @@ export default async function AdminUsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
-              <UserRow key={u.id} user={u} myId={user.id} />
+            {rows.map((u) => (
+              <UserRow
+                key={u.id}
+                user={u}
+                myId={user.id}
+                canDelete={u.canDelete}
+              />
             ))}
           </TableBody>
         </Table>

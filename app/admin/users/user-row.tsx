@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserCheck, UserX } from "lucide-react";
+import { Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -32,9 +32,18 @@ type AdminUser = {
   createdAt: Date;
 };
 
-// Řádek uživatele: přepínač „smí zakládat projekty" + deaktivace/aktivace účtu.
-// Sám sebe deaktivovat nejde (hlídá i server); živého admina server odmítne.
-export function UserRow({ user, myId }: { user: AdminUser; myId: number }) {
+// Řádek uživatele: přepínač „smí zakládat projekty" + deaktivace/aktivace účtu
+// + smazání (jen účet bez projektů a obsahu, `canDelete` počítá server).
+// Sám sebe deaktivovat/smazat nejde (hlídá i server); živého admina server odmítne.
+export function UserRow({
+  user,
+  myId,
+  canDelete,
+}: {
+  user: AdminUser;
+  myId: number;
+  canDelete: boolean;
+}) {
   const router = useRouter();
   const [canCreate, setCanCreate] = useState(user.canCreateProjects);
   const [saving, setSaving] = useState(false);
@@ -79,6 +88,22 @@ export function UserRow({ user, myId }: { user: AdminUser; myId: number }) {
           : `Účet ${user.name} byl znovu aktivován.`,
       );
       router.refresh();
+    }
+  }
+
+  async function deleteUser() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(`Účet ${user.name} byl smazán.`);
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Smazání se nepovedlo.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -128,52 +153,89 @@ export function UserRow({ user, myId }: { user: AdminUser; myId: number }) {
         </span>
       </TableCell>
       <TableCell>
-        {!isMe &&
-          (isDeactivated ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={saving}
-              onClick={() => setDeactivated(false)}
-            >
-              <UserCheck />
-              Aktivovat
-            </Button>
-          ) : (
+        <span className="flex items-center justify-end gap-2">
+          {!isMe &&
+            (isDeactivated ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={saving}
+                onClick={() => setDeactivated(false)}
+              >
+                <UserCheck />
+                Aktivovat
+              </Button>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={saving}
+                      className="text-destructive hover:text-destructive"
+                    />
+                  }
+                >
+                  <UserX />
+                  Deaktivovat
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Deaktivovat účet {user.name}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Uživatel se nebude moci přihlásit a jeho běžící přihlášení
+                      okamžitě přestane platit. Komentáře, členství i historie
+                      zůstanou zachované. Účet jde kdykoli znovu aktivovat.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => setDeactivated(true)}>
+                      Deaktivovat
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ))}
+
+          {/* Smazat — jen účet bez projektů a obsahu (server to hlídá znovu). */}
+          {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger
                 render={
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     disabled={saving}
                     className="text-destructive hover:text-destructive"
                   />
                 }
               >
-                <UserX />
-                Deaktivovat
+                <Trash2 />
+                Smazat
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Deaktivovat účet {user.name}?
-                  </AlertDialogTitle>
+                  <AlertDialogTitle>Smazat účet {user.name}?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Uživatel se nebude moci přihlásit a jeho běžící přihlášení
-                    okamžitě přestane platit. Komentáře, členství i historie
-                    zůstanou zachované. Účet jde kdykoli znovu aktivovat.
+                    Účet nemá žádné projekty ani vytvořený obsah, takže se
+                    nic dalšího neztratí. Smazání je nevratné — kdyby se
+                    uživatel přihlásil znovu, vznikne mu nový prázdný účet.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => setDeactivated(true)}>
-                    Deaktivovat
+                  <AlertDialogAction onClick={deleteUser}>
+                    Smazat účet
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          ))}
+          )}
+        </span>
       </TableCell>
     </TableRow>
   );

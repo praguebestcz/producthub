@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { getSessionUser } from "@/lib/auth";
 import { getAdminEmails } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -80,4 +81,89 @@ export async function PATCH(
     select: { id: true, canCreateProjects: true, deactivatedAt: true },
   });
   return NextResponse.json(updated);
+}
+
+// Relace, jejichž existence brání smazání uživatele (autorský obsah + členství).
+// Když jsou všechny prázdné, účet je „čistý" a smazání nic důležitého neztratí.
+// Restrict relace (comments, versions, requirements…) by mazání stejně zablokovaly
+// na úrovni DB — pre-check dává jen srozumitelnou hlášku místo 500.
+const BLOCKING_COUNT = {
+  memberships: true,
+  createdProjects: true,
+  createdClients: true,
+  sentInvitations: true,
+  uploadedVersions: true,
+  comments: true,
+  createdRequirements: true,
+  approvedRequirements: true,
+  // Po expert review: i vyřešené cizí komentáře blokují — jinak by smazání
+  // tiše nastavilo resolvedById=NULL a v historii zmizelo „kdo vyřešil".
+  resolvedComments: true,
+} as const;
+
+// Smazání uživatele — jen admin, jen účet BEZ projektů a autorského obsahu.
+// Deaktivace je pro účty s obsahem; smazání pro prázdné (typicky testovací).
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ userId: string }> },
+) {
+  const admin = await getSessionUser();
+  if (!admin?.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const userId = Number((await params).userId);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return NextResponse.json({ error: "Neplatné ID" }, { status: 400 });
+  }
+  if (userId === admin.id) {
+    return NextResponse.json(
+      { error: "Sám sebe smazat nemůžete" },
+      { status: 409 },
+    );
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { _count: { select: BLOCKING_COUNT } },
+  });
+  if (!target) {
+    return NextResponse.json({ error: "Uživatel nenalezen" }, { status: 404 });
+  }
+  // Živého admina (dle ADMIN_EMAILS) nelze smazat — nejdřív vyřadit z ENV.
+  if (getAdminEmails().includes(target.email.toLowerCase())) {
+    return NextResponse.json(
+      { error: "Admina nelze smazat — nejdřív ho vyřaďte z ADMIN_EMAILS" },
+      { status: 409 },
+    );
+  }
+
+  const blocking = Object.values(target._count).reduce((a, b) => a + b, 0);
+  if (blocking > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Uživatel má přiřazené projekty nebo vytvořený obsah. Nejdřív ho odeberte, nebo účet jen deaktivujte.",
+      },
+      { status: 409 },
+    );
+  }
+
+  try {
+    await prisma.user.delete({ where: { id: userId } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    // Obrana do hloubky: kdyby mezi pre-checkem a mazáním vznikl obsah,
+    // Restrict FK (P2003) vrátí 409 místo 500.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2003"
+    ) {
+      return NextResponse.json(
+        { error: "Uživatel má obsah — smazání není možné." },
+        { status: 409 },
+      );
+    }
+    throw e;
+  }
 }
