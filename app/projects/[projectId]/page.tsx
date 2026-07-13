@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { FileText, Settings } from "lucide-react";
+import { FileText, Plus, Settings } from "lucide-react";
 import { getSessionUser, requireProjectRole, canSeeInternal } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
+import { plural } from "@/lib/czech";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { UploadDocumentDialog } from "@/components/upload-document-dialog";
 
 // Přehled projektu — dokumenty (obsah přijde v M5) a členové.
 export default async function ProjectPage({
@@ -43,6 +45,12 @@ export default async function ProjectPage({
     },
   });
   if (!project) notFound();
+
+  const documents = await prisma.document.findMany({
+    where: { projectId },
+    orderBy: { sortOrder: "asc" },
+    include: { _count: { select: { versions: true } } },
+  });
 
   const isAuthor = member.role === "AUTHOR";
 
@@ -78,19 +86,57 @@ export default async function ProjectPage({
       />
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold tracking-tight">Dokumenty</h2>
-        <Card className="mt-4 border-dashed">
-          <CardContent className="flex flex-col items-center px-8 py-12 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pb-soft text-pb">
-              <FileText size={22} strokeWidth={1.8} aria-hidden="true" />
-            </span>
-            <h3 className="mt-4 font-semibold">Zatím žádné dokumenty</h3>
-            <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Nahrávání specifikací (HTML, ZIP, import z URL) přijde
-              v milníku M5.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">Dokumenty</h2>
+          {isAuthor && (
+            <UploadDocumentDialog
+              postUrl={`/api/projects/${project.id}/documents`}
+              trigger={
+                <Button size="sm">
+                  <Plus />
+                  Nahrát dokument
+                </Button>
+              }
+            />
+          )}
+        </div>
+
+        {documents.length === 0 ? (
+          <Card className="mt-4 border-dashed">
+            <CardContent className="flex flex-col items-center px-8 py-12 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-pb-soft text-pb">
+                <FileText size={22} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+              <h3 className="mt-4 font-semibold">Zatím žádné dokumenty</h3>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                {isAuthor
+                  ? "Naimportujte specifikaci z odkazu (Vercel apod.), nebo nahrajte HTML/ZIP."
+                  : "Autor projektu zatím nenahrál žádnou specifikaci."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {documents.map((doc) => (
+              <Link key={doc.id} href={`/projects/${project.id}/documents/${doc.id}`}>
+                <Card className="h-full transition-all hover:border-pb/40 hover:shadow-md">
+                  <CardContent className="flex items-start gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pb-soft text-pb">
+                      <FileText size={18} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{doc.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {doc._count.versions}{" "}
+                        {plural(doc._count.versions, "verze", "verze", "verzí")}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-10">

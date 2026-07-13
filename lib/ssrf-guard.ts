@@ -37,17 +37,73 @@ function isPublicIpv4(ip: string): boolean {
   return true;
 }
 
-function isPublicIpv6(ip: string): boolean {
-  const lower = ip.toLowerCase();
-  // IPv4-mapped IPv6 (::ffff:169.254.169.254 — klasický obcházecí trik)
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return isPublicIpv4(mapped[1]);
-  if (lower === "::" || lower === "::1") return false; // unspecified + loopback
-  if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) {
-    return false; // fe80::/10 link-local
+// Rozloží IPv6 na 8 hextetů (16bitových čísel). Zvládne zkrácení „::" i
+// vnořenou IPv4 (::ffff:1.2.3.4). Vrací null u neplatného vstupu.
+// Po expert review: kontrolovat rozsahy nad NORMALIZOVANÝMI bajty, ne nad
+// textem — jinak jde ochranu obejít jiným zápisem téže adresy
+// (::ffff:a9fe:a9fe = ::ffff:169.254.169.254 = cloud metadata).
+export function ipv6ToHextets(ip: string): number[] | null {
+  let s = ip.toLowerCase();
+  const pct = s.indexOf("%"); // zone id (fe80::1%eth0)
+  if (pct >= 0) s = s.slice(0, pct);
+
+  // Vnořená IPv4 na konci (::ffff:1.2.3.4) → převést na dva hextety.
+  const lastColon = s.lastIndexOf(":");
+  const tail = s.slice(lastColon + 1);
+  if (tail.includes(".")) {
+    const p = tail.split(".").map(Number);
+    if (p.length !== 4 || p.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
+      return null;
+    }
+    s =
+      s.slice(0, lastColon + 1) +
+      (((p[0] << 8) | p[1]).toString(16) + ":" + ((p[2] << 8) | p[3]).toString(16));
   }
-  if (lower.startsWith("fc") || lower.startsWith("fd")) return false; // fc00::/7 ULA
-  if (lower.startsWith("ff")) return false; // multicast
+
+  const halves = s.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const back = halves.length === 2 ? (halves[1] ? halves[1].split(":") : []) : null;
+
+  let parts: string[];
+  if (back === null) {
+    parts = head; // bez „::" musí být přesně 8
+  } else {
+    const missing = 8 - head.length - back.length;
+    if (missing < 0) return null;
+    parts = [...head, ...Array(missing).fill("0"), ...back];
+  }
+  if (parts.length !== 8) return null;
+
+  const hextets = parts.map((h) => (h === "" ? NaN : parseInt(h, 16)));
+  if (hextets.some((h) => Number.isNaN(h) || h < 0 || h > 0xffff)) return null;
+  return hextets;
+}
+
+function hextetsToIpv4(a: number, b: number): string {
+  return `${(a >> 8) & 0xff}.${a & 0xff}.${(b >> 8) & 0xff}.${b & 0xff}`;
+}
+
+function isPublicIpv6(ip: string): boolean {
+  const h = ipv6ToHextets(ip);
+  if (!h) return false;
+
+  const firstSixZero = h.slice(0, 6).every((x) => x === 0);
+  // :: (unspecified) a ::1 (loopback)
+  if (h.slice(0, 7).every((x) => x === 0) && (h[7] === 0 || h[7] === 1)) {
+    return false;
+  }
+  // IPv4-mapped (::ffff:a.b.c.d) i v hex tvaru (::ffff:XXXX:XXXX)
+  if (firstSixZero === false && h.slice(0, 5).every((x) => x === 0) && h[5] === 0xffff) {
+    return isPublicIpv4(hextetsToIpv4(h[6], h[7]));
+  }
+  // IPv4-compatible (::a.b.c.d, deprecated) — posledních 32 bitů jako IPv4
+  if (firstSixZero) return isPublicIpv4(hextetsToIpv4(h[6], h[7]));
+
+  const first = h[0];
+  if ((first & 0xffc0) === 0xfe80) return false; // fe80::/10 link-local
+  if ((first & 0xfe00) === 0xfc00) return false; // fc00::/7 ULA
+  if ((first & 0xff00) === 0xff00) return false; // ff00::/8 multicast
   return true;
 }
 

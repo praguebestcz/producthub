@@ -147,6 +147,14 @@ Verdikt: SCHVÁLENO S VÝHRADAMI. Nálezy nad schématem a docker-compose zaprac
   * Zod limity textů: `body ≤ 10 000`, `elementHtml ≤ 20 000`, `domPath ≤ 2 000`, `dataReviewId ≤ 200` znaků + limit velikosti request body. API v v1 nesmí přijímat pole `screenshot`.
   * @zmínka jen na členy projektu (jinak únik existence/názvu projektu nečlenovi).
 
+## M5 dokončeno (2026-07-13, po security review)
+
+Implementováno: import z URL (crawl same-origin, 5 stránek diskuse-deploy ověřeno), upload HTML/ZIP, servírování v sandboxovaném iframe (`/view/[token]`), přepínač verzí, minimální overlay.js. Bezpečnostní review (db-security-expert) verdikt: schváleno s výhradami, VŠE zapracováno:
+* 🔴 obejití SSRF přes hex-tvar IPv4-mapped IPv6 (`::ffff:a9fe:a9fe`) → přepsáno na kontrolu nad normalizovanými bajty (`ipv6ToHextets`), test pokrývá.
+* 🟠 strop na počet stahovaných assetů (`maxAssets` 200); contentType assetů z přípony, ne z odpovědi cizího serveru.
+* Ověřeno OK: view-token (typ, re-check členství + deactivatedAt + tokenValidFrom), CSP `sandbox allow-scripts` + Referrer-Policy no-referrer + nosniff na každé odpovědi, opaque origin (session nejde ukrást), DNS pinning, zip-slip, přístupové kontroly (AUTHOR upload, READER view).
+* Poznámka pro M6: modal v prototypu se otevírá (JS běží — potvrzeno JS-generovanými tlačítky), doladit pozici/komentování v modalech.
+
 ## Backlog (nápady mimo rozsah v1 milníků)
 
 * **Aplikační logy (požadavek Hany, 2026-07-10):** stránka s logy po vzoru vratek - `lib/event-log.ts` (události error/warn do PostgreSQL, maskování tajemství: tokeny, hesla; e-mail se nemaskuje kvůli vyhledávání) + admin stránka `/admin/logs`. NEMUSÍ být v bočním menu - stačí URL, případně odkaz ze správy uživatelů. Vhodný okamžik: společně s M9 (dokončení) nebo hned po nasazení M4, až bude co logovat (importy, generování promptů, chyby přihlášení).
