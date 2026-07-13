@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { DocumentSource } from "@prisma/client";
 import { LIMITS } from "./limits";
-import { contentTypeFor } from "@/lib/mime";
 import { importZip, ImportError, type ImportResult } from "./zip-import";
 import { importFromUrl } from "./url-import";
 
@@ -81,6 +80,3 @@ export async function prepareFromUrl(url: string): Promise<PreparedImport> {
   }
   return { source: "URL", sourceUrl: url, result, suggestedName: host };
 }
-
-// Jen pro typovou kontrolu contentType u jednotlivých souborů (využívá mime).
-export { contentTypeFor };

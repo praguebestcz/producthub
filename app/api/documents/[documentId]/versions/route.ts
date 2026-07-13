@@ -21,6 +21,9 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const documentId = Number((await params).documentId);
+  if (!Number.isInteger(documentId) || documentId <= 0) {
+    return NextResponse.json({ error: "Dokument nenalezen" }, { status: 404 });
+  }
   const document = await prisma.document.findUnique({
     where: { id: documentId },
     select: { id: true, projectId: true },

@@ -76,7 +76,8 @@ export async function GET(
   if (!member) return new NextResponse("Přístup zamítnut", { status: 403 });
 
   // Prázdná cesta → přesměruj na vstupní stránku (zachová prefix tokenu).
-  const relPath = (path ?? []).join("/");
+  // Query se zahrnuje do klíče (assety uložené s query — logo.png?v=1).
+  const relPath = (path ?? []).join("/") + req.nextUrl.search;
   if (relPath === "") {
     return NextResponse.redirect(
       new URL(`/view/${token}/${version.entryPath}`, req.url),

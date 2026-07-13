@@ -1,16 +1,23 @@
-import type { DocumentSource } from "@prisma/client";
+import type { DocumentSource, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ImportResult } from "./zip-import";
 
 // Uloží importovaný balík jako novou verzi dokumentu (nebo nový dokument).
-// Assety se ukládají po dávkách kvůli velikosti.
-
+// VŠE (dokument + verze + assety) v jedné transakci — po expert/code review:
+// při selhání uprostřed ukládání assetů se všechno vrátí zpět, nevznikne
+// „poloviční" dokument bez vstupní stránky. Assety se vkládají po dávkách.
 const ASSET_BATCH = 50;
+// Import může být větší (desítky souborů) — velkorysejší časový limit transakce.
+const TX_OPTS = { timeout: 30_000, maxWait: 10_000 } as const;
 
-async function insertAssets(versionId: number, result: ImportResult) {
+async function insertAssets(
+  tx: Prisma.TransactionClient,
+  versionId: number,
+  result: ImportResult,
+) {
   for (let i = 0; i < result.files.length; i += ASSET_BATCH) {
     const batch = result.files.slice(i, i + ASSET_BATCH);
-    await prisma.asset.createMany({
+    await tx.asset.createMany({
       data: batch.map((f) => ({
         documentVersionId: versionId,
         path: f.path,
@@ -32,7 +39,7 @@ export async function createDocument(opts: {
   sourceUrl?: string | null;
   result: ImportResult;
 }): Promise<{ documentId: number; versionId: number }> {
-  const created = await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const maxOrder = await tx.document.aggregate({
       where: { projectId: opts.projectId },
       _max: { sortOrder: true },
@@ -54,13 +61,9 @@ export async function createDocument(opts: {
         uploadedById: opts.userId,
       },
     });
+    await insertAssets(tx, version.id, opts.result);
     return { documentId: document.id, versionId: version.id };
-  });
-
-  // Assety mimo hlavní transakci (velký objem) — verze bez assetů je krátce
-  // „prázdná", ale dokument se právě vytvořil, nikdo ho ještě nevidí.
-  await insertAssets(created.versionId, opts.result);
-  return created;
+  }, TX_OPTS);
 }
 
 // Nová verze existujícího dokumentu (versionNumber = max + 1).
@@ -71,13 +74,13 @@ export async function createVersion(opts: {
   sourceUrl?: string | null;
   result: ImportResult;
 }): Promise<{ versionId: number; versionNumber: number }> {
-  const version = await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const max = await tx.documentVersion.aggregate({
       where: { documentId: opts.documentId },
       _max: { versionNumber: true },
     });
     const versionNumber = (max._max.versionNumber ?? 0) + 1;
-    const created = await tx.documentVersion.create({
+    const version = await tx.documentVersion.create({
       data: {
         documentId: opts.documentId,
         versionNumber,
@@ -87,13 +90,13 @@ export async function createVersion(opts: {
         uploadedById: opts.userId,
       },
     });
+    await insertAssets(tx, version.id, opts.result);
+    // Document.updatedAt se obnoví @updatedAt při jakékoli změně dokumentu;
+    // verze je samostatná tabulka, proto dotek dokumentu explicitně.
     await tx.document.update({
       where: { id: opts.documentId },
       data: { updatedAt: new Date() },
     });
-    return created;
-  });
-
-  await insertAssets(version.id, opts.result);
-  return { versionId: version.id, versionNumber: version.versionNumber };
+    return { versionId: version.id, versionNumber };
+  }, TX_OPTS);
 }

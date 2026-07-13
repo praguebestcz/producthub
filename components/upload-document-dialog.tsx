@@ -26,12 +26,14 @@ export function UploadDocumentDialog({
   title = "Nový dokument",
   // U nové verze existujícího dokumentu se název nezadává (patří k dokumentu).
   showName = true,
+  successMessage = "Dokument nahrán.",
   onDone,
 }: {
   postUrl: string;
   trigger: React.ReactElement;
   title?: string;
   showName?: boolean;
+  successMessage?: string;
   onDone?: (created: { documentId?: number; versionId: number }) => void;
 }) {
   const router = useRouter();
@@ -47,7 +49,7 @@ export function UploadDocumentDialog({
       const res = await fetch(postUrl, { method: "POST", body, headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success("Dokument nahrán.");
+      toast.success(successMessage);
       setOpen(false);
       setUrl("");
       setName("");

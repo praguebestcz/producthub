@@ -12,13 +12,25 @@ import { ImportError } from "./zip-import";
 // Bezpečnost: veškeré stahování jde přes safeDownload (SSRF guard s DNS pinningem,
 // jen http/https, jen porty 80/443, zákaz privátních IP). Limity z LIMITS.
 
-// URL → relativní cesta pro uložení. "/" → "index.html", koncové "/" → "…/index.html".
+// URL → klíč pro uložení (cesta + query). "/" → "index.html", koncové "/" →
+// "…/index.html". Query se ZAHRNUJE do klíče — jinak by dva assety lišící se
+// jen query (logo.png?v=1 vs ?v=2) kolidovaly a druhý by se ztratil (code review).
 function urlToPath(u: URL): string {
   let p = u.pathname;
-  if (p === "" || p === "/") return "index.html";
-  if (p.startsWith("/")) p = p.slice(1);
-  if (p.endsWith("/")) p += "index.html";
-  return p;
+  if (p === "" || p === "/") p = "index.html";
+  else {
+    if (p.startsWith("/")) p = p.slice(1);
+    if (p.endsWith("/")) p += "index.html";
+  }
+  return p + u.search;
+}
+
+// Je odkaz pravděpodobně HTML STRÁNKA (kandidát na crawl a komentování)?
+// Kromě .html/.htm i clean URL bez přípony (typické pro Vercel/Next.js specs:
+// /frontend, /wireframy) — poslední segment cesty nemá tečku (= není asset).
+function isLikelyPage(u: URL): boolean {
+  const last = u.pathname.split("/").pop() ?? "";
+  return isHtmlPath(u.pathname) || last === "" || last.includes(".") === false;
 }
 
 // Vytáhne z HTML odkazy na stránky (a[href]) a assety (link/script/img).
@@ -55,7 +67,7 @@ function extractLinks(
 
   for (const a of root.querySelectorAll("a[href]")) {
     const u = resolve(a.getAttribute("href"));
-    if (u && isHtmlPath(urlToPath(u))) pages.push(u);
+    if (u && isLikelyPage(u)) pages.push(u);
   }
   for (const sel of ["link[href]", "script[src]", "img[src]"]) {
     for (const el of root.querySelectorAll(sel)) {
@@ -77,8 +89,10 @@ function extractLinks(
 
 // Odkazy, které stránka načítá až JavaScriptem za běhu — `fetch('spec.md')`,
 // `fetch("data.json")` apod. Statický parser HTML je nevidí, proto zvlášť
-// regexem prohledáme zdroj (vč. inline i stažených skriptů). PB specifikace
+// regexem prohledáme zdroj HTML stránky (vč. inline <script>). PB specifikace
 // takhle načítají markdown obsah (funkční spec, popis komponent).
+// Známé omezení: fetch() uvnitř EXTERNÍCH .js souborů se nenajde (ty se jen
+// stáhnou jako assety). Pro PB specifikace stačí — fetch je vždy inline.
 // Exportováno kvůli testu.
 export function extractFetchUrls(
   source: string,

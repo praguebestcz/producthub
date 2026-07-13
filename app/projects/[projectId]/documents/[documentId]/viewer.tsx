@@ -141,13 +141,20 @@ export function DocumentViewer({
               postUrl={`/api/documents/${documentId}/versions`}
               title="Nová verze"
               showName={false}
+              successMessage="Nová verze nahrána."
               trigger={
                 <Button variant="outline" size="sm">
                   <Plus />
                   Nová verze
                 </Button>
               }
-              onDone={() => router.refresh()}
+              onDone={(created) => {
+                // Přepni prohlížeč na právě nahranou verzi (code review:
+                // jinak zůstal na staré a vypadalo to, že se nic nestalo).
+                setLoading(true);
+                setVersionId(created.versionId);
+                router.refresh();
+              }}
             />
             <DeleteDocument
               documentId={documentId}

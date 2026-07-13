@@ -29,7 +29,9 @@ const MIME: Record<string, string> = {
 };
 
 export function contentTypeFor(path: string): string {
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  // Odstranit query/fragment (logo.png?v=1) — jinak by přípona byla „png?v=1".
+  const clean = path.split(/[?#]/)[0];
+  const ext = clean.split(".").pop()?.toLowerCase() ?? "";
   return MIME[ext] ?? "application/octet-stream";
 }
 
