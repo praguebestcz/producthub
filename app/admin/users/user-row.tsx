@@ -144,15 +144,15 @@ export function UserRow({ user, myId }: { user: AdminUser; myId: number }) {
               <AlertDialogTrigger
                 render={
                   <Button
-                    variant="ghost"
-                    size="icon"
+                    variant="outline"
+                    size="sm"
                     disabled={saving}
-                    aria-label={`Deaktivovat ${user.name}`}
-                    title="Deaktivovat účet"
+                    className="text-destructive hover:text-destructive"
                   />
                 }
               >
-                <UserX className="text-destructive" />
+                <UserX />
+                Deaktivovat
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
