@@ -129,10 +129,15 @@ export function UserRow({
       </TableCell>
       <TableCell>
         <span className="flex items-center gap-1.5">
+          {/* Tři úrovně: Admin (spravuje aplikaci) > Tým (zakládá projekty)
+              > Uživatel. Přepínač „smí zakládat projekty" mění Uživatel ↔ Tým;
+              Admin se nastavuje jen přes ADMIN_EMAILS. */}
           {user.isAdmin ? (
             <Badge>Admin</Badge>
+          ) : canCreate ? (
+            <Badge variant="secondary">Tým</Badge>
           ) : (
-            <Badge variant="secondary">Uživatel</Badge>
+            <Badge variant="outline">Uživatel</Badge>
           )}
           {isDeactivated && (
             <Badge variant="destructive">Deaktivovaný</Badge>

@@ -64,7 +64,7 @@ export default async function AdminUsersPage() {
     <AppShell user={user}>
       <PageHeader
         title="Správa uživatelů"
-        description="Účet vzniká automaticky prvním přihlášením přes Google. Tady rozhodujete, kdo smí zakládat projekty. Admin se nastavuje v proměnné ADMIN_EMAILS."
+        description="Tři úrovně: Uživatel (jen pozvané projekty) → Tým (smí zakládat projekty a klienty) → Admin (spravuje uživatele). Přepínačem měníte Uživatel ↔ Tým; Admin se nastavuje jen v proměnné ADMIN_EMAILS."
       />
 
       <div className="mt-8 rounded-xl border">
