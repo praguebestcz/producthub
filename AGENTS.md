@@ -23,6 +23,14 @@ požadavek a systém vygeneruje hotový prompt pro Claude Code.
 - České UI texty i komentáře v kódu
 - Před změnou DB schématu: review subagentem `.claude/agents/db-security-expert.md`
 
+## Nasazování (závazný workflow)
+
+- **Produkce:** https://producthub-production-0484.up.railway.app (Railway sleduje větev `production`)
+- **`main` = vývoj** — commity průběžně; push na GitHub spouští Hana (Claude má push zablokovaný), produkci se NEsahá
+- **`production` = produkce** — nasazení VÝHRADNĚ příkazem `git push origin main:production`, který spouští Hana, až výslovně řekne (např. „nasaď"). Claude příkaz jen připraví a pošle jí ho.
+- Před předáním push/deploy příkazu Haně: `git log origin/production..main --oneline` (ukázat, co se nasadí)
+- Produkční proměnné a redirect URI: viz STAV.md sekce M4
+
 ## Bezpečnostní pravidla (závazná, viz user-global CLAUDE.md Hany)
 
 - NIKDY nemazat soubory/data/větve bez výslovného svolení Hany
