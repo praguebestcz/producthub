@@ -67,6 +67,23 @@ tests/         vitest testy
 * Před změnou DB schématu je povinné review subagentem
   `.claude/agents/db-security-expert.md`
 
+## Nasazení (Railway)
+
+Produkce: https://producthub-production-0484.up.railway.app
+
+Dvě větve, dvě role:
+
+* **`main`** — vývoj. Push sem produkci NEovlivní (jen záloha na GitHubu).
+* **`production`** — co běží na Railway (služba sleduje tuto větev).
+
+Nasazení na produkci je vždy vědomý krok:
+
+```
+git push origin main:production
+```
+
+(Pošle aktuální stav mainu do větve production → Railway automaticky nasadí.)
+
 ## Stav (milníky)
 
 * ✅ M0 kostra · M1 DB schéma (security review) · M2 Google přihlášení
