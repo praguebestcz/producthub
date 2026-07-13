@@ -27,6 +27,7 @@ export default async function AdminUsersPage() {
       avatarUrl: true,
       canCreateProjects: true,
       isAdmin: true,
+      deactivatedAt: true,
       createdAt: true,
     },
   });
@@ -47,11 +48,12 @@ export default async function AdminUsersPage() {
               <TableHead>Registrace</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Smí zakládat projekty</TableHead>
+              <TableHead className="w-24" aria-label="Akce" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((u) => (
-              <UserRow key={u.id} user={u} />
+              <UserRow key={u.id} user={u} myId={user.id} />
             ))}
           </TableBody>
         </Table>

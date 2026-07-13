@@ -54,6 +54,8 @@ export async function getSessionUser(): Promise<User | null> {
 
   const user = await prisma.user.findUnique({ where: { id: payload.userId } });
   if (!user) return null;
+  // Deaktivovaný účet = mrtvá session, ať je lístek jakkoli čerstvý (M4.5).
+  if (user.deactivatedAt) return null;
   // Lístek vydaný před razítkem tokenValidFrom = neplatný (odhlášení všech relací).
   if (payload.iat < Math.floor(user.tokenValidFrom.getTime() / 1000)) {
     return null;
@@ -65,6 +67,13 @@ export async function getSessionUser(): Promise<User | null> {
 export class EmailConflictError extends Error {
   constructor() {
     super("E-mail už patří jinému účtu");
+  }
+}
+
+// Deaktivovaný účet se pokusil přihlásit (M4.5) — callback ukáže čitelnou hlášku.
+export class AccountDeactivatedError extends Error {
+  constructor() {
+    super("Účet je deaktivovaný");
   }
 }
 
@@ -84,6 +93,12 @@ export async function ensureUserFromGoogle(
         where: { googleId: profile.googleId },
       });
 
+      // Po expert review (M4.5): deaktivovaný účet se kontroluje JAKO PRVNÍ —
+      // nesmí se aktualizovat (jméno/avatar) ani převzít pozvánky.
+      if (byGoogleId?.deactivatedAt) {
+        throw new AccountDeactivatedError();
+      }
+
       // E-mail nesmí patřit jinému účtu (jiné googleId) — unikátní sloupec.
       const byEmail = await tx.user.findUnique({
         where: { email: profile.email },
@@ -92,10 +107,10 @@ export async function ensureUserFromGoogle(
         throw new EmailConflictError();
       }
 
-      const adminFlags = isBootstrapAdmin
-        ? { isAdmin: true, canCreateProjects: true }
-        : {};
-
+      // Po expert review (M4.5): isAdmin se synchronizuje s ADMIN_EMAILS
+      // OBĚMA směry (vyřazený e-mail = admin práva zmizí při dalším přihlášení).
+      // canCreateProjects se bootstrapem jen PŘIDÁVÁ — právo udělené adminem
+      // v UI se přihlášením nesmí odebrat.
       const user = byGoogleId
         ? await tx.user.update({
             where: { id: byGoogleId.id },
@@ -103,7 +118,8 @@ export async function ensureUserFromGoogle(
               email: profile.email,
               name: profile.name,
               avatarUrl: profile.avatarUrl,
-              ...adminFlags,
+              isAdmin: isBootstrapAdmin,
+              ...(isBootstrapAdmin ? { canCreateProjects: true } : {}),
             },
           })
         : await tx.user.create({
@@ -112,7 +128,8 @@ export async function ensureUserFromGoogle(
               email: profile.email,
               name: profile.name,
               avatarUrl: profile.avatarUrl,
-              ...adminFlags,
+              isAdmin: isBootstrapAdmin,
+              canCreateProjects: isBootstrapAdmin,
             },
           });
 

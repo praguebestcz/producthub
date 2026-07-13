@@ -89,6 +89,12 @@ model User {
   isAdmin           Boolean  @default(false)
   // Zneplatnění session: tokeny vydané před tímto časem neplatí (vzor vratky).
   tokenValidFrom    DateTime @default(now())
+  // Deaktivace účtu (M4.5, po expert review): vyplněné datum = účet vypnutý.
+  // Při deaktivaci se zároveň bumpne tokenValidFrom — zabíjí session (i na
+  // proxy vrstvě) a view tokeny okamžitě. Reaktivace tokenValidFrom NEvrací
+  // (staré session nesmí obživnout). Data (komentáře, členství, historie)
+  // zůstávají — deaktivace NENÍ mazání.
+  deactivatedAt     DateTime?
   createdAt         DateTime @default(now())
 
   createdProjects      Project[]         @relation("ProjectCreator")

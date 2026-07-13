@@ -14,6 +14,8 @@ const ERRORS: Record<string, string> = {
     "Přihlášení vypršelo nebo bylo přerušeno. Zkuste to prosím znovu.",
   "email-conflict":
     "Tento e-mail už patří jinému účtu. Kontaktujte prosím správce aplikace.",
+  "account-deactivated":
+    "Tento účet byl deaktivován. Kontaktujte prosím správce aplikace.",
   "google-failed":
     "Přihlášení přes Google se nepovedlo. Zkuste to prosím znovu.",
 };

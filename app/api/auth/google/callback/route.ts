@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeCode, verifyIdToken } from "@/lib/google-oauth";
-import { ensureUserFromGoogle, EmailConflictError, SESSION_COOKIE } from "@/lib/auth";
+import {
+  ensureUserFromGoogle,
+  AccountDeactivatedError,
+  EmailConflictError,
+  SESSION_COOKIE,
+} from "@/lib/auth";
 import { signSessionToken, SESSION_TTL_SEC } from "@/lib/jwt";
 import { getAppUrl } from "@/lib/env";
 
@@ -39,6 +44,9 @@ export async function GET(req: NextRequest) {
     return res;
   } catch (e) {
     if (e instanceof EmailConflictError) return toLogin("email-conflict");
+    if (e instanceof AccountDeactivatedError) {
+      return toLogin("account-deactivated");
+    }
     console.error("Google callback selhal:", e);
     return toLogin("google-failed");
   }

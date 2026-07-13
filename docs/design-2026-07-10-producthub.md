@@ -137,6 +137,11 @@ Verdikt: SCHVÁLENO S VÝHRADAMI. Nálezy nad schématem a docker-compose zaprac
   * SSRF: DNS pinning (připojit na již ověřenou IP, ne znovu resolvovat), rozsahy navíc: `0.0.0.0/8`, `100.64.0.0/10`, `fe80::/10`, IPv4-mapped IPv6 (`::ffff:0:0/96`), jen porty 80/443.
   * `<base href={sourceUrl}>` plošně nefunguje (rozbil by navigaci ve snapshotu) - fallback na původní doménu řešit jinak (např. při 404 na asset).
   * Jednoduchý rate-limit na URL import už v M5 (ne až M9), limit komprimované velikosti ZIPu a počtu záznamů před rozbalením.
+* **M4.5 (deaktivace uživatelů, review 2026-07-13):**
+  * Deaktivace = `deactivatedAt` + SOUČASNĚ bump `tokenValidFrom` (zabíjí session na proxy vrstvě i view tokeny). Reaktivace `tokenValidFrom` nevrací.
+  * M5 view route kontroluje i `deactivatedAt` (obrana do hloubky pod bumpem).
+  * M7: SSE spojení se ověřuje jen při otevření - deaktivace neukončí už otevřený stream; re-check při heartbeatu, nebo zdokumentovat jako přijaté riziko. Notifikace deaktivovaným neskládat; v @mention našeptávači a výpisech členů deaktivované skrýt/označit.
+  * Živého admina (dle ADMIN_EMAILS) nejde deaktivovat; `isAdmin` se synchronizuje s ADMIN_EMAILS oběma směry při přihlášení.
 * **M6 (komentáře):**
   * Interní komentáře mají 4. kanál úniku: detail požadavku a `generatedPrompt` (přepis diskuse). Výpis propojených komentářů filtrovat dle `canSeeInternal`; prompt skládat jen z PUBLIC komentářů, nebo zobrazení omezit na interní členy. Testy vynucení = 4 místa.
   * Zod limity textů: `body ≤ 10 000`, `elementHtml ≤ 20 000`, `domPath ≤ 2 000`, `dataReviewId ≤ 200` znaků + limit velikosti request body. API v v1 nesmí přijímat pole `screenshot`.

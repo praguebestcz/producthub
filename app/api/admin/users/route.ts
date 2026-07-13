@@ -17,6 +17,7 @@ export async function GET() {
       avatarUrl: true,
       canCreateProjects: true,
       isAdmin: true,
+      deactivatedAt: true,
       createdAt: true,
     },
   });
