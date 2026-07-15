@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-15**
+  * M6 UX vylepšení dle ručního testu Hany: drobečková navigace mezi stránkami, výrazný přepínač režimů, čitelný popis prvku místo DOM cesty, jeden prvek = jedno vlákno, spolehlivé řešení skrytých prvků (náhled + hláška) - Hana Ortmannová
   * M6 (komentáře nad elementy) implementováno vč. bezpečnostního smoke testu (filtr interních, zmínky, limity, modaly) - čeká na ruční test Hany - Hana Ortmannová
 * **2026-07-14**
   * Vydání dokumentu - zpětný zápis hotových milníků M0-M5 podle skutečného stavu aplikace, milník M6 detailně, M7-M9 jako plánovaný stav - Hana Ortmannová
@@ -204,14 +205,17 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
 ### Prohlížeč dokumentu (`/projects/[id]/documents/[docId]`) 🟢 M5, rozšíření 🟠 M6
 
 * 🟢 Sandboxovaný iframe se specifikací, přepínač verzí, navigace uvnitř prohlížeče.
-* 🟠 M6 - lišta: přepínač režimů **Procházení / Komentování** (jen pro roli Komentátor a vyšší).
-  * **Procházení:** kliky procházejí do stránky - modaly a interakce prototypu fungují.
-  * **Komentování:** kurzor crosshair, hover zvýrazní element, klik element VYBERE (neproklikne).
+* 🟠 M6 - drobečková navigace mezi stránkami specifikace (Rozcestník > podstránka) + tlačítko Zpět. Klik na úroveň v drobečkách přejde na tu stránku. Umožňuje pohyb mezi úrovněmi vícestránkové specifikace.
+* 🟠 M6 - lišta: výrazný přepínač režimů Procházení / Komentování (jen pro roli Komentátor a vyšší; aktivní Komentování svítí barevně, ať je na první pohled jasné, v jakém režimu jsi).
+  * Procházení: kliky procházejí do stránky - modaly a interakce prototypu fungují.
+  * Komentování: kurzor crosshair, hover zvýrazní element, klik element VYBERE (neproklikne). Vybraný element zůstává orámovaný po celou dobu psaní komentáře.
 * 🟠 M6 - postranní panel komentářů (vpravo, ~24 rem):
-  * Hlavička: počet vláken, přepínač **Tato stránka / Všechny stránky** (u vláken z jiných stránek badge s cestou stránky).
-  * Vlákno: autor + avatar + čas, badge stavu (**Otevřený** / **Vyřešený** / **Znovu otevřený**), badge „Interní", info o elementu (`data-review-id` nebo zkrácená DOM cesta, rozbalitelný HTML výstřižek), odpovědi chronologicky, akce Odpovědět / Vyřešit / Znovu otevřít.
-  * Klik na vlákno → element se v iframe zvýrazní a odscrolluje (dočasný rámeček ~2 s). Vlákno z jiné stránky prohlížeč nejdřív na tu stránku přepne a element zvýrazní po načtení. Vybraný element zůstává orámovaný po celou dobu psaní komentáře.
-  * Formulář nového komentáře po výběru elementu: náhled elementu, textarea s @našeptávačem členů, checkbox „Interní" (jen pro interní členy).
+  * Hlavička: počet vláken, přepínač Tato stránka / Všechny stránky (u vláken z jiných stránek badge s cestou stránky).
+  * Vlákno: autor + avatar + čas, badge stavu (Otevřený / Vyřešený / Znovu otevřený), badge Interní, čitelný popis prvku (např. tlačítko Odeslat dotaz - ne technická DOM cesta; syrový HTML schovaný v rozbalovátku), odpovědi chronologicky, akce Odpovědět / Vyřešit / Znovu otevřít.
+  * Klik na vlákno: element se v iframe zvýrazní (pulzující rámeček ~2,5 s) a odscrolluje. Vlákno z jiné stránky prohlížeč nejdřív na tu stránku přepne a element zvýrazní po načtení.
+  * Prvek se na stránce nenajde (dynamický modal vytvářený až po interakci, nebo skrytý prvek): panel ukáže uložený náhled prvku + hlášku prvek se objeví až po otevření příslušného okna. Špendlík naskočí, jakmile okno otevřeš. Automatické otevírání cizích modalů není spolehlivé (prototyp je může vytvářet až za běhu), proto náhled, který funguje vždy.
+  * Jeden prvek = jedno vlákno: klik na už okomentovaný prvek NEzaloží nový komentář, ale otevře jeho existující vlákno - další připomínky se řeší jako odpovědi v diskusi.
+  * Formulář nového komentáře po výběru elementu: čitelný popis prvku, textarea s @našeptávačem členů, checkbox Interní (jen pro interní členy).
 * 🟠 M6 - špendlíky: číslované značky na komentovaných elementech uvnitř iframe. Špendlík skrytého elementu (zavřený modal) se schová a objeví se, až je element vidět. Klik na špendlík (v obou režimech) aktivuje vlákno v panelu.
 * 🟠 M7 - avatary přítomných, indikace psaní, živé aktualizace bez refreshe.
 * 🟠 M9 - prohlížení starých verzí read-only, badge „prvek už neexistuje" u osiřelých komentářů.
@@ -301,7 +305,7 @@ Aplikace nemá oddělený admin systém - administrace jsou stránky uvnitř apl
 
 * **Kdo:** interní člen PB
 * **Kroky:** 1. Otevře veřejné vlákno klienta. 2. Odpoví se zaškrtnutým „Interní".
-* **Výsledek:** klient (neinterní člen) vidí vlákno BEZ interní odpovědi - v UI i v odpovědi API.
+* **Výsledek:** klient (neinterní člen) vidí vlákno BEZ interní odpovědi - v UI i v odpovědi API.
 
 ### UC4 - Od komentáře k promptu (M8) 🟠
 
@@ -338,7 +342,7 @@ Milníky M0-M5 jsou akceptované (ruční test Hany proběhl u každého). Pro 
 
 **M7 - realtime + notifikace:**
 
-* [ ] Komentář od B se u A objeví do ~1 s bez refreshe; indikace psaní; seznam přítomných
+* [ ] Komentář od B se u A objeví do ~1 s bez refreshe; indikace psaní; seznam přítomných
 * [ ] Zmínka od A doručí B notifikaci na zvoneček živě; označení přečtení funguje
 
 **M8 - požadavky + prompt:**

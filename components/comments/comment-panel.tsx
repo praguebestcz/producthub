@@ -8,6 +8,7 @@ import {
   Lock,
   MapPin,
   MessageSquare,
+  MousePointer2,
   RotateCcw,
   X,
 } from "lucide-react";
@@ -62,6 +63,7 @@ export type SelectedElement = {
   pagePath: string;
   dataReviewId: string | null;
   domPath: string;
+  label: string | null;
   elementHtml: string;
   viewport: { width: number; height: number };
 };
@@ -81,10 +83,44 @@ function formatTime(iso: string): string {
   });
 }
 
-// Zkrácená DOM cesta pro hlavičku vlákna: poslední 2 segmenty.
-function shortDomPath(domPath: string): string {
-  const parts = domPath.split(" > ");
-  return parts.length > 2 ? "… > " + parts.slice(-2).join(" > ") : domPath;
+// Čitelný popis prvku odvozený z uloženého HTML výstřižku — tak, aby uživatele
+// nezajímala technická DOM cesta („tlačítko „Odeslat dotaz""). Stejná logika
+// jako v overlay.js (elementLabel), ale běží nad uloženým HTML.
+const TAG_NAMES: Record<string, string> = {
+  A: "odkaz",
+  BUTTON: "tlačítko",
+  INPUT: "pole",
+  TEXTAREA: "pole",
+  SELECT: "výběr",
+  IMG: "obrázek",
+  H1: "nadpis",
+  H2: "nadpis",
+  H3: "nadpis",
+  H4: "nadpis",
+  P: "odstavec",
+  LI: "položka",
+  TD: "buňka",
+  TH: "buňka",
+  LABEL: "popisek",
+  SPAN: "text",
+  DIV: "blok",
+  SECTION: "sekce",
+  NAV: "navigace",
+  UL: "seznam",
+  OL: "seznam",
+  FORM: "formulář",
+};
+
+function deriveLabel(elementHtml: string | null): string | null {
+  if (!elementHtml) return null;
+  const tpl = document.createElement("template");
+  tpl.innerHTML = elementHtml;
+  const el = tpl.content.firstElementChild;
+  if (!el) return null;
+  const name = TAG_NAMES[el.tagName] ?? el.tagName.toLowerCase();
+  let text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+  if (text.length > 40) text = text.slice(0, 40) + "…";
+  return text ? `${name} „${text}"` : name;
 }
 
 export function CommentPanel({
@@ -185,33 +221,35 @@ export function CommentPanel({
   );
 }
 
-// Info o kotvě elementu — v hlavičce vlákna i ve formuláři nového komentáře.
+// Info o prvku — čitelný popis místo technické DOM cesty (přání Hany).
+// Syrový HTML je schovaný v <details> (běžně ho uživatel nepotřebuje, ale
+// hodí se pro kontrolu a Claude prompt).
 function ElementInfo({
   dataReviewId,
-  domPath,
+  label,
   elementHtml,
 }: {
   dataReviewId: string | null;
-  domPath: string | null;
+  label: string | null;
   elementHtml: string | null;
 }) {
+  const shown = label ?? deriveLabel(elementHtml);
   return (
     <div className="space-y-1">
-      {dataReviewId ? (
-        <Badge variant="outline" className="max-w-full font-mono text-[11px]">
-          <span className="truncate">{dataReviewId}</span>
-        </Badge>
-      ) : domPath ? (
-        <p
-          className="truncate font-mono text-[11px] text-muted-foreground"
-          title={domPath}
-        >
-          {shortDomPath(domPath)}
-        </p>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="flex size-4 items-center justify-center rounded bg-pb-soft text-pb">
+          <MousePointer2 size={11} aria-hidden="true" />
+        </span>
+        {shown && <span className="text-xs font-medium">{shown}</span>}
+        {dataReviewId && (
+          <Badge variant="outline" className="max-w-full font-mono text-[11px]">
+            <span className="truncate">{dataReviewId}</span>
+          </Badge>
+        )}
+      </div>
       {elementHtml && (
         <details className="text-[11px] text-muted-foreground">
-          <summary className="cursor-pointer select-none">HTML elementu</summary>
+          <summary className="cursor-pointer select-none">Zobrazit HTML prvku</summary>
           <pre className="mt-1 max-h-32 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap break-all">
             {elementHtml.length > 1_000
               ? elementHtml.slice(0, 1_000) + "…"
@@ -315,7 +353,7 @@ function NewThreadForm({
       </div>
       <ElementInfo
         dataReviewId={selectedElement.dataReviewId}
-        domPath={selectedElement.domPath}
+        label={selectedElement.label}
         elementHtml={selectedElement.elementHtml}
       />
       <MentionTextarea
@@ -444,7 +482,7 @@ function ThreadCard({
       <p className="text-sm whitespace-pre-wrap break-words">{thread.body}</p>
       <ElementInfo
         dataReviewId={thread.dataReviewId}
-        domPath={thread.domPath}
+        label={deriveLabel(thread.elementHtml)}
         elementHtml={thread.elementHtml}
       />
 

@@ -42,3 +42,4 @@ _*.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+_*.cmd

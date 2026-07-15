@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ChevronLeft,
+  ChevronRight,
   FileText,
+  Home,
   Loader2,
   MessageSquarePlus,
   MousePointer2,
@@ -14,7 +17,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -50,6 +52,7 @@ import {
   type SelectedElement,
 } from "@/components/comments/comment-panel";
 import type { MentionMember } from "@/components/comments/mention-textarea";
+import { cn } from "@/lib/utils";
 
 type Version = {
   id: number;
@@ -92,14 +95,18 @@ export function DocumentViewer({
   const [showAllPages, setShowAllPages] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+  // Drobečková navigace: cesta stránkami specifikace, jak jimi uživatel prošel.
+  const [pageTrail, setPageTrail] = useState<string[]>([]);
   // Refs pro handler zpráv (registruje se jednou, nesmí číst zastaralý stav).
   const pagePathRef = useRef("");
   const modeRef = useRef(mode);
+  const threadsRef = useRef<CommentThread[]>([]);
   // Vlákno, které se má zvýraznit, až se donačte cílová stránka (klik na
   // komentář z JINÉ stránky → nejdřív navigace, pak highlight).
   const pendingHighlightRef = useRef<number | null>(null);
 
   const currentVersion = versions.find((v) => v.id === versionId);
+  const entryPath = currentVersion?.entryPath ?? "index.html";
 
   // Zpráva DO overlaye v iframe. targetOrigin "*" — iframe je opaque origin
   // (sandbox bez allow-same-origin), konkrétní origin nelze cílit.
@@ -135,6 +142,7 @@ export function DocumentViewer({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setThreads(data.threads);
+      threadsRef.current = data.threads;
       sendPins(data.threads, pagePathRef.current);
     } catch (e) {
       toast.error(
@@ -142,6 +150,15 @@ export function DocumentViewer({
       );
     }
   }, [documentId, sendPins]);
+
+  // Kotva komentáře = (dataReviewId, jinak domPath). Slouží k rozpoznání
+  // „stejného prvku" — jeden prvek má jen jedno vlákno (další jako odpovědi).
+  function threadAnchor(t: {
+    dataReviewId: string | null;
+    domPath: string | null;
+  }): string {
+    return t.dataReviewId ? "id:" + t.dataReviewId : "dom:" + (t.domPath ?? "");
+  }
 
   // Přepnutí verze: zobraz spinner a přepni ID (fetch tokenu řeší efekt).
   function switchVersion(v: string | null) {
@@ -219,6 +236,14 @@ export function DocumentViewer({
         setPagePath(page);
         setLoading(false);
         setSelectedElement(null);
+        // Drobečková cesta: stránka už v cestě → ořízni k ní (návrat zpět),
+        // jinak přidej na konec.
+        setPageTrail((trail) => {
+          if (trail[trail.length - 1] === page) return trail;
+          const idx = trail.indexOf(page);
+          if (idx >= 0) return trail.slice(0, idx + 1);
+          return [...trail, page];
+        });
         postToOverlay({
           type: "mode",
           commenting: modeRef.current === "comment",
@@ -235,11 +260,28 @@ export function DocumentViewer({
           }
         });
       } else if (d.type === "element.selected") {
+        const dataReviewId =
+          typeof d.dataReviewId === "string" ? d.dataReviewId : null;
+        const domPath = typeof d.domPath === "string" ? d.domPath : "";
+        const page = typeof d.pagePath === "string" ? d.pagePath : "";
+        // Jeden prvek = jedno vlákno: pokud na stejném prvku vlákno existuje,
+        // NEotvírej nový formulář, aktivuj to vlákno (další připomínky = odpovědi).
+        const anchor = threadAnchor({ dataReviewId, domPath });
+        const existing = threadsRef.current.find(
+          (t) => t.pagePath === page && threadAnchor(t) === anchor,
+        );
+        if (existing) {
+          setSelectedElement(null);
+          setActiveThreadId(existing.id);
+          postToOverlay({ type: "highlight", commentId: existing.id });
+          toast.info("K tomuto prvku už komentář je — přidejte odpověď.");
+          return;
+        }
         setSelectedElement({
-          pagePath: typeof d.pagePath === "string" ? d.pagePath : "",
-          dataReviewId:
-            typeof d.dataReviewId === "string" ? d.dataReviewId : null,
-          domPath: typeof d.domPath === "string" ? d.domPath : "",
+          pagePath: page,
+          dataReviewId,
+          domPath,
+          label: typeof d.label === "string" ? d.label : null,
           elementHtml:
             typeof d.elementHtml === "string" ? d.elementHtml : "",
           viewport:
@@ -251,6 +293,13 @@ export function DocumentViewer({
         });
       } else if (d.type === "pin.clicked") {
         setActiveThreadId(Number(d.commentId));
+      } else if (d.type === "highlight.result") {
+        // Prvek se na stránce nenašel (dynamický modal / skrytý) → hláška.
+        if (d.found === false) {
+          toast.info(
+            "Prvek se objeví až po otevření příslušného okna. V panelu je jeho náhled.",
+          );
+        }
       }
     }
     window.addEventListener("message", onMessage);
@@ -351,33 +400,88 @@ export function DocumentViewer({
           </span>
         )}
 
+        {/* Drobečková navigace mezi stránkami specifikace */}
         {pagePath && (
-          <Badge variant="outline" className="ml-auto font-mono">
-            {pagePath}
-          </Badge>
+          <nav className="ml-auto flex items-center gap-1 text-xs">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Zpět"
+              disabled={pageTrail.length < 2}
+              onClick={() => {
+                const prev = pageTrail[pageTrail.length - 2];
+                if (prev) goToPage(prev);
+              }}
+            >
+              <ChevronLeft />
+            </Button>
+            {pageTrail.map((p, i) => {
+              const isLast = i === pageTrail.length - 1;
+              const label = p === entryPath ? "Rozcestník" : p;
+              return (
+                <span key={p} className="flex items-center gap-1">
+                  {i > 0 && (
+                    <ChevronRight
+                      size={12}
+                      className="text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {isLast ? (
+                    <span className="flex items-center gap-1 font-medium">
+                      {p === entryPath && <Home size={12} aria-hidden="true" />}
+                      {label}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => goToPage(p)}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      {p === entryPath && <Home size={12} aria-hidden="true" />}
+                      {label}
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+          </nav>
         )}
 
-        {/* Režim prohlížeče — komentovat smí COMMENTER+ */}
+        {/* Režim prohlížeče — komentovat smí COMMENTER+. Výrazný přepínač:
+            aktivní „Komentování" svítí PB červenou, ať je na první pohled jasné,
+            v jakém režimu uživatel je (zpětná vazba Hany). */}
         {canComment && (
-          <div className="flex items-center gap-0.5 rounded-lg border p-0.5">
-            <Button
-              variant={mode === "browse" ? "secondary" : "ghost"}
-              size="xs"
+          <div className="flex items-center gap-1.5 rounded-xl border-2 border-pb/25 bg-pb-soft p-1">
+            <span className="pl-1.5 text-xs font-semibold text-pb">Režim:</span>
+            <button
+              type="button"
               onClick={() => switchMode("browse")}
               aria-pressed={mode === "browse"}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                mode === "browse"
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:bg-white/60 hover:text-foreground",
+              )}
             >
-              <MousePointer2 />
+              <MousePointer2 size={16} />
               Procházení
-            </Button>
-            <Button
-              variant={mode === "comment" ? "secondary" : "ghost"}
-              size="xs"
+            </button>
+            <button
+              type="button"
               onClick={() => switchMode("comment")}
               aria-pressed={mode === "comment"}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                mode === "comment"
+                  ? "bg-pb text-white shadow-sm"
+                  : "text-pb hover:bg-white/60",
+              )}
             >
-              <MessageSquarePlus />
+              <MessageSquarePlus size={16} />
               Komentování
-            </Button>
+            </button>
           </div>
         )}
       </div>

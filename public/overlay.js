@@ -61,7 +61,10 @@
     ".ph-pin > span { display: block; transform: rotate(45deg); font: 700 11px/18px sans-serif; text-align: center; }",
     ".ph-pin[data-status=RESOLVED] { background: #16a34a; }",
     ".ph-pin[data-hidden] { display: none; }",
-    ".ph-highlight { outline: 3px solid #c8102e !important; outline-offset: 2px; }",
+    ".ph-highlight { animation: ph-pulse 0.65s ease-in-out 0s 3 !important;",
+    "  outline: 3px solid #c8102e !important; outline-offset: 2px; border-radius: 2px; }",
+    "@keyframes ph-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,16,46,.0); }",
+    "  50% { box-shadow: 0 0 0 6px rgba(200,16,46,.35); } }",
   ].join("\n");
 
   var hoverBox = document.createElement("div");
@@ -128,6 +131,39 @@
     }
     parts.unshift("html");
     return parts.join(" > ");
+  }
+
+  // Čitelný popis prvku pro panel (uživatele nezajímá DOM cesta).
+  // Např. „tlačítko „Odeslat dotaz"" nebo „nadpis „Dotazy"".
+  var TAG_NAMES = {
+    A: "odkaz",
+    BUTTON: "tlačítko",
+    INPUT: "pole",
+    TEXTAREA: "pole",
+    SELECT: "výběr",
+    IMG: "obrázek",
+    H1: "nadpis",
+    H2: "nadpis",
+    H3: "nadpis",
+    H4: "nadpis",
+    P: "odstavec",
+    LI: "položka",
+    TD: "buňka",
+    TH: "buňka",
+    LABEL: "popisek",
+    SPAN: "text",
+    DIV: "blok",
+    SECTION: "sekce",
+    NAV: "navigace",
+    UL: "seznam",
+    OL: "seznam",
+    FORM: "formulář",
+  };
+  function elementLabel(el) {
+    var name = TAG_NAMES[el.tagName] || el.tagName.toLowerCase();
+    var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (text.length > 40) text = text.slice(0, 40) + "…";
+    return text ? name + " „" + text + "“" : name;
   }
 
   // Rect elementu v DOKUMENTOVÝCH souřadnicích (ne viewport).
@@ -289,6 +325,7 @@
         : null,
       // domPath se počítá VŽDY (fallback kotva pro přenos mezi verzemi).
       domPath: computeDomPath(anchorEl),
+      label: elementLabel(anchorEl),
       rect: documentRect(anchorEl),
       elementHtml: html.slice(0, MAX_ELEMENT_HTML),
       viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -298,20 +335,30 @@
   // ---- zvýraznění vlákna (klik v panelu rodiče) ----------------------------
 
   var highlightTimer = null;
+  var highlightedEl = null;
   function highlight(commentId) {
     var pin = null;
     for (var i = 0; i < pins.length; i++) {
       if (pins[i].commentId === commentId) pin = pins[i];
     }
-    if (!pin) return;
-    var el = resolveAnchor(pin);
-    if (!el) return;
+    var el = pin ? resolveAnchor(pin) : null;
+    // Prvek nenalezen (dynamický modal ještě nevytvořen) nebo skrytý → rodič
+    // ukáže uložený náhled a hlášku (spolehlivé, nezávislé na stavu stránky).
+    if (!el || !isElementVisible(el)) {
+      post("highlight.result", { commentId: commentId, found: false });
+      return;
+    }
+    // Zruš předchozí zvýraznění.
+    if (highlightedEl) highlightedEl.classList.remove("ph-highlight");
+    highlightedEl = el;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("ph-highlight");
     if (highlightTimer) clearTimeout(highlightTimer);
     highlightTimer = setTimeout(function () {
       el.classList.remove("ph-highlight");
-    }, 2000);
+      highlightedEl = null;
+    }, 2600);
+    post("highlight.result", { commentId: commentId, found: true });
   }
 
   // ---- zprávy od rodiče ----------------------------------------------------
