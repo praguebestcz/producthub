@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-15**
+  * M6 (komentáře) nasazeno na produkci; rozpracován redesign komentování ve stylu Google Docs (bublina u prvku, vyjíždějící panel, celá šířka) - doladit bublinu - Hana Ortmannová
   * M6 UX vylepšení dle ručního testu Hany: drobečková navigace mezi stránkami, výrazný přepínač režimů, čitelný popis prvku místo DOM cesty, jeden prvek = jedno vlákno, spolehlivé řešení skrytých prvků (náhled + hláška) - Hana Ortmannová
   * M6 (komentáře nad elementy) implementováno vč. bezpečnostního smoke testu (filtr interních, zmínky, limity, modaly) - čeká na ruční test Hany - Hana Ortmannová
 * **2026-07-14**
