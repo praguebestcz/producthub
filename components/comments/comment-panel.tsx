@@ -291,6 +291,7 @@ export function CommentBubble({
   members: MentionMember[];
 }) {
   const BUBBLE_W = 320;
+  const BUBBLE_H = 200; // odhad výšky pro clamp do viditelné oblasti
   const MARGIN = 8;
   // Vodorovně: zarovnat s prvkem, ale nevylézt z kontejneru.
   let left = position.left;
@@ -298,15 +299,24 @@ export function CommentBubble({
     left = container.width - BUBBLE_W - MARGIN;
   }
   if (left < MARGIN) left = MARGIN;
-  // Svisle: pod prvek; když by dole přeteklo, nad prvek.
-  const belowTop = position.bottom + MARGIN;
-  const placeAbove = belowTop > container.height - 160 && position.top > 180;
-  const style: React.CSSProperties = placeAbove
-    ? { left, bottom: container.height - position.top + MARGIN, width: BUBBLE_W }
-    : { left, top: belowTop, width: BUBBLE_W };
+  // Svisle: pod prvek; když by se dole nevešlo, nad prvek.
+  let top = position.bottom + MARGIN;
+  if (top + BUBBLE_H > container.height && position.top - BUBBLE_H - MARGIN > 0) {
+    top = position.top - BUBBLE_H - MARGIN;
+  }
+  // Clamp do viditelné oblasti — když prvek vyscrolluje k okraji, bublina
+  // zůstane vidět (neodjede mimo, „nezmizí").
+  top = Math.max(MARGIN, Math.min(top, container.height - BUBBLE_H));
+  const style: React.CSSProperties = { left, top, width: BUBBLE_W };
 
   return (
-    <div className="absolute z-30" style={style}>
+    <div
+      className="absolute z-30"
+      style={style}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <NewThreadForm
         documentId={documentId}
         versionId={versionId}
