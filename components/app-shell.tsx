@@ -14,9 +14,13 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 export function AppShell({
   user,
   children,
+  fullWidth = false,
 }: {
   user: User;
   children: React.ReactNode;
+  // fullWidth = obsah přes celou šířku (bez max-w, menší okraje). Pro prohlížeč
+  // dokumentu, kde je potřeba co nejvíc místa (přání Hany).
+  fullWidth?: boolean;
 }) {
   return (
     <SidebarProvider>
@@ -37,7 +41,13 @@ export function AppShell({
             <ThemeToggle />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+        <main
+          className={
+            fullWidth
+              ? "w-full flex-1 px-4 py-5"
+              : "mx-auto w-full max-w-6xl flex-1 px-6 py-8"
+          }
+        >
           {children}
         </main>
       </SidebarInset>

@@ -57,7 +57,7 @@ export default async function DocumentPage({
   });
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} fullWidth>
       <nav className="flex gap-1.5 text-sm text-muted-foreground">
         <Link href="/" className="hover:text-foreground">
           Projekty

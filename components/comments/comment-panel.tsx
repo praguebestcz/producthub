@@ -123,101 +123,200 @@ function deriveLabel(elementHtml: string | null): string | null {
   return text ? `${name} „${text}"` : name;
 }
 
+export type PanelMode = "thread" | "list";
+
+// Pozice prvku v prohlížeči (viewportRect z overlay) — pro umístění bubliny.
+export type BubblePosition = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  bottom: number;
+  right: number;
+};
+
+// Postranní panel = vyjíždějící drawer. Režim „thread" (jedno vlákno po kliku
+// na špendlík) nebo „list" (seznam všech na tlačítko Komentáře). Skrytý, dokud
+// ho něco neotevře (přání Hany — panel není pořád na očích).
 export function CommentPanel({
+  open,
+  mode,
+  onClose,
   documentId,
-  versionId,
   currentPagePath,
   threads,
   showAllPages,
   onShowAllPagesChange,
   activeThreadId,
   onActivateThread,
-  selectedElement,
-  onClearSelection,
   onChanged,
   canComment,
   canSeeInternal,
   members,
 }: {
+  open: boolean;
+  mode: PanelMode;
+  onClose: () => void;
   documentId: number;
-  versionId: number;
   currentPagePath: string;
   threads: CommentThread[];
   showAllPages: boolean;
   onShowAllPagesChange: (v: boolean) => void;
   activeThreadId: number | null;
   onActivateThread: (thread: CommentThread) => void;
-  selectedElement: SelectedElement | null;
-  onClearSelection: () => void;
   onChanged: () => Promise<void>;
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
-  // Vlákna aktuální stránky určují číslování špendlíků (stejné pořadí jako pins).
   const pageThreads = threads.filter((t) => t.pagePath === currentPagePath);
   const visibleThreads = showAllPages ? threads : pageThreads;
+  const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
+
+  // Číslo špendlíku vlákna (dle pořadí na jeho stránce) — pro hlavičku karty.
+  function pinNumberOf(thread: CommentThread): number | null {
+    if (thread.pagePath !== currentPagePath) return null;
+    return pageThreads.indexOf(thread) + 1;
+  }
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col rounded-xl border bg-background">
-      {/* Hlavička panelu */}
+    <div
+      className={cn(
+        "absolute inset-y-0 right-0 z-20 flex w-[26rem] max-w-[calc(100%-1rem)] flex-col border-l bg-background shadow-2xl transition-transform duration-200",
+        open ? "translate-x-0" : "pointer-events-none translate-x-full",
+      )}
+      aria-hidden={!open}
+    >
+      {/* Hlavička draweru */}
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
         <span className="flex items-center gap-1.5 text-sm font-medium">
           <MessageSquare size={15} aria-hidden="true" />
-          Komentáře ({visibleThreads.length})
+          {mode === "thread"
+            ? "Komentář"
+            : `Komentáře (${visibleThreads.length})`}
         </span>
-        <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          Všechny stránky
-          <Switch
-            size="sm"
-            checked={showAllPages}
-            onCheckedChange={onShowAllPagesChange}
-          />
-        </Label>
+        <div className="flex items-center gap-2">
+          {mode === "list" && (
+            <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              Všechny stránky
+              <Switch
+                size="sm"
+                checked={showAllPages}
+                onCheckedChange={onShowAllPagesChange}
+              />
+            </Label>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Zavřít panel"
+            onClick={onClose}
+          >
+            <X />
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
-        {/* Formulář nového komentáře po výběru elementu v iframe */}
-        {selectedElement && canComment && (
-          <NewThreadForm
-            documentId={documentId}
-            versionId={versionId}
-            selectedElement={selectedElement}
-            onClearSelection={onClearSelection}
-            onChanged={onChanged}
-            canSeeInternal={canSeeInternal}
-            members={members}
-          />
+        {mode === "thread" ? (
+          activeThread ? (
+            <ThreadCard
+              documentId={documentId}
+              thread={activeThread}
+              pinNumber={pinNumberOf(activeThread)}
+              isActive
+              onActivate={() => onActivateThread(activeThread)}
+              onChanged={onChanged}
+              canComment={canComment}
+              canSeeInternal={canSeeInternal}
+              members={members}
+            />
+          ) : (
+            <p className="px-1 py-6 text-center text-sm text-muted-foreground">
+              Vlákno nenalezeno.
+            </p>
+          )
+        ) : (
+          <>
+            {visibleThreads.length === 0 && (
+              <p className="px-1 py-6 text-center text-sm text-muted-foreground">
+                {canComment
+                  ? "Zatím žádné komentáře. Zapněte režim Komentování a klikněte na prvek ve specifikaci."
+                  : "Zatím žádné komentáře."}
+              </p>
+            )}
+            {visibleThreads.map((thread) => (
+              <ThreadCard
+                key={thread.id}
+                documentId={documentId}
+                thread={thread}
+                pinNumber={pinNumberOf(thread)}
+                isActive={thread.id === activeThreadId}
+                onActivate={() => onActivateThread(thread)}
+                onChanged={onChanged}
+                canComment={canComment}
+                canSeeInternal={canSeeInternal}
+                members={members}
+              />
+            ))}
+          </>
         )}
-
-        {visibleThreads.length === 0 && !selectedElement && (
-          <p className="px-1 py-6 text-center text-sm text-muted-foreground">
-            {canComment
-              ? "Zatím žádné komentáře. Přepněte na režim komentování a klikněte na element ve specifikaci."
-              : "Zatím žádné komentáře."}
-          </p>
-        )}
-
-        {visibleThreads.map((thread) => (
-          <ThreadCard
-            key={thread.id}
-            documentId={documentId}
-            thread={thread}
-            pinNumber={
-              thread.pagePath === currentPagePath
-                ? pageThreads.indexOf(thread) + 1
-                : null
-            }
-            isActive={thread.id === activeThreadId}
-            onActivate={() => onActivateThread(thread)}
-            onChanged={onChanged}
-            canComment={canComment}
-            canSeeInternal={canSeeInternal}
-            members={members}
-          />
-        ))}
       </div>
-    </aside>
+    </div>
+  );
+}
+
+// Bublina nového komentáře přímo u prvku (styl Google Docs). Umístí se pod
+// prvek podle jeho pozice v prohlížeči; hlídá okraje kontejneru. Po uložení
+// zmizí a vzniká špendlík.
+export function CommentBubble({
+  documentId,
+  versionId,
+  selectedElement,
+  position,
+  container,
+  onClose,
+  onChanged,
+  canSeeInternal,
+  members,
+}: {
+  documentId: number;
+  versionId: number;
+  selectedElement: SelectedElement;
+  position: BubblePosition;
+  container: { width: number; height: number };
+  onClose: () => void;
+  onChanged: () => Promise<void>;
+  canSeeInternal: boolean;
+  members: MentionMember[];
+}) {
+  const BUBBLE_W = 320;
+  const MARGIN = 8;
+  // Vodorovně: zarovnat s prvkem, ale nevylézt z kontejneru.
+  let left = position.left;
+  if (left + BUBBLE_W > container.width - MARGIN) {
+    left = container.width - BUBBLE_W - MARGIN;
+  }
+  if (left < MARGIN) left = MARGIN;
+  // Svisle: pod prvek; když by dole přeteklo, nad prvek.
+  const belowTop = position.bottom + MARGIN;
+  const placeAbove = belowTop > container.height - 160 && position.top > 180;
+  const style: React.CSSProperties = placeAbove
+    ? { left, bottom: container.height - position.top + MARGIN, width: BUBBLE_W }
+    : { left, top: belowTop, width: BUBBLE_W };
+
+  return (
+    <div className="absolute z-30" style={style}>
+      <NewThreadForm
+        documentId={documentId}
+        versionId={versionId}
+        selectedElement={selectedElement}
+        onClearSelection={onClose}
+        onChanged={onChanged}
+        canSeeInternal={canSeeInternal}
+        members={members}
+      />
+    </div>
   );
 }
 
@@ -334,7 +433,7 @@ function NewThreadForm({
   return (
     <form
       onSubmit={submit}
-      className="space-y-2 rounded-lg border border-pb/40 bg-pb-soft p-2.5"
+      className="space-y-2 rounded-xl border-2 border-pb/40 bg-background p-2.5 shadow-2xl ring-1 ring-black/5"
     >
       <div className="flex items-start justify-between gap-2">
         <span className="flex items-center gap-1.5 text-sm font-medium">

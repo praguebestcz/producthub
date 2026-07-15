@@ -25,6 +25,7 @@
   // orámovaný, dokud rodič nepošle selection.clear (uložení/zrušení formuláře).
   // Bez toho rámeček skákal po stránce cestou myši k panelu (zpětná vazba Hany).
   var selectionActive = false;
+  var selectedEl = null; // vybraný prvek — rodič u něj drží bublinu komentáře
 
   // Cesta stránky uvnitř balíku = část URL za /view/{token}/.
   function currentPagePath() {
@@ -100,7 +101,16 @@
 
   function clearSelection() {
     selectionActive = false;
+    selectedEl = null;
     selBox.style.display = "none";
+  }
+
+  // Při scrollu/resize drž rámeček výběru u prvku a hlas rodiči novou pozici,
+  // ať u prvku zůstane i bublina komentáře.
+  function reportSelectionMove() {
+    if (!selectionActive || !selectedEl) return;
+    placeBox(selBox, documentRect(selectedEl));
+    post("anchor.moved", { viewportRect: viewportRect(selectedEl) });
   }
 
   function isOwn(el) {
@@ -174,6 +184,21 @@
       left: r.left + window.scrollX,
       width: r.width,
       height: r.height,
+    };
+  }
+
+  // Rect ve VIEWPORT souřadnicích (bez scrollu) — iframe vyplňuje kontejner
+  // v rodiči, takže tyto souřadnice = pozice prvku v prohlížeči. Rodič podle
+  // nich umístí bublinu komentáře přímo u prvku.
+  function viewportRect(el) {
+    var r = el.getBoundingClientRect();
+    return {
+      top: r.top,
+      left: r.left,
+      width: r.width,
+      height: r.height,
+      bottom: r.bottom,
+      right: r.right,
     };
   }
 
@@ -316,6 +341,7 @@
 
     // Výběr zůstane orámovaný, dokud rodič nepošle selection.clear.
     selectionActive = true;
+    selectedEl = anchorEl;
     hoverBox.style.display = "none";
     placeBox(selBox, documentRect(anchorEl));
     post("element.selected", {
@@ -327,6 +353,8 @@
       domPath: computeDomPath(anchorEl),
       label: elementLabel(anchorEl),
       rect: documentRect(anchorEl),
+      // viewportRect = pozice v prohlížeči → bublina komentáře u prvku.
+      viewportRect: viewportRect(anchorEl),
       elementHtml: html.slice(0, MAX_ELEMENT_HTML),
       viewport: { width: window.innerWidth, height: window.innerHeight },
     });
@@ -392,6 +420,9 @@
     document.addEventListener("mouseover", onMouseOver, true);
     document.addEventListener("mouseout", onMouseOut, true);
     window.addEventListener("resize", scheduleReposition);
+    // Scroll/resize → přepočítat pozici bubliny u vybraného prvku.
+    window.addEventListener("scroll", reportSelectionMove, { passive: true });
+    window.addEventListener("resize", reportSelectionMove);
 
     // Špendlíky se srovnávají po změnách DOM (JS-generované elementy, modaly).
     var observer = new MutationObserver(function (mutations) {
