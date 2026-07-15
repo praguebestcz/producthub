@@ -14,6 +14,8 @@
 
 ## Revize
 
+* **2026-07-15**
+  * M6 (komentáře nad elementy) implementováno vč. bezpečnostního smoke testu (filtr interních, zmínky, limity, modaly) - čeká na ruční test Hany - Hana Ortmannová
 * **2026-07-14**
   * Vydání dokumentu - zpětný zápis hotových milníků M0-M5 podle skutečného stavu aplikace, milník M6 detailně, M7-M9 jako plánovaný stav - Hana Ortmannová
 
@@ -142,7 +144,7 @@ Aplikace je nasazená na produkci a milníky M0-M5 jsou hotové a otestované
 | M3 | Projekty, členové, pozvánky; M3.5 složky klientů | 🟢 hotovo |
 | M4 | Nasazení na Railway; M4.5 deaktivace/mazání uživatelů, tři úrovně rolí | 🟢 hotovo |
 | M5 | Dokumenty: upload/import, verze, sandboxovaný prohlížeč | 🟢 hotovo |
-| M6 | Komentáře nad elementy + vlákna | 🟠 plánováno - detail v této spec |
+| M6 | Komentáře nad elementy + vlákna | 🟠 implementováno - čeká na ruční test Hany |
 | M7 | Realtime (SSE) + notifikace | 🟠 plánováno |
 | M8 | Požadavky + Claude prompt | 🟠 plánováno |
 | M9 | Přenos komentářů mezi verzemi + dokončení | 🟠 plánováno |

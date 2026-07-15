@@ -39,3 +39,49 @@ export const memberPatchSchema = z
   .refine((v) => v.role !== undefined || v.isInternal !== undefined, {
     message: "Nic ke změně",
   });
+
+// M6 — komentáře. Jedno schéma pro kořen vlákna i odpověď; superRefine hlídá
+// exkluzivitu (odpověď = jen parentId + text, kotvu dědí z kořene).
+// Limity délek jsou závazné ze security review (M6). Pole `screenshot` schéma
+// záměrně NEZNÁ — Zod object neznámé klíče zahazuje (API v1 ho nesmí přijmout).
+export const commentCreateSchema = z
+  .object({
+    body: z.string().trim().min(1, "Napište komentář").max(10_000),
+    visibility: z.enum(["PUBLIC", "INTERNAL"]).optional().default("PUBLIC"),
+    // @zmínky — userId členů projektu (členství ověřuje route).
+    mentions: z.array(z.number().int().positive()).max(20).optional().default([]),
+    // Odpověď: kořenový komentář vlákna.
+    parentId: z.number().int().positive().optional(),
+    // Kořen: verze dokumentu + stránka + kotva na element.
+    documentVersionId: z.number().int().positive().optional(),
+    pagePath: z.string().min(1).max(500).optional(),
+    dataReviewId: z.string().trim().min(1).max(200).optional(),
+    domPath: z.string().min(1).max(2_000).optional(),
+    elementHtml: z.string().min(1).max(20_000).optional(),
+    viewportWidth: z.number().int().positive().max(20_000).optional(),
+    viewportHeight: z.number().int().positive().max(20_000).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.parentId !== undefined) {
+      // Odpověď nesmí nést vlastní kotvu ani určení stránky/verze.
+      const forbidden =
+        v.documentVersionId ?? v.pagePath ?? v.dataReviewId ?? v.domPath ??
+        v.elementHtml ?? v.viewportWidth ?? v.viewportHeight;
+      if (forbidden !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Odpověď nemůže mít vlastní kotvu ani stránku",
+        });
+      }
+    } else if (v.documentVersionId === undefined || v.pagePath === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Komentáři chybí verze dokumentu nebo stránka",
+      });
+    }
+  });
+
+// Změna stavu vlákna — OPEN vzniká jen vytvořením, API přijímá jen tyto dva.
+export const commentStatusSchema = z.object({
+  status: z.enum(["RESOLVED", "REOPENED"]),
+});

@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getSessionUser, requireProjectRole } from "@/lib/auth";
+import {
+  canSeeInternal,
+  getSessionUser,
+  requireProjectRole,
+  roleAtLeast,
+} from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/app-shell";
 import { DocumentViewer } from "./viewer";
@@ -40,6 +45,17 @@ export default async function DocumentPage({
   });
   if (!document) notFound();
 
+  // Členové pro @našeptávač zmínek (M6) — deaktivovaní se nenabízejí (M4.5).
+  // Seznam jde jako prop (stránka je za requireProjectRole), žádný endpoint.
+  const members = await prisma.projectMember.findMany({
+    where: { projectId, user: { deactivatedAt: null } },
+    select: {
+      userId: true,
+      user: { select: { name: true, avatarUrl: true } },
+    },
+    orderBy: { user: { name: "asc" } },
+  });
+
   return (
     <AppShell user={user}>
       <nav className="flex gap-1.5 text-sm text-muted-foreground">
@@ -64,6 +80,13 @@ export default async function DocumentPage({
           createdAt: v.createdAt.toISOString(),
         }))}
         isAuthor={member.role === "AUTHOR"}
+        canComment={roleAtLeast(member.role, "COMMENTER")}
+        canSeeInternal={canSeeInternal(member)}
+        members={members.map((m) => ({
+          userId: m.userId,
+          name: m.user.name,
+          avatarUrl: m.user.avatarUrl,
+        }))}
       />
     </AppShell>
   );

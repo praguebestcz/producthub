@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import {
+  FileText,
+  Loader2,
+  MessageSquarePlus,
+  MousePointer2,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +44,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  CommentPanel,
+  type CommentThread,
+  type SelectedElement,
+} from "@/components/comments/comment-panel";
+import type { MentionMember } from "@/components/comments/mention-textarea";
 
 type Version = {
   id: number;
@@ -51,12 +66,18 @@ export function DocumentViewer({
   name,
   versions,
   isAuthor,
+  canComment,
+  canSeeInternal,
+  members,
 }: {
   documentId: number;
   projectId: number;
   name: string;
   versions: Version[];
   isAuthor: boolean;
+  canComment: boolean;
+  canSeeInternal: boolean;
+  members: MentionMember[];
 }) {
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -65,13 +86,75 @@ export function DocumentViewer({
   const [loading, setLoading] = useState(true);
   const [pagePath, setPagePath] = useState<string>("");
 
+  // M6 — komentování:
+  const [mode, setMode] = useState<"browse" | "comment">("browse");
+  const [threads, setThreads] = useState<CommentThread[]>([]);
+  const [showAllPages, setShowAllPages] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+  // Refs pro handler zpráv (registruje se jednou, nesmí číst zastaralý stav).
+  const pagePathRef = useRef("");
+  const modeRef = useRef(mode);
+
   const currentVersion = versions.find((v) => v.id === versionId);
+
+  // Zpráva DO overlaye v iframe. targetOrigin "*" — iframe je opaque origin
+  // (sandbox bez allow-same-origin), konkrétní origin nelze cílit.
+  const postToOverlay = useCallback((msg: Record<string, unknown>) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { source: "producthub-parent", ...msg },
+      "*",
+    );
+  }, []);
+
+  // Špendlíky = kořeny vláken AKTUÁLNÍ stránky (pořadí určuje číslování).
+  const sendPins = useCallback(
+    (threadList: CommentThread[], page: string) => {
+      postToOverlay({
+        type: "pins.update",
+        pins: threadList
+          .filter((t) => t.pagePath === page)
+          .map((t) => ({
+            commentId: t.id,
+            dataReviewId: t.dataReviewId,
+            domPath: t.domPath,
+            status: t.status,
+          })),
+      });
+    },
+    [postToOverlay],
+  );
+
+  // Načte vlákna VŠECH stránek (panel filtruje lokálně) a srovná špendlíky.
+  const loadComments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/documents/${documentId}/comments`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setThreads(data.threads);
+      sendPins(data.threads, pagePathRef.current);
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Komentáře se nepodařilo načíst.",
+      );
+    }
+  }, [documentId, sendPins]);
 
   // Přepnutí verze: zobraz spinner a přepni ID (fetch tokenu řeší efekt).
   function switchVersion(v: string | null) {
     if (!v) return;
     setLoading(true);
+    setSelectedElement(null);
+    setActiveThreadId(null);
     setVersionId(Number(v));
+  }
+
+  // Přepnutí režimu — overlay dostane zprávu; návrat do procházení ruší výběr.
+  function switchMode(next: "browse" | "comment") {
+    setMode(next);
+    modeRef.current = next;
+    postToOverlay({ type: "mode", commenting: next === "comment" });
+    if (next === "browse") setSelectedElement(null);
   }
 
   // Při změně verze vyžádá čerstvý view-token a nastaví iframe na vstupní
@@ -99,18 +182,50 @@ export function DocumentViewer({
     };
   }, [versionId]);
 
-  // Zpráva z overlay.js uvnitř iframe — na které stránce specifikace jsme.
+  // Zprávy z overlay.js uvnitř iframe. NEJDŘÍV kontrola e.source — přijímáme
+  // výhradně z NAŠEHO iframe (závazné z design docu; cizí okna by mohla zprávy
+  // podvrhnout).
   useEffect(() => {
     function onMessage(e: MessageEvent) {
+      if (e.source !== iframeRef.current?.contentWindow) return;
       const d = e.data;
-      if (d && d.source === "producthub-overlay" && d.type === "ready") {
-        setPagePath(typeof d.pagePath === "string" ? d.pagePath : "");
+      if (!d || d.source !== "producthub-overlay") return;
+
+      if (d.type === "ready") {
+        // Nová stránka uvnitř specifikace (i navigace prokliky) — overlay se
+        // načetl znovu, pošli mu aktuální režim a špendlíky té stránky.
+        const page = typeof d.pagePath === "string" ? d.pagePath : "";
+        pagePathRef.current = page;
+        setPagePath(page);
         setLoading(false);
+        setSelectedElement(null);
+        postToOverlay({
+          type: "mode",
+          commenting: modeRef.current === "comment",
+        });
+        void loadComments();
+      } else if (d.type === "element.selected") {
+        setSelectedElement({
+          pagePath: typeof d.pagePath === "string" ? d.pagePath : "",
+          dataReviewId:
+            typeof d.dataReviewId === "string" ? d.dataReviewId : null,
+          domPath: typeof d.domPath === "string" ? d.domPath : "",
+          elementHtml:
+            typeof d.elementHtml === "string" ? d.elementHtml : "",
+          viewport:
+            d.viewport &&
+            typeof d.viewport.width === "number" &&
+            typeof d.viewport.height === "number"
+              ? d.viewport
+              : { width: 0, height: 0 },
+        });
+      } else if (d.type === "pin.clicked") {
+        setActiveThreadId(Number(d.commentId));
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [loadComments, postToOverlay]);
 
   if (versions.length === 0) {
     return (
@@ -203,25 +318,75 @@ export function DocumentViewer({
             {pagePath}
           </Badge>
         )}
-      </div>
 
-      {/* Prohlížeč — sandboxovaný iframe (bez allow-same-origin = XSS ochrana) */}
-      <div className="relative mt-4 h-[calc(100vh-16rem)] overflow-hidden rounded-xl border bg-white">
-        {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        {/* Režim prohlížeče — komentovat smí COMMENTER+ */}
+        {canComment && (
+          <div className="flex items-center gap-0.5 rounded-lg border p-0.5">
+            <Button
+              variant={mode === "browse" ? "secondary" : "ghost"}
+              size="xs"
+              onClick={() => switchMode("browse")}
+              aria-pressed={mode === "browse"}
+            >
+              <MousePointer2 />
+              Procházení
+            </Button>
+            <Button
+              variant={mode === "comment" ? "secondary" : "ghost"}
+              size="xs"
+              onClick={() => switchMode("comment")}
+              aria-pressed={mode === "comment"}
+            >
+              <MessageSquarePlus />
+              Komentování
+            </Button>
           </div>
         )}
-        {viewSrc && (
-          <iframe
-            ref={iframeRef}
-            src={viewSrc}
-            title={name}
-            className="h-full w-full"
-            sandbox="allow-scripts allow-forms allow-popups"
-            onLoad={() => setLoading(false)}
-          />
-        )}
+      </div>
+
+      {/* Prohlížeč + panel komentářů */}
+      <div className="mt-4 flex h-[calc(100vh-16rem)] gap-4">
+        {/* Sandboxovaný iframe (bez allow-same-origin = XSS ochrana) */}
+        <div className="relative flex-1 overflow-hidden rounded-xl border bg-white">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {viewSrc && (
+            <iframe
+              ref={iframeRef}
+              src={viewSrc}
+              title={name}
+              className="h-full w-full"
+              sandbox="allow-scripts allow-forms allow-popups"
+              onLoad={() => setLoading(false)}
+            />
+          )}
+        </div>
+
+        <CommentPanel
+          documentId={documentId}
+          versionId={versionId}
+          currentPagePath={pagePath}
+          threads={threads}
+          showAllPages={showAllPages}
+          onShowAllPagesChange={setShowAllPages}
+          activeThreadId={activeThreadId}
+          onActivateThread={(thread) => {
+            setActiveThreadId(thread.id);
+            // Zvýraznění v iframe dává smysl jen pro vlákna aktuální stránky.
+            if (thread.pagePath === pagePathRef.current) {
+              postToOverlay({ type: "highlight", commentId: thread.id });
+            }
+          }}
+          selectedElement={selectedElement}
+          onClearSelection={() => setSelectedElement(null)}
+          onChanged={loadComments}
+          canComment={canComment}
+          canSeeInternal={canSeeInternal}
+          members={members}
+        />
       </div>
     </div>
   );
