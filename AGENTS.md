@@ -10,13 +10,14 @@ Platforma pro sdílení, připomínkování a revizi HTML specifikací. Recenzen
 konkrétní HTML elementy, nad komentáři běží diskuse, autor je převede na strukturovaný
 požadavek a systém vygeneruje hotový prompt pro Claude Code.
 
-- **Design dokument (zdroj pravdy):** `docs/design-2026-07-10-producthub.md`
+- **Funkční specifikace (CO aplikace dělá):** `specs/producthub-specifikace.md` — **živý dokument**: po KAŽDÉ úpravě, která mění chování aplikace, aktualizuj dotčené sekce, markery (🟢/🟠) a Revizi; patří do stejného commitu jako změna kódu
+- **Design dokument (technické JAK):** `docs/design-2026-07-10-producthub.md` — architektura, milníky, závazné podmínky ze security review
 - **Zadání od Hany:** `inputs/claude-code-zadani-cz.md`
 
-## Konvence (zrcadlí aplikaci vratky — `C:\Users\hanao\Desktop\AI\vratky`)
+## Konvence (zrcadlí aplikaci vratky — `C:\Users\hanao\Desktop\Praguebest\internal\vratky`)
 
 - Next.js 16.2 (App Router, `proxy.ts` místo `middleware.ts`), TypeScript, React 19
-- Tailwind 4 (bez shadcn), ikony lucide-react
+- Tailwind 4 + shadcn/ui `base-nova` (Base UI — `render` prop místo `asChild`!), ikony lucide-react, recept `docs/styling.md`
 - PostgreSQL 17 + Prisma 6 — lokálně `docker compose up -d` (port 5433!), produkce Railway
 - Session: jose JWT cookie (klouzavé obnovení v `proxy.ts`), přihlášení Google OAuth
 - Validace: Zod. Testy: vitest v `tests/`. Chyby: Sentry (self-hosted PragueBest)
