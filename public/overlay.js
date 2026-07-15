@@ -21,6 +21,10 @@
   // ---- stav overlaye -------------------------------------------------------
   var commenting = false; // režim komentování (crosshair, klik = výběr)
   var pins = []; // poslední pins.update od rodiče
+  // Po kliknutí je element „vybraný": hover se ZASTAVÍ a výběr zůstane
+  // orámovaný, dokud rodič nepošle selection.clear (uložení/zrušení formuláře).
+  // Bez toho rámeček skákal po stránce cestou myši k panelu (zpětná vazba Hany).
+  var selectionActive = false;
 
   // Cesta stránky uvnitř balíku = část URL za /view/{token}/.
   function currentPagePath() {
@@ -48,6 +52,8 @@
     "html.ph-commenting, html.ph-commenting * { cursor: crosshair !important; }",
     ".ph-hover-box { position: absolute; pointer-events: none; z-index: 2147483645;",
     "  border: 2px solid #c8102e; background: rgba(200,16,46,.08); border-radius: 2px; }",
+    ".ph-sel-box { position: absolute; pointer-events: none; z-index: 2147483645;",
+    "  border: 2px solid #c8102e; outline: 2px solid rgba(200,16,46,.25); outline-offset: 2px; border-radius: 2px; }",
     ".ph-pin { position: absolute; z-index: 2147483646; width: 22px; height: 22px;",
     "  border-radius: 50% 50% 50% 0; transform: rotate(-45deg) translate(0,0);",
     "  border: 2px solid #fff; background: #c8102e; color: #fff; cursor: pointer;",
@@ -63,6 +69,12 @@
   hoverBox.setAttribute("data-ph-overlay", "");
   hoverBox.style.display = "none";
 
+  // Rámeček VYBRANÉHO elementu — drží se, dokud je otevřený formulář komentáře.
+  var selBox = document.createElement("div");
+  selBox.className = "ph-sel-box";
+  selBox.setAttribute("data-ph-overlay", "");
+  selBox.style.display = "none";
+
   var pinLayer = document.createElement("div");
   pinLayer.setAttribute("data-ph-overlay", "");
   // Vrstva bez rozměrů — špendlíky jsou pozicované absolutně vůči dokumentu.
@@ -71,7 +83,21 @@
   function mountOwnElements() {
     (document.head || document.documentElement).appendChild(styleEl);
     document.body.appendChild(hoverBox);
+    document.body.appendChild(selBox);
     document.body.appendChild(pinLayer);
+  }
+
+  function placeBox(box, rect) {
+    box.style.display = "block";
+    box.style.top = rect.top + "px";
+    box.style.left = rect.left + "px";
+    box.style.width = rect.width + "px";
+    box.style.height = rect.height + "px";
+  }
+
+  function clearSelection() {
+    selectionActive = false;
+    selBox.style.display = "none";
   }
 
   function isOwn(el) {
@@ -208,19 +234,31 @@
     document.documentElement.classList.toggle("ph-commenting", commenting);
     if (!commenting) {
       hoverBox.style.display = "none";
+      clearSelection();
     }
   }
 
+  // Celostránkové kontejnery nedávají jako kotva smysl a jejich rámeček
+  // vypadá jako „označila se celá stránka" — přeskakují se.
+  function isPageContainer(el) {
+    return el === document.body || el === document.documentElement;
+  }
+
   function onMouseOver(e) {
-    if (!commenting) return;
+    // Během aktivního výběru hover NEjezdí — vybraný element zůstává orámovaný.
+    if (!commenting || selectionActive) return;
     var target = e.target;
     if (!(target instanceof Element) || isOwn(target)) return;
-    var rect = documentRect(target);
-    hoverBox.style.display = "block";
-    hoverBox.style.top = rect.top + "px";
-    hoverBox.style.left = rect.left + "px";
-    hoverBox.style.width = rect.width + "px";
-    hoverBox.style.height = rect.height + "px";
+    if (isPageContainer(target)) {
+      hoverBox.style.display = "none";
+      return;
+    }
+    placeBox(hoverBox, documentRect(target));
+  }
+
+  // Myš opustila stránku (např. cestou k panelu komentářů) → rámeček zmizí.
+  function onMouseOut(e) {
+    if (!e.relatedTarget) hoverBox.style.display = "none";
   }
 
   function onClickCapture(e) {
@@ -232,11 +270,18 @@
     // Výběr elementu — stránka nesmí reagovat (modal se nesmí otevřít).
     e.preventDefault();
     e.stopPropagation();
+    // Klik do prázdna (body/html) nevybírá „celou stránku".
+    if (isPageContainer(target)) return;
 
     // Přednostní kotva: nejbližší [data-review-id] (pravidlo PB specifikací).
     var reviewEl = target.closest("[data-review-id]");
     var anchorEl = reviewEl || target;
     var html = anchorEl.outerHTML || "";
+
+    // Výběr zůstane orámovaný, dokud rodič nepošle selection.clear.
+    selectionActive = true;
+    hoverBox.style.display = "none";
+    placeBox(selBox, documentRect(anchorEl));
     post("element.selected", {
       pagePath: currentPagePath(),
       dataReviewId: reviewEl
@@ -284,6 +329,9 @@
       renderPins();
     } else if (d.type === "highlight") {
       highlight(Number(d.commentId));
+    } else if (d.type === "selection.clear") {
+      // Formulář komentáře se zavřel (uložení/zrušení) → výběr zmizí.
+      clearSelection();
     }
   });
 
@@ -295,6 +343,7 @@
     // komentování neotevírají). V režimu procházení se nezachytává nic.
     document.addEventListener("click", onClickCapture, true);
     document.addEventListener("mouseover", onMouseOver, true);
+    document.addEventListener("mouseout", onMouseOut, true);
     window.addEventListener("resize", scheduleReposition);
 
     // Špendlíky se srovnávají po změnách DOM (JS-generované elementy, modaly).

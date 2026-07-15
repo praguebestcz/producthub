@@ -227,6 +227,14 @@ export function DocumentViewer({
     return () => window.removeEventListener("message", onMessage);
   }, [loadComments, postToOverlay]);
 
+  // Zavření formuláře komentáře (uložení / zrušení / změna režimu) → overlay
+  // zruší rámeček vybraného elementu a hover zase jezdí.
+  useEffect(() => {
+    if (selectedElement === null) {
+      postToOverlay({ type: "selection.clear" });
+    }
+  }, [selectedElement, postToOverlay]);
+
   if (versions.length === 0) {
     return (
       <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
