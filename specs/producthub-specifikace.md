@@ -210,7 +210,7 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
 * 🟠 M6 - postranní panel komentářů (vpravo, ~24 rem):
   * Hlavička: počet vláken, přepínač **Tato stránka / Všechny stránky** (u vláken z jiných stránek badge s cestou stránky).
   * Vlákno: autor + avatar + čas, badge stavu (**Otevřený** / **Vyřešený** / **Znovu otevřený**), badge „Interní", info o elementu (`data-review-id` nebo zkrácená DOM cesta, rozbalitelný HTML výstřižek), odpovědi chronologicky, akce Odpovědět / Vyřešit / Znovu otevřít.
-  * Klik na vlákno → element se v iframe zvýrazní a odscrolluje (dočasný rámeček ~2 s).
+  * Klik na vlákno → element se v iframe zvýrazní a odscrolluje (dočasný rámeček ~2 s). Vlákno z jiné stránky prohlížeč nejdřív na tu stránku přepne a element zvýrazní po načtení. Vybraný element zůstává orámovaný po celou dobu psaní komentáře.
   * Formulář nového komentáře po výběru elementu: náhled elementu, textarea s @našeptávačem členů, checkbox „Interní" (jen pro interní členy).
 * 🟠 M6 - špendlíky: číslované značky na komentovaných elementech uvnitř iframe. Špendlík skrytého elementu (zavřený modal) se schová a objeví se, až je element vidět. Klik na špendlík (v obou režimech) aktivuje vlákno v panelu.
 * 🟠 M7 - avatary přítomných, indikace psaní, živé aktualizace bez refreshe.

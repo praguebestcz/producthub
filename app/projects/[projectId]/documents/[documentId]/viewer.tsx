@@ -95,6 +95,9 @@ export function DocumentViewer({
   // Refs pro handler zpráv (registruje se jednou, nesmí číst zastaralý stav).
   const pagePathRef = useRef("");
   const modeRef = useRef(mode);
+  // Vlákno, které se má zvýraznit, až se donačte cílová stránka (klik na
+  // komentář z JINÉ stránky → nejdřív navigace, pak highlight).
+  const pendingHighlightRef = useRef<number | null>(null);
 
   const currentVersion = versions.find((v) => v.id === versionId);
 
@@ -147,6 +150,23 @@ export function DocumentViewer({
     setSelectedElement(null);
     setActiveThreadId(null);
     setVersionId(Number(v));
+  }
+
+  // Navigace prohlížeče na jinou stránku specifikace (s čerstvým view-tokenem).
+  async function goToPage(pagePath: string) {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/versions/${versionId}/view-token`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const encoded = pagePath.split("/").map(encodeURIComponent).join("/");
+      setViewSrc(`/view/${data.token}/${encoded}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Načtení se nepovedlo.");
+      setLoading(false);
+    }
   }
 
   // Přepnutí režimu — overlay dostane zprávu; návrat do procházení ruší výběr.
@@ -203,7 +223,17 @@ export function DocumentViewer({
           type: "mode",
           commenting: modeRef.current === "comment",
         });
-        void loadComments();
+        void loadComments().then(() => {
+          // Klik na vlákno z jiné stránky: po donačtení stránky (a špendlíků)
+          // se element zvýrazní.
+          if (pendingHighlightRef.current !== null) {
+            postToOverlay({
+              type: "highlight",
+              commentId: pendingHighlightRef.current,
+            });
+            pendingHighlightRef.current = null;
+          }
+        });
       } else if (d.type === "element.selected") {
         setSelectedElement({
           pagePath: typeof d.pagePath === "string" ? d.pagePath : "",
@@ -383,9 +413,13 @@ export function DocumentViewer({
           activeThreadId={activeThreadId}
           onActivateThread={(thread) => {
             setActiveThreadId(thread.id);
-            // Zvýraznění v iframe dává smysl jen pro vlákna aktuální stránky.
             if (thread.pagePath === pagePathRef.current) {
               postToOverlay({ type: "highlight", commentId: thread.id });
+            } else {
+              // Vlákno z jiné stránky → prohlížeč na ni přejde a element
+              // zvýrazní po načtení (pendingHighlightRef).
+              pendingHighlightRef.current = thread.id;
+              void goToPage(thread.pagePath);
             }
           }}
           selectedElement={selectedElement}
