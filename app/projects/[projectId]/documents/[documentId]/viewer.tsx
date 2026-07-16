@@ -593,6 +593,14 @@ export function DocumentViewer({
             container={containerDims}
             onClose={() => setBubble(null)}
             onChanged={loadComments}
+            onCreated={(commentId) => {
+              // Po uložení komentáře z bubliny automaticky otevři panel s ním
+              // (zpětná vazba Hany — ať je hned vidět, že komentář vznikl).
+              setActiveThreadId(commentId);
+              setPanelMode("thread");
+              setPanelOpen(true);
+              postToOverlay({ type: "highlight", commentId });
+            }}
             canSeeInternal={canSeeInternal}
             members={members}
           />

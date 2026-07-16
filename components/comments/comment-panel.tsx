@@ -288,6 +288,7 @@ export function CommentBubble({
   container,
   onClose,
   onChanged,
+  onCreated,
   canSeeInternal,
   members,
 }: {
@@ -298,6 +299,7 @@ export function CommentBubble({
   container: { width: number; height: number };
   onClose: () => void;
   onChanged: () => Promise<void>;
+  onCreated?: (commentId: number) => void;
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
@@ -334,6 +336,7 @@ export function CommentBubble({
         selectedElement={selectedElement}
         onClearSelection={onClose}
         onChanged={onChanged}
+        onCreated={onCreated}
         canSeeInternal={canSeeInternal}
         members={members}
       />
@@ -402,6 +405,7 @@ function NewThreadForm({
   selectedElement,
   onClearSelection,
   onChanged,
+  onCreated,
   canSeeInternal,
   members,
 }: {
@@ -410,6 +414,7 @@ function NewThreadForm({
   selectedElement: SelectedElement;
   onClearSelection: () => void;
   onChanged: () => Promise<void>;
+  onCreated?: (commentId: number) => void;
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
@@ -438,10 +443,14 @@ function NewThreadForm({
           viewportHeight: selectedElement.viewport.height || undefined,
         }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       toast.success("Komentář přidán.");
-      onClearSelection();
+      // Nejdřív načíst vlákna (ať je nové mezi nimi), pak otevřít panel na něj,
+      // pak zavřít bublinu (pořadí kvůli tomu, že onClearSelection ruší bublinu).
       await onChanged();
+      if (typeof data.id === "number") onCreated?.(data.id);
+      onClearSelection();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Komentář se nepodařilo uložit.",
