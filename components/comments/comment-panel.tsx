@@ -124,6 +124,18 @@ function deriveLabel(elementHtml: string | null): string | null {
 }
 
 export type PanelMode = "thread" | "list";
+export type StatusFilter = "all" | "open" | "resolved";
+
+// Odpovídá vlákno filtru stavu? „open" = nevyřešené (OPEN/REOPENED),
+// „resolved" = jen vyřešené, „all" = vše. Sdílené panelem i špendlíky.
+export function matchesStatusFilter(
+  status: CommentThread["status"],
+  filter: StatusFilter,
+): boolean {
+  if (filter === "open") return status !== "RESOLVED";
+  if (filter === "resolved") return status === "RESOLVED";
+  return true;
+}
 
 // Pozice prvku v prohlížeči (viewportRect z overlay) — pro umístění bubliny.
 export type BubblePosition = {
@@ -147,6 +159,8 @@ export function CommentPanel({
   threads,
   showAllPages,
   onShowAllPagesChange,
+  statusFilter,
+  onStatusFilterChange,
   activeThreadId,
   onActivateThread,
   onChanged,
@@ -162,6 +176,8 @@ export function CommentPanel({
   threads: CommentThread[];
   showAllPages: boolean;
   onShowAllPagesChange: (v: boolean) => void;
+  statusFilter: StatusFilter;
+  onStatusFilterChange: (v: StatusFilter) => void;
   activeThreadId: number | null;
   onActivateThread: (thread: CommentThread) => void;
   onChanged: () => Promise<void>;
@@ -169,17 +185,11 @@ export function CommentPanel({
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
-  // Filtr stavu v seznamu (inspirace Figma/Google Docs - přehled při více vláknech).
-  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "resolved">(
-    "open",
-  );
   const pageThreads = threads.filter((t) => t.pagePath === currentPagePath);
   const scopeThreads = showAllPages ? threads : pageThreads;
-  const visibleThreads = scopeThreads.filter((t) => {
-    if (statusFilter === "open") return t.status !== "RESOLVED";
-    if (statusFilter === "resolved") return t.status === "RESOLVED";
-    return true;
-  });
+  const visibleThreads = scopeThreads.filter((t) =>
+    matchesStatusFilter(t.status, statusFilter),
+  );
   const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
 
   // Esc zavře otevřený panel (konzistentní s bublinou).
@@ -250,7 +260,7 @@ export function CommentPanel({
             <button
               key={key}
               type="button"
-              onClick={() => setStatusFilter(key)}
+              onClick={() => onStatusFilterChange(key)}
               className={cn(
                 "rounded-md px-2 py-1 text-xs font-medium transition-colors",
                 statusFilter === key

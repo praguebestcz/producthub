@@ -255,6 +255,28 @@
     repositionAll();
   }
 
+  // Je prvek překrytý něčím nad ním (např. otevřeným modalem)? Pak jeho
+  // špendlík nemá „prosvítat" přes modal — schová se. Kontrola přes elementy
+  // v bodě středu prvku (vlastní overlay prvky se ignorují).
+  function isCoveredByOther(el, rect) {
+    var cx = rect.left - window.scrollX + rect.width / 2;
+    var cy = rect.top - window.scrollY + rect.height / 2;
+    // Střed mimo viewport → neřešíme tady (řeší isElementVisible/scroll).
+    if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) {
+      return false;
+    }
+    var stack = document.elementsFromPoint(cx, cy);
+    for (var i = 0; i < stack.length; i++) {
+      var e = stack[i];
+      // Přeskoč vlastní vrstvy overlaye (špendlíky, rámečky).
+      if (e.closest && e.closest("[data-ph-overlay]")) continue;
+      // První „cizí" prvek odshora: pokud to je náš prvek (nebo příbuzný),
+      // je navrchu = vidět. Jinak ho něco překrývá (modal) → schovat špendlík.
+      return !(e === el || el.contains(e) || e.contains(el));
+    }
+    return false;
+  }
+
   function repositionAll() {
     var buttons = pinLayer.children;
     for (var i = 0; i < buttons.length; i++) {
@@ -269,6 +291,11 @@
       }
       var rect = documentRect(el);
       if (rect.width === 0 && rect.height === 0) {
+        btn.setAttribute("data-hidden", "");
+        continue;
+      }
+      // Prvek překrytý modalem → špendlík se schová (nemá prosvítat přes modal).
+      if (isCoveredByOther(el, rect)) {
         btn.setAttribute("data-hidden", "");
         continue;
       }

@@ -50,10 +50,12 @@ import { Label } from "@/components/ui/label";
 import {
   CommentBubble,
   CommentPanel,
+  matchesStatusFilter,
   type BubblePosition,
   type CommentThread,
   type PanelMode,
   type SelectedElement,
+  type StatusFilter,
 } from "@/components/comments/comment-panel";
 import type { MentionMember } from "@/components/comments/mention-textarea";
 import { cn } from "@/lib/utils";
@@ -121,6 +123,9 @@ export function DocumentViewer({
   // Panel je vyjíždějící drawer — skrytý, dokud ho něco neotevře.
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("list");
+  // Filtr stavu — výchozí „nevyřešené" (vyřešené se běžně nezobrazují, ani
+  // špendlíky na stránce; přání Hany). Filtr platí pro panel i špendlíky.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
   // Kontejner prohlížeče (pro umístění bubliny podle pozice prvku).
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDims, setContainerDims] = useState({ width: 0, height: 0 });
@@ -152,7 +157,12 @@ export function DocumentViewer({
       postToOverlay({
         type: "pins.update",
         pins: threadList
-          .filter((t) => t.pagePath === page)
+          // Špendlíky respektují filtr stavu — vyřešené se ve výchozím stavu
+          // na stránce vůbec nezobrazují (přání Hany).
+          .filter(
+            (t) =>
+              t.pagePath === page && matchesStatusFilter(t.status, statusFilter),
+          )
           .map((t) => ({
             commentId: t.id,
             dataReviewId: t.dataReviewId,
@@ -163,8 +173,13 @@ export function DocumentViewer({
           })),
       });
     },
-    [postToOverlay],
+    [postToOverlay, statusFilter],
   );
+
+  // Změna filtru stavu → přepočítat špendlíky na stránce.
+  useEffect(() => {
+    sendPins(threadsRef.current, pagePathRef.current);
+  }, [statusFilter, sendPins]);
 
   // Načte vlákna VŠECH stránek (panel filtruje lokálně) a srovná špendlíky.
   const loadComments = useCallback(async () => {
@@ -567,34 +582,51 @@ export function DocumentViewer({
         </nav>
       )}
 
-      {/* Banner režimu komentování — na první pohled jasné, že kliky teď
-          vybírají prvky (ne procházejí). Zpětná vazba Hany. */}
-      {canComment && mode === "comment" && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
-          <MessageSquarePlus size={16} aria-hidden="true" />
-          <span>
-            Režim komentování - klikněte na prvek ve specifikaci a napište k
-            němu komentář.
-          </span>
-          <button
-            type="button"
-            onClick={() => switchMode("browse")}
-            className="ml-auto rounded-md bg-white/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-white/30"
-          >
-            Ukončit komentování
-          </button>
-        </div>
-      )}
+      {/* Banner režimu — na první pohled jasné, v jakém režimu uživatel je
+          (zpětná vazba Hany). Komentování = červený (pozor, kliky vybírají),
+          Procházení = neutrální tmavý (kliky fungují normálně). */}
+      {canComment &&
+        (mode === "comment" ? (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
+            <MessageSquarePlus size={16} aria-hidden="true" />
+            <span>
+              Režim komentování - klikněte na prvek ve specifikaci a napište k
+              němu komentář.
+            </span>
+            <button
+              type="button"
+              onClick={() => switchMode("browse")}
+              className="ml-auto rounded-md bg-white/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-white/30"
+            >
+              Ukončit komentování
+            </button>
+          </div>
+        ) : (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background shadow-sm">
+            <MousePointer2 size={16} aria-hidden="true" />
+            <span>
+              Režim procházení - kliky fungují normálně (odkazy, tlačítka,
+              modaly). Pro komentování přepněte režim.
+            </span>
+            <button
+              type="button"
+              onClick={() => switchMode("comment")}
+              className="ml-auto rounded-md bg-background/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-background/30"
+            >
+              Přejít na komentování
+            </button>
+          </div>
+        ))}
 
       {/* Prohlížeč přes celou šířku; bublina a panel jsou překryvné vrstvy */}
       <div
         ref={containerRef}
         className={cn(
           "relative mt-3 overflow-hidden rounded-xl border bg-white transition-all",
-          // Když svítí banner, o kus nižší, ať se celek vejde bez skoku.
-          canComment && mode === "comment"
-            ? "h-[calc(100vh-20rem)] ring-2 ring-pb/40"
-            : "h-[calc(100vh-17rem)]",
+          // Banner (u kohokoli, kdo smí komentovat) ubere kus výšky.
+          // Červený rámeček navíc jen v režimu komentování (pozor, vybíráš prvky).
+          canComment ? "h-[calc(100vh-20rem)]" : "h-[calc(100vh-17rem)]",
+          canComment && mode === "comment" && "ring-2 ring-pb/40",
         )}
       >
         {loading && (
@@ -646,6 +678,8 @@ export function DocumentViewer({
           threads={threads}
           showAllPages={showAllPages}
           onShowAllPagesChange={setShowAllPages}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
           activeThreadId={activeThreadId}
           onActivateThread={(thread) => {
             setActiveThreadId(thread.id);
