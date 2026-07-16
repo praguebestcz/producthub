@@ -158,6 +158,8 @@ export function DocumentViewer({
             dataReviewId: t.dataReviewId,
             domPath: t.domPath,
             status: t.status,
+            // Náhled na najetí myší (Figma pattern) — autor + začátek textu.
+            preview: `${t.author.name}: ${t.body.slice(0, 80)}`,
           })),
       });
     },
@@ -517,18 +519,21 @@ export function DocumentViewer({
       {/* Drobečková navigace mezi stránkami specifikace — nad dokumentem */}
       {pagePath && (
         <nav className="mt-3 flex items-center gap-1 rounded-lg border bg-muted/40 px-2 py-1.5 text-xs">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Zpět"
-            disabled={pageTrail.length < 2}
-            onClick={() => {
-              const prev = pageTrail[pageTrail.length - 2];
-              if (prev) goToPage(prev);
-            }}
-          >
-            <ChevronLeft />
-          </Button>
+          {/* Šipka Zpět jen když je kam — na rozcestníku (první stránka) se
+              nezobrazuje (zpětná vazba Hany). */}
+          {pageTrail.length >= 2 && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Zpět"
+              onClick={() => {
+                const prev = pageTrail[pageTrail.length - 2];
+                if (prev) goToPage(prev);
+              }}
+            >
+              <ChevronLeft />
+            </Button>
+          )}
           {pageTrail.map((p, i) => {
             const isLast = i === pageTrail.length - 1;
             const label = p === entryPath ? "Rozcestník" : p;

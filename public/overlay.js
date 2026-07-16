@@ -237,6 +237,8 @@
       btn.setAttribute("data-comment-id", String(pin.commentId));
       btn.setAttribute("data-status", pin.status || "OPEN");
       btn.setAttribute("aria-label", "Komentář " + (i + 1));
+      // Náhled komentáře na najetí myší (nativní tooltip).
+      if (pin.preview) btn.title = pin.preview;
       var num = document.createElement("span");
       num.textContent = String(i + 1);
       btn.appendChild(num);

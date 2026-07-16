@@ -169,8 +169,17 @@ export function CommentPanel({
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
+  // Filtr stavu v seznamu (inspirace Figma/Google Docs - přehled při více vláknech).
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "resolved">(
+    "open",
+  );
   const pageThreads = threads.filter((t) => t.pagePath === currentPagePath);
-  const visibleThreads = showAllPages ? threads : pageThreads;
+  const scopeThreads = showAllPages ? threads : pageThreads;
+  const visibleThreads = scopeThreads.filter((t) => {
+    if (statusFilter === "open") return t.status !== "RESOLVED";
+    if (statusFilter === "resolved") return t.status === "RESOLVED";
+    return true;
+  });
   const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
 
   // Esc zavře otevřený panel (konzistentní s bublinou).
@@ -227,6 +236,33 @@ export function CommentPanel({
           </Button>
         </div>
       </div>
+
+      {/* Filtr stavu — jen v seznamu */}
+      {mode === "list" && (
+        <div className="flex items-center gap-1 border-b px-3 py-1.5">
+          {(
+            [
+              ["open", "Nevyřešené"],
+              ["resolved", "Vyřešené"],
+              ["all", "Vše"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={cn(
+                "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                statusFilter === key
+                  ? "bg-pb-soft text-pb"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
         {mode === "thread" ? (
