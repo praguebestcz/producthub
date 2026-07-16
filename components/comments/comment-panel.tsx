@@ -173,6 +173,16 @@ export function CommentPanel({
   const visibleThreads = showAllPages ? threads : pageThreads;
   const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
 
+  // Esc zavře otevřený panel (konzistentní s bublinou).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   // Číslo špendlíku vlákna (dle pořadí na jeho stránce) — pro hlavičku karty.
   function pinNumberOf(thread: CommentThread): number | null {
     if (thread.pagePath !== currentPagePath) return null;
@@ -186,6 +196,7 @@ export function CommentPanel({
         open ? "translate-x-0" : "pointer-events-none translate-x-full",
       )}
       aria-hidden={!open}
+      inert={!open}
     >
       {/* Hlavička draweru */}
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">

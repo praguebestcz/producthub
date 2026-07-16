@@ -331,8 +331,12 @@
     // Výběr elementu — stránka nesmí reagovat (modal se nesmí otevřít).
     e.preventDefault();
     e.stopPropagation();
-    // Klik do prázdna (body/html) nevybírá „celou stránku".
-    if (isPageContainer(target)) return;
+    // Klik do prázdna (body/html) nevybírá „celou stránku" — zavře bublinu.
+    if (isPageContainer(target)) {
+      clearSelection();
+      post("background.clicked");
+      return;
+    }
 
     // Přednostní kotva: nejbližší [data-review-id] (pravidlo PB specifikací).
     var reviewEl = target.closest("[data-review-id]");

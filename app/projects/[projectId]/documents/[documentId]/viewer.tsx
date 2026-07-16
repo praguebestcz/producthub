@@ -332,6 +332,9 @@ export function DocumentViewer({
         setBubble((b) =>
           b ? { ...b, position: normalizeRect(d.viewportRect) } : b,
         );
+      } else if (d.type === "background.clicked") {
+        // Klik do prázdna ve specifikaci → zavři bublinu.
+        setBubble(null);
       } else if (d.type === "pin.clicked") {
         setActiveThreadId(Number(d.commentId));
         setPanelMode("thread");
