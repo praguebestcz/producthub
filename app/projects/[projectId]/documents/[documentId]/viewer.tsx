@@ -567,10 +567,35 @@ export function DocumentViewer({
         </nav>
       )}
 
+      {/* Banner režimu komentování — na první pohled jasné, že kliky teď
+          vybírají prvky (ne procházejí). Zpětná vazba Hany. */}
+      {canComment && mode === "comment" && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
+          <MessageSquarePlus size={16} aria-hidden="true" />
+          <span>
+            Režim komentování - klikněte na prvek ve specifikaci a napište k
+            němu komentář.
+          </span>
+          <button
+            type="button"
+            onClick={() => switchMode("browse")}
+            className="ml-auto rounded-md bg-white/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-white/30"
+          >
+            Ukončit komentování
+          </button>
+        </div>
+      )}
+
       {/* Prohlížeč přes celou šířku; bublina a panel jsou překryvné vrstvy */}
       <div
         ref={containerRef}
-        className="relative mt-3 h-[calc(100vh-17rem)] overflow-hidden rounded-xl border bg-white"
+        className={cn(
+          "relative mt-3 overflow-hidden rounded-xl border bg-white transition-all",
+          // Když svítí banner, o kus nižší, ať se celek vejde bez skoku.
+          canComment && mode === "comment"
+            ? "h-[calc(100vh-20rem)] ring-2 ring-pb/40"
+            : "h-[calc(100vh-17rem)]",
+        )}
       >
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
