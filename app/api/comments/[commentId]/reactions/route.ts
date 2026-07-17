@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { reactionCreateSchema } from "@/lib/validation";
 import { canViewComment } from "@/lib/comments/visibility";
 import { rateLimit } from "@/lib/rate-limit";
+import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
 
 // Reakce emoji na komentář — toggle (COMMENTER+). Když reakce daného emoji od
 // uživatele existuje, smaže se; jinak vznikne. Přístup + viditelnost přesně dle
@@ -24,12 +25,6 @@ export async function POST(
   const commentId = Number((await params).commentId);
   if (!Number.isInteger(commentId) || commentId <= 0) {
     return NextResponse.json({ error: "Komentář nenalezen" }, { status: 404 });
-  }
-
-  // Strop velikosti PŘED čtením (tělo je jen { emoji }).
-  const contentLength = Number(req.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Příliš velký požadavek" }, { status: 413 });
   }
 
   const comment = await prisma.comment.findUnique({
@@ -56,7 +51,17 @@ export async function POST(
     );
   }
 
-  const parsed = reactionCreateSchema.safeParse(await req.json().catch(() => null));
+  // Tělo se čte se stropem bajtů (ne přes content-length — chunked ji obejde).
+  let raw: unknown;
+  try {
+    raw = await readJsonLimited(req, MAX_BODY_BYTES);
+  } catch (e) {
+    if (e instanceof BodyTooLargeError) {
+      return NextResponse.json({ error: "Příliš velký požadavek" }, { status: 413 });
+    }
+    throw e;
+  }
+  const parsed = reactionCreateSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: "Neplatná reakce" }, { status: 400 });
   }

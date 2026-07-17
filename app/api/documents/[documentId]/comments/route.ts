@@ -9,6 +9,8 @@ import {
   visibleCommentsWhere,
 } from "@/lib/comments/visibility";
 import { invalidMentionIds } from "@/lib/comments/mentions";
+import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Komentáře dokumentu — čtení vláken (READER+) a vytvoření kořene/odpovědi
 // (COMMENTER+). Viditelnost INTERNAL filtruje server přes lib/comments/visibility
@@ -133,17 +135,30 @@ export async function POST(
   }
   const { member } = ctx;
 
-  // Strop velikosti PŘED parsováním (elementHtml má vlastní limit, ale útočník
-  // může poslat libovolně velký JSON — odmítnout bez čtení).
-  const contentLength = Number(req.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_BODY_BYTES) {
+  // Rate-limit proti spamu komentářů (security review) — jako import/reakce.
+  const rl = rateLimit(`comment:${user.id}`, 30, 60_000);
+  if (!rl.ok) {
     return NextResponse.json(
-      { error: "Komentář je příliš velký" },
-      { status: 413 },
+      { error: "Příliš mnoho komentářů, chvíli počkejte." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
     );
   }
 
-  const parsed = commentCreateSchema.safeParse(await req.json().catch(() => null));
+  // Tělo se čte se stropem bajtů (ne přes content-length — chunked ji obejde).
+  let raw: unknown;
+  try {
+    raw = await readJsonLimited(req, MAX_BODY_BYTES);
+  } catch (e) {
+    if (e instanceof BodyTooLargeError) {
+      return NextResponse.json(
+        { error: "Komentář je příliš velký" },
+        { status: 413 },
+      );
+    }
+    throw e;
+  }
+
+  const parsed = commentCreateSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Neplatný vstup" },

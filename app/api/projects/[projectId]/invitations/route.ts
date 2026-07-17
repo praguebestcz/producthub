@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getSessionUser, requireProjectRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { invitationCreateSchema } from "@/lib/validation";
@@ -77,7 +78,8 @@ export async function POST(
     );
   }
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     // Upsert kvůli dřívější přijaté pozvánce (unikát projectId+email) —
     // člen mohl být mezitím odebrán a pozván znovu.
     await tx.invitation.upsert({
@@ -103,7 +105,18 @@ export async function POST(
         data: { projectId, userId: existingUser.id, role, isInternal },
       });
     }
-  });
+    });
+  } catch (e) {
+    // Souběh: mezi kontrolou členství a create se stal členem (unique
+    // projectId+userId) → čitelná 409 místo neošetřeného 500 (security review).
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json(
+        { error: "Tento uživatel už je členem projektu" },
+        { status: 409 },
+      );
+    }
+    throw e;
+  }
 
   return NextResponse.json(
     {

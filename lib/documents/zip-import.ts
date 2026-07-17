@@ -76,15 +76,28 @@ export function importZip(buffer: Buffer): ImportResult {
     if (seen.has(path)) continue; // duplicita (unikát v DB stejně)
     seen.add(path);
 
-    const data = entry.getData(); // rozbalí do paměti
-    totalBytes += data.length;
-    if (totalBytes > LIMITS.maxZipUncompressedBytes) {
+    // Kontrola PŘED dekompresí (obrana proti zip-bombě, security review):
+    // deklarovaná rozbalená velikost z hlavičky ZIP. Deflate má poměr až
+    // ~1000:1, takže malý ZIP by se bez této kontroly rozbalil na desítky GB
+    // do paměti (OOM) ještě než by se limit vyhodnotil po getData().
+    const declaredSize = entry.header.size;
+    if (declaredSize > LIMITS.maxFileBytes) {
+      throw new ImportError(`Soubor „${path}" je větší než 5 MB`);
+    }
+    if (totalBytes + declaredSize > LIMITS.maxZipUncompressedBytes) {
       throw new ImportError(
         `Rozbalený obsah je větší než ${LIMITS.maxZipUncompressedBytes / 1024 / 1024} MB`,
       );
     }
-    if (data.length > LIMITS.maxFileBytes) {
-      throw new ImportError(`Soubor „${path}" je větší než 5 MB`);
+
+    const data = entry.getData(); // rozbalí do paměti (velikost už ověřena výše)
+    totalBytes += data.length;
+    // Pojistka i po dekompresi (kdyby hlavička lhala o velikosti).
+    if (
+      totalBytes > LIMITS.maxZipUncompressedBytes ||
+      data.length > LIMITS.maxFileBytes
+    ) {
+      throw new ImportError("Rozbalený obsah překročil povolenou velikost");
     }
 
     files.push({
