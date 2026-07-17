@@ -28,6 +28,9 @@ function viewHeaders(contentType: string, cacheable = false): Headers {
   // Token je v URL — nesmí utéct přes Referer na cizí domény odkazované z prototypu.
   h.set("Referrer-Policy", "no-referrer");
   // I při přímém otevření URL běží obsah v sandboxu (bez same-originu).
+  // allow-forms/allow-popups: klikací prototypy je potřebují; opaque origin
+  // (žádné allow-same-origin) drží, session je chráněná. Posouzeno auditem
+  // 2026-07-17 (dopad nízký), vědomé rozšíření — NEodstraňovat bez diskuse.
   h.set("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-popups");
   // Sandbox = opaque origin. Aby stránka směla načíst svoje sourozenecké soubory
   // přes fetch() (např. spec.md), musí view odpověď povolit cross-origin čtení.

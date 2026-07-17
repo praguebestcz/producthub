@@ -14,6 +14,8 @@
 
 ## Revize
 
+* **2026-07-17**
+  * Reakce emoji na komentáře (po db-security-expert review). Kompletní audit aplikace (bezpečnost/výkon/logika, 0 kritických) + zapracované opravy - viz outputs/audit-2026-07-17.md. Sandbox rozšířen na allow-forms/allow-popups (opaque origin drží). Avatar autora ve špendlíku, filtr stavu, banner režimu, drobečková navigace - Hana Ortmannová
 * **2026-07-15**
   * M6 (komentáře) nasazeno na produkci; rozpracován redesign komentování ve stylu Google Docs (bublina u prvku, vyjíždějící panel, celá šířka) - doladit bublinu - Hana Ortmannová
   * M6 UX vylepšení dle ručního testu Hany: drobečková navigace mezi stránkami, výrazný přepínač režimů, čitelný popis prvku místo DOM cesty, jeden prvek = jedno vlákno, spolehlivé řešení skrytých prvků (náhled + hláška) - Hana Ortmannová
@@ -111,7 +113,7 @@ Reálné specifikace PragueBest NEJSOU statické stránky - jsou to klikací HTM
 * Projekty seskupené pod klienty, členové, pozvánky, role (M3, M3.5)
 * Správa uživatelů: tři úrovně - Uživatel / Tým (`canCreateProjects`) / Admin (M2, M4.5)
 * Dokumenty: upload HTML/ZIP, import z URL (crawl), verze, sandboxovaný prohlížeč (M5)
-* Komentáře nad elementy: špendlíky, vlákna, @zmínky, stavy, interní/veřejné (M6)
+* Komentáře nad elementy: špendlíky (s avatarem autora), vlákna, @zmínky, stavy, interní/veřejné, reakce emoji (M6)
 * Realtime: živé komentáře, přítomnost, indikace psaní; notifikace v aplikaci (M7)
 * Požadavky + generování Claude promptu (M8)
 * Přenos komentářů mezi verzemi + dokončení (M9)
@@ -127,7 +129,7 @@ Reálné specifikace PragueBest NEJSOU statické stránky - jsou to klikací HTM
 
 ## Klíčová technická rozhodnutí
 
-* **Sandboxovaný prohlížeč:** nahraný dokument běží v iframe `sandbox="allow-scripts"` BEZ `allow-same-origin` (opaque origin). JavaScript prototypu funguje (modaly, interakce), ale NEMŮŽE číst cookies aplikace ani volat API jako přihlášený uživatel. Trade-off: uvnitř prototypu nefunguje localStorage/cookies - přijatelné (vzorová specifikace je nepoužívá).
+* **Sandboxovaný prohlížeč:** nahraný dokument běží v iframe `sandbox="allow-scripts allow-forms allow-popups"` BEZ `allow-same-origin` (opaque origin). JavaScript prototypu funguje (modaly, interakce), formuláře a otevírání oken taky, ale iframe NEMŮŽE číst cookies aplikace ani volat API jako přihlášený uživatel. Trade-off: uvnitř prototypu nefunguje localStorage/cookies - přijatelné (vzorová specifikace je nepoužívá).
 * **Auth prohlížeče tokenem v URL**, ne cookie - krátkodobý view-token (~1 h), server při každém požadavku znovu ověřuje členství v projektu.
 * **Import z URL je hlavní cesta** - specifikace už bývají nasazené na Vercelu. Crawl stáhne stránky stejné domény do hloubky 2 + assety; kopie je snapshot, odkazy na cizí domény zůstávají živé. ZIP upload je alternativa.
 * **Kotva komentáře:** přednostně `data-review-id` (pravidlo PB pro nové specifikace), jinak DOM cesta (`domPath`) - v praxi PRIMÁRNÍ, protože starší PB specifikace `data-review-id` nemají.
@@ -212,7 +214,7 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
   * Komentování: kurzor crosshair, hover zvýrazní element, klik element VYBERE (neproklikne). Vybraný element zůstává orámovaný po celou dobu psaní komentáře.
 * 🟠 M6 - postranní panel komentářů (vpravo, ~24 rem):
   * Hlavička: počet vláken, přepínač Tato stránka / Všechny stránky (u vláken z jiných stránek badge s cestou stránky).
-  * Vlákno: autor + avatar + čas, badge stavu (Otevřený / Vyřešený / Znovu otevřený), badge Interní, čitelný popis prvku (např. tlačítko Odeslat dotaz - ne technická DOM cesta; syrový HTML schovaný v rozbalovátku), odpovědi chronologicky, akce Odpovědět / Vyřešit / Znovu otevřít.
+  * Vlákno: autor + avatar + čas, badge stavu (Otevřený / Vyřešený / Znovu otevřený), badge Interní, čitelný popis prvku (např. tlačítko Odeslat dotaz - ne technická DOM cesta; syrový HTML schovaný v rozbalovátku), odpovědi chronologicky, akce Odpovědět / Vyřešit / Znovu otevřít, reakce emoji (👍 ✅ 👀 ❤️ 🎉 🙏 - chip s počtem, moje reakce zvýrazněná; u komentářů i odpovědí).
   * Klik na vlákno: element se v iframe zvýrazní (pulzující rámeček ~2,5 s) a odscrolluje. Vlákno z jiné stránky prohlížeč nejdřív na tu stránku přepne a element zvýrazní po načtení.
   * Prvek se na stránce nenajde (dynamický modal vytvářený až po interakci, nebo skrytý prvek): panel ukáže uložený náhled prvku + hlášku prvek se objeví až po otevření příslušného okna. Špendlík naskočí, jakmile okno otevřeš. Automatické otevírání cizích modalů není spolehlivé (prototyp je může vytvářet až za běhu), proto náhled, který funguje vždy.
   * Jeden prvek = jedno vlákno: klik na už okomentovaný prvek NEzaloží nový komentář, ale otevře jeho existující vlákno - další připomínky se řeší jako odpovědi v diskusi.
@@ -323,7 +325,7 @@ Aplikace nemá oddělený admin systém - administrace jsou stránky uvnitř apl
 
 ## Nefunkční požadavky
 
-* **Bezpečnost:** sandbox iframe (opaque origin), CSP `sandbox allow-scripts`, `Referrer-Policy: no-referrer` na view odpovědích, view-token s claim `typ` (nejde zaměnit se session), re-check členství + deaktivace při každém view požadavku, SSRF guard s DNS pinningem, zip-slip sanitizace. Každý milník s DB/auth změnou prochází review subagentem `db-security-expert`; M9 končí závěrečným security passem.
+* **Bezpečnost:** sandbox iframe (opaque origin), CSP `sandbox allow-scripts allow-forms allow-popups` (formuláře/okna pro klikací prototypy; opaque origin drží, session chráněná - potvrzeno auditem 2026-07-17), `Referrer-Policy: no-referrer` na view odpovědích, view-token s claim `typ` (nejde zaměnit se session), re-check členství + deaktivace při každém view požadavku, SSRF guard s DNS pinningem, zip-slip sanitizace. Každý milník s DB/auth změnou prochází review subagentem `db-security-expert`; M9 končí závěrečným security passem.
 * **Realtime limity:** SSE hub v paměti = právě 1 Railway instance (heartbeat 25 s; mitigace později Postgres LISTEN/NOTIFY). Po výpadku spojení klient přenačte komentáře (bez event replay).
 * **Růst dat:** assety a HTML žijí v PostgreSQL (bytea) - hlídáno limity uploadů; velikost projektů ukázat v adminu později (backlog).
 * **Provoz:** `main` = vývoj, `production` = produkce (Railway auto-deploy). Nasazení spouští VÝHRADNĚ Hana příkazem `git push origin main:production`.
