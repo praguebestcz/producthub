@@ -31,6 +31,7 @@ požadavek a systém vygeneruje hotový prompt pro Claude Code.
 - **`production` = produkce** — nasazení VÝHRADNĚ příkazem `git push origin main:production`, který spouští Hana, až výslovně řekne (např. „nasaď"). Claude příkaz jen připraví a pošle jí ho.
 - Před předáním push/deploy příkazu Haně: `git log origin/production..main --oneline` (ukázat, co se nasadí)
 - Produkční proměnné a redirect URI: viz STAV.md sekce M4
+- **Novinky pro uživatele:** když se nasazuje VIDITELNÁ změna (nová funkce / změna UI), přidej záznam do `lib/releases.ts` (nové vydání s vyšším `id`) — uživatel ho po přihlášení uvidí v okně „Co je nového". Drobné opravy bez dopadu na uživatele novinku nedostávají. (Stejný princip jako „spec je živý dokument".)
 
 ## Bezpečnostní pravidla (závazná, viz user-global CLAUDE.md Hany)
 

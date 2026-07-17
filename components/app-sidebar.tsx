@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronsUpDown,
   FolderOpen,
+  LifeBuoy,
   LogOut,
   MessagesSquare,
   Shield,
@@ -58,6 +59,8 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
     ...(user.isAdmin
       ? [{ title: "Uživatelé", href: "/admin/users", icon: Shield }]
       : []),
+    // Nápověda pro všechny přihlášené (návod + přehled novinek).
+    { title: "Nápověda", href: "/napoveda", icon: LifeBuoy },
   ];
 
   return (

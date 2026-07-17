@@ -7,6 +7,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { WhatsNewDialog } from "@/components/whats-new-dialog";
 
 // Kostra přihlášené aplikace: sbalitelné boční menu vlevo (preference Hany)
 // + tenká horní lišta (tlačítko sbalení, vpravo přepínač režimu) + obsah.
@@ -51,6 +52,8 @@ export function AppShell({
           {children}
         </main>
       </SidebarInset>
+      {/* Okno uvítání / „Co je nového" — rozhodne se samo podle prohlížeče. */}
+      <WhatsNewDialog />
     </SidebarProvider>
   );
 }
