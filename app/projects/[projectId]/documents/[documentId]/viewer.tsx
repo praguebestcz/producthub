@@ -170,6 +170,9 @@ export function DocumentViewer({
             status: t.status,
             // Náhled na najetí myší (Figma pattern) — autor + začátek textu.
             preview: `${t.author.name}: ${t.body.slice(0, 80)}`,
+            // Avatar autora ve špendlíku (Figma pattern) — kdo komentář napsal.
+            authorName: t.author.name,
+            avatarUrl: t.author.avatarUrl ?? null,
           })),
       });
     },

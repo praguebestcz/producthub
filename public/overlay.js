@@ -55,12 +55,23 @@
     "  border: 2px solid #c8102e; background: rgba(200,16,46,.08); border-radius: 2px; }",
     ".ph-sel-box { position: absolute; pointer-events: none; z-index: 2147483645;",
     "  border: 2px solid #c8102e; outline: 2px solid rgba(200,16,46,.25); outline-offset: 2px; border-radius: 2px; }",
-    ".ph-pin { position: absolute; z-index: 2147483646; width: 22px; height: 22px;",
-    "  border-radius: 50% 50% 50% 0; transform: rotate(-45deg) translate(0,0);",
-    "  border: 2px solid #fff; background: #c8102e; color: #fff; cursor: pointer;",
+    ".ph-pin { position: absolute; z-index: 2147483646; width: 26px; height: 26px;",
+    "  border-radius: 50% 50% 50% 0; transform: rotate(-45deg);",
+    "  border: 2px solid #c8102e; background: #c8102e; cursor: pointer;",
     "  box-shadow: 0 1px 4px rgba(0,0,0,.4); padding: 0; }",
-    ".ph-pin > span { display: block; transform: rotate(45deg); font: 700 11px/18px sans-serif; text-align: center; }",
-    ".ph-pin[data-status=RESOLVED] { background: #16a34a; }",
+    ".ph-pin[data-status=RESOLVED] { border-color: #16a34a; background: #16a34a; }",
+    // Vnitřek narovnaný zpět (+45°): avatar autora nebo iniciála.
+    ".ph-pin-inner { position: absolute; inset: 1.5px; border-radius: 50%;",
+    "  overflow: hidden; transform: rotate(45deg); background: #fff;",
+    "  display: flex; align-items: center; justify-content: center; }",
+    ".ph-pin-initial { font: 700 12px/1 sans-serif; color: #c8102e; text-transform: uppercase; }",
+    ".ph-pin[data-status=RESOLVED] .ph-pin-initial { color: #16a34a; }",
+    ".ph-pin-avatar { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }",
+    // Pořadové číslo jako malý badge (párování se seznamem v panelu).
+    ".ph-pin-num { position: absolute; top: -7px; right: -7px; transform: rotate(45deg);",
+    "  min-width: 15px; height: 15px; box-sizing: border-box; padding: 0 3px;",
+    "  border-radius: 999px; background: #111827; color: #fff; border: 1.5px solid #fff;",
+    "  font: 700 9px/12px sans-serif; text-align: center; }",
     ".ph-pin[data-hidden] { display: none; }",
     ".ph-highlight { animation: ph-pulse 0.65s ease-in-out 0s 3 !important;",
     "  outline: 3px solid #c8102e !important; outline-offset: 2px; border-radius: 2px; }",
@@ -239,7 +250,28 @@
       btn.setAttribute("aria-label", "Komentář " + (i + 1));
       // Náhled komentáře na najetí myší (nativní tooltip).
       if (pin.preview) btn.title = pin.preview;
+      // Vnitřek: iniciála autora (vždy) + avatar přes ni (když je a načte se).
+      var inner = document.createElement("span");
+      inner.className = "ph-pin-inner";
+      var initial = document.createElement("span");
+      initial.className = "ph-pin-initial";
+      initial.textContent = (pin.authorName || "?").trim().charAt(0) || "?";
+      inner.appendChild(initial);
+      if (pin.avatarUrl) {
+        var img = document.createElement("img");
+        img.className = "ph-pin-avatar";
+        img.alt = "";
+        img.referrerPolicy = "no-referrer";
+        // Když se avatar nenačte, schová se a prosvítá iniciála.
+        img.onerror = function () {
+          this.style.display = "none";
+        };
+        img.src = pin.avatarUrl;
+        inner.appendChild(img);
+      }
+      btn.appendChild(inner);
       var num = document.createElement("span");
+      num.className = "ph-pin-num";
       num.textContent = String(i + 1);
       btn.appendChild(num);
       // Klik na špendlík funguje v OBOU režimech (capture click ho propustí).
