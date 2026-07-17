@@ -159,11 +159,14 @@ export function DocumentViewer({
       postToOverlay({
         type: "pins.update",
         pins: threadList
-          // Špendlíky respektují filtr stavu — vyřešené se ve výchozím stavu
-          // na stránce vůbec nezobrazují (přání Hany).
+          // Špendlíky: jen aktuální verze (jinak by se u víceverzového dokumentu
+          // připínaly komentáře z jiných verzí na špatné prvky), aktuální stránka
+          // a dle filtru stavu (vyřešené se defaultně neukazují).
           .filter(
             (t) =>
-              t.pagePath === page && matchesStatusFilter(t.status, statusFilter),
+              t.documentVersionId === versionId &&
+              t.pagePath === page &&
+              matchesStatusFilter(t.status, statusFilter),
           )
           .map((t) => ({
             commentId: t.id,
@@ -178,13 +181,13 @@ export function DocumentViewer({
           })),
       });
     },
-    [postToOverlay, statusFilter],
+    [postToOverlay, statusFilter, versionId],
   );
 
-  // Změna filtru stavu → přepočítat špendlíky na stránce.
+  // Změna filtru stavu / verze → přepočítat špendlíky na stránce.
   useEffect(() => {
     sendPins(threadsRef.current, pagePathRef.current);
-  }, [statusFilter, sendPins]);
+  }, [statusFilter, versionId, sendPins]);
 
   // Načte vlákna VŠECH stránek (panel filtruje lokálně) a srovná špendlíky.
   const loadComments = useCallback(async () => {
@@ -679,6 +682,7 @@ export function DocumentViewer({
           mode={panelMode}
           onClose={() => setPanelOpen(false)}
           documentId={documentId}
+          versionId={versionId}
           currentPagePath={pagePath}
           threads={threads}
           showAllPages={showAllPages}

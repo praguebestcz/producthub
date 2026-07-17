@@ -165,6 +165,7 @@ export function CommentPanel({
   mode,
   onClose,
   documentId,
+  versionId,
   currentPagePath,
   threads,
   showAllPages,
@@ -183,6 +184,7 @@ export function CommentPanel({
   mode: PanelMode;
   onClose: () => void;
   documentId: number;
+  versionId: number;
   currentPagePath: string;
   threads: CommentThread[];
   showAllPages: boolean;
@@ -197,8 +199,14 @@ export function CommentPanel({
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
-  const pageThreads = threads.filter((t) => t.pagePath === currentPagePath);
-  const scopeThreads = showAllPages ? threads : pageThreads;
+  // Jen komentáře aktuální verze (u víceverzového dokumentu se verze nemíchají).
+  const versionThreads = threads.filter(
+    (t) => t.documentVersionId === versionId,
+  );
+  const pageThreads = versionThreads.filter(
+    (t) => t.pagePath === currentPagePath,
+  );
+  const scopeThreads = showAllPages ? versionThreads : pageThreads;
   const visibleThreads = scopeThreads.filter((t) =>
     matchesStatusFilter(t.status, statusFilter),
   );
