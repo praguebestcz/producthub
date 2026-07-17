@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { FileText, Plus, Settings } from "lucide-react";
+import { FileText, MessageSquare, Plus, Settings } from "lucide-react";
 import { getSessionUser, requireProjectRole, canSeeInternal } from "@/lib/auth";
+import { visibleCommentsWhere } from "@/lib/comments/visibility";
 import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
 import { plural } from "@/lib/czech";
@@ -51,6 +52,24 @@ export default async function ProjectPage({
     orderBy: { sortOrder: "asc" },
     include: { _count: { select: { versions: true } } },
   });
+
+  // Počet nevyřešených komentářů na dokument — odznak na kartě říká, kde čeká
+  // práce. Respektuje viditelnost interních komentářů (neinterní člen je
+  // nepočítá). Kořeny vláken (parentId null), napříč verzemi dokumentu.
+  const openComments = await prisma.comment.findMany({
+    where: {
+      parentId: null,
+      status: { not: "RESOLVED" },
+      documentVersion: { document: { projectId } },
+      ...visibleCommentsWhere(member),
+    },
+    select: { documentVersion: { select: { documentId: true } } },
+  });
+  const openByDoc = new Map<number, number>();
+  for (const c of openComments) {
+    const id = c.documentVersion.documentId;
+    openByDoc.set(id, (openByDoc.get(id) ?? 0) + 1);
+  }
 
   const isAuthor = member.role === "AUTHOR";
 
@@ -124,13 +143,23 @@ export default async function ProjectPage({
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pb-soft text-pb">
                       <FileText size={18} aria-hidden="true" />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{doc.name}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {doc._count.versions}{" "}
                         {plural(doc._count.versions, "verze", "verze", "verzí")}
                       </p>
                     </div>
+                    {(openByDoc.get(doc.id) ?? 0) > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 gap-1 border-pb/30 bg-pb-soft text-pb"
+                        title="Nevyřešené komentáře"
+                      >
+                        <MessageSquare size={11} aria-hidden="true" />
+                        {openByDoc.get(doc.id)}
+                      </Badge>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

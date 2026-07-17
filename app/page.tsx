@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, FolderOpen, MailOpen, Users, FileText } from "lucide-react";
-import { getSessionUser } from "@/lib/auth";
+import {
+  Building2,
+  FolderOpen,
+  MailOpen,
+  MessageSquare,
+  Users,
+  FileText,
+} from "lucide-react";
+import { getSessionUser, canSeeInternal } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
 import { plural } from "@/lib/czech";
@@ -18,6 +25,7 @@ type ProjectCard = {
   role: "AUTHOR" | "COMMENTER" | "READER";
   documents: number;
   members: number;
+  open: number;
 };
 
 // Dashboard — projekty uživatele seskupené podle klienta (přání Hany).
@@ -39,11 +47,38 @@ export default async function Home() {
     orderBy: { project: { updatedAt: "desc" } },
   });
 
+  // Nevyřešené komentáře na projekt — odznak na kartě ukáže, kde čeká práce.
+  // Jeden dotaz přes všechny projekty uživatele; viditelnost interních se
+  // vyhodnotí per členství (každý má v projektu jinou roli/interní příznak).
+  const projectIds = memberships.map((m) => m.projectId);
+  const openComments = await prisma.comment.findMany({
+    where: {
+      parentId: null,
+      status: { not: "RESOLVED" },
+      documentVersion: { document: { projectId: { in: projectIds } } },
+    },
+    select: {
+      visibility: true,
+      documentVersion: {
+        select: { document: { select: { projectId: true } } },
+      },
+    },
+  });
+  const openCounts = new Map<number, { pub: number; int: number }>();
+  for (const c of openComments) {
+    const pid = c.documentVersion.document.projectId;
+    const e = openCounts.get(pid) ?? { pub: 0, int: 0 };
+    if (c.visibility === "INTERNAL") e.int += 1;
+    else e.pub += 1;
+    openCounts.set(pid, e);
+  }
+
   // Seskupení podle klienta: klienti abecedně, „Nezařazené" nakonec.
   const groups = new Map<string, ProjectCard[]>();
   for (const m of memberships) {
     const key = m.project.client?.name ?? "";
     if (!groups.has(key)) groups.set(key, []);
+    const counts = openCounts.get(m.project.id) ?? { pub: 0, int: 0 };
     groups.get(key)!.push({
       id: m.project.id,
       name: m.project.name,
@@ -51,6 +86,7 @@ export default async function Home() {
       role: m.role,
       documents: m.project._count.documents,
       members: m.project._count.members,
+      open: counts.pub + (canSeeInternal(m) ? counts.int : 0),
     });
   }
   const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
@@ -153,6 +189,21 @@ export default async function Home() {
                             {p.members}{" "}
                             {plural(p.members, "člen", "členové", "členů")}
                           </span>
+                          {p.open > 0 && (
+                            <span
+                              className="flex items-center gap-1 font-medium text-pb"
+                              title="Nevyřešené komentáře"
+                            >
+                              <MessageSquare size={13} aria-hidden="true" />
+                              {p.open}{" "}
+                              {plural(
+                                p.open,
+                                "nevyřešený",
+                                "nevyřešené",
+                                "nevyřešených",
+                              )}
+                            </span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

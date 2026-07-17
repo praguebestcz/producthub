@@ -333,9 +333,15 @@
         continue;
       }
       btn.removeAttribute("data-hidden");
-      // Špendlík k pravému hornímu rohu elementu.
+      // Špendlík k pravému hornímu rohu elementu; u prvků přes celou šířku by
+      // ale přetekl za pravý okraj a ořízl se, tak ho podržíme uvnitř stránky.
+      var docWidth =
+        document.documentElement.scrollWidth || document.documentElement.clientWidth;
+      var left = rect.left + rect.width - 10;
+      if (left > docWidth - 28) left = docWidth - 28;
+      if (left < 2) left = 2;
       btn.style.top = rect.top - 10 + "px";
-      btn.style.left = rect.left + rect.width - 10 + "px";
+      btn.style.left = left + "px";
     }
   }
 

@@ -8,6 +8,7 @@ import {
   Lock,
   MapPin,
   MessageSquare,
+  MessageSquarePlus,
   MousePointer2,
   RotateCcw,
   SmilePlus,
@@ -173,6 +174,8 @@ export function CommentPanel({
   currentUserId,
   canComment,
   canSeeInternal,
+  isCommenting,
+  onStartCommenting,
   members,
 }: {
   open: boolean;
@@ -192,6 +195,10 @@ export function CommentPanel({
   currentUserId: number;
   canComment: boolean;
   canSeeInternal: boolean;
+  // Je zapnutý režim komentování? Řídí navádění v prázdném panelu.
+  isCommenting: boolean;
+  // Zapne režim komentování (tlačítko v prázdném panelu). Nepovinné.
+  onStartCommenting?: () => void;
   members: MentionMember[];
 }) {
   // Jen komentáře aktuální verze (u víceverzového dokumentu se verze nemíchají).
@@ -205,6 +212,13 @@ export function CommentPanel({
   const visibleThreads = scopeThreads.filter((t) =>
     matchesStatusFilter(t.status, statusFilter),
   );
+  // Kolik komentářů (dle aktuálního filtru) je na OSTATNÍCH stránkách verze —
+  // nápověda u přepínače, ať uživatel ví, že tu nejsou všechny (sjednocení
+  // počtů: tlačítko nahoře i panel ukazují aktuální stránku).
+  const versionVisibleCount = versionThreads.filter((t) =>
+    matchesStatusFilter(t.status, statusFilter),
+  ).length;
+  const otherPagesCount = versionVisibleCount - visibleThreads.length;
   const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
 
   // Esc zavře otevřený panel (konzistentní s bublinou).
@@ -244,6 +258,11 @@ export function CommentPanel({
           {mode === "list" && (
             <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
               Všechny stránky
+              {!showAllPages && otherPagesCount > 0 && (
+                <span className="rounded-full bg-pb-soft px-1.5 py-0.5 text-[10px] font-semibold text-pb">
+                  +{otherPagesCount}
+                </span>
+              )}
               <Switch
                 size="sm"
                 checked={showAllPages}
@@ -312,11 +331,47 @@ export function CommentPanel({
         ) : (
           <>
             {visibleThreads.length === 0 && (
-              <p className="px-1 py-6 text-center text-sm text-muted-foreground">
-                {canComment
-                  ? "Zatím žádné komentáře. Zapněte režim Komentování a klikněte na prvek ve specifikaci."
-                  : "Zatím žádné komentáře."}
-              </p>
+              <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+                <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <MessageSquare size={20} aria-hidden="true" />
+                </span>
+                {statusFilter !== "open" ? (
+                  // Prázdno kvůli filtru (ne kvůli chybějícím komentářům).
+                  <p className="text-sm text-muted-foreground">
+                    V tomto filtru nejsou žádné komentáře.
+                  </p>
+                ) : canComment ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Zatím tu žádné komentáře nejsou.
+                    </p>
+                    {isCommenting ? (
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-pb">
+                        <MousePointer2 size={15} aria-hidden="true" />
+                        Klikněte na prvek ve specifikaci a napište k němu
+                        komentář.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          Přepněte na komentování a klikněte na prvek, který
+                          chcete připomínkovat.
+                        </p>
+                        {onStartCommenting && (
+                          <Button size="sm" onClick={onStartCommenting}>
+                            <MessageSquarePlus />
+                            Zapnout komentování
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Zatím tu žádné komentáře nejsou.
+                  </p>
+                )}
+              </div>
             )}
             {visibleThreads.map((thread) => (
               <ThreadCard

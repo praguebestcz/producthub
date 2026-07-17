@@ -561,13 +561,17 @@ export function DocumentViewer({
           }}
         >
           <MessageSquare />
-          {/* Počet nevyřešených komentářů aktuální verze — odpovídá tomu, co
-              uživatel v panelu ve výchozím filtru uvidí (audit: sjednoceno). */}
+          {/* Počet nevyřešených komentářů AKTUÁLNÍ stránky — sedí s tím, co
+              panel ve výchozím filtru ukáže po otevření. Komentáře z dalších
+              stránek verze najde uživatel přes přepínač „Všechny stránky"
+              v panelu (tam je i jejich počet). */}
           Komentáře (
           {
             threads.filter(
               (t) =>
-                t.documentVersionId === versionId && t.status !== "RESOLVED",
+                t.documentVersionId === versionId &&
+                t.pagePath === pagePath &&
+                t.status !== "RESOLVED",
             ).length
           }
           )
@@ -740,6 +744,8 @@ export function DocumentViewer({
           currentUserId={currentUserId}
           canComment={canComment}
           canSeeInternal={canSeeInternal}
+          isCommenting={mode === "comment"}
+          onStartCommenting={() => switchMode("comment")}
           members={members}
         />
       </div>

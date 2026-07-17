@@ -80,7 +80,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Aplikace</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {nav.map((item) => (
