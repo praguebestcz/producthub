@@ -74,6 +74,13 @@ enum NotificationType {
   PROJECT_INVITED
 }
 
+// Stav „zadání" (M8-light): vytvořeno → předáno vývoji → zapracováno.
+enum PromptExportStatus {
+  CREATED
+  HANDED_OFF
+  DONE
+}
+
 // === Modely ===
 
 // Uživatel — účet vzniká při prvním přihlášení přes Google. Žádná hesla.
@@ -110,6 +117,7 @@ model User {
   approvedRequirements Requirement[]     @relation("RequirementApprover")
   notifications        Notification[]    @relation("NotificationRecipient")
   actedNotifications   Notification[]    @relation("NotificationActor")
+  promptExports        PromptExport[]    @relation("PromptExportCreator")
 }
 
 // Klient — složka seskupující projekty (DDS, Foto Škoda, Harfasport, … i PB).
@@ -202,9 +210,10 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  versions     DocumentVersion[]
-  comments     Comment[]
-  requirements Requirement[]
+  versions      DocumentVersion[]
+  comments      Comment[]
+  requirements  Requirement[]
+  promptExports PromptExport[]
 
   @@index([projectId])
 }
@@ -224,8 +233,9 @@ model DocumentVersion {
   uploadedBy    User           @relation("VersionUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt     DateTime       @default(now())
 
-  assets   Asset[]
-  comments Comment[]
+  assets        Asset[]
+  comments      Comment[]
+  promptExports PromptExport[]
 
   @@unique([documentId, versionNumber])
   @@index([uploadedById]) // po expert review: FK index
@@ -416,4 +426,37 @@ model Notification {
   @@index([projectId])
   @@index([commentId])
   @@index([requirementId])
+}
+
+// „Zadání" (M8-light) — snapshot promptu vygenerovaného z vybraných komentářů,
+// určený k předání vývoji (Claude Code). Uložený text = auditní stopa „co šlo
+// vývoji". Po db-security-expert review (2026-07-17, schváleno s výhradami):
+//  - denormalizovaný documentId (Cascade) + documentVersionId NoAction (vzor
+//    Comment): chrání historii, ale nezablokuje smazání dokumentu;
+//  - body MŮŽE obsahovat text INTERNAL komentářů → čtení/výpis jen internímu
+//    členovi projektu (vynucuje aplikace; server nikdy nevrací body neinternímu);
+//  - CHECK constrainty na velikost body a počet commentIds jsou v migraci.
+model PromptExport {
+  id                Int             @id @default(autoincrement())
+  documentId        Int
+  document          Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersionId Int
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
+  createdById       Int
+  createdBy         User            @relation("PromptExportCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  title  String @db.VarChar(200)
+  // Snapshot promptu — NIKDY nevracet neinternímu členovi (může nést INTERNAL text).
+  body   String @db.Text
+  // Informativní seznam zahrnutých komentářů; zdroj pravdy je body. NEpoužívat
+  // k opětovnému načtení komentářů (obešlo by filtr viditelnosti).
+  commentIds Int[] @default([])
+  status     PromptExportStatus @default(CREATED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentId])
+  @@index([documentVersionId])
+  @@index([createdById])
 }

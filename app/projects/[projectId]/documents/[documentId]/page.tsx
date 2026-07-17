@@ -83,6 +83,10 @@ export default async function DocumentPage({
         currentUserId={user.id}
         canComment={roleAtLeast(member.role, "COMMENTER")}
         canSeeInternal={canSeeInternal(member)}
+        // Zadání (M8) tvoří/spravuje jen interní tým (COMMENTER+ a interní).
+        canCreatePrompt={
+          canSeeInternal(member) && roleAtLeast(member.role, "COMMENTER")
+        }
         members={members.map((m) => ({
           userId: m.userId,
           name: m.user.name,

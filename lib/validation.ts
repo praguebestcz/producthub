@@ -92,3 +92,21 @@ export const REACTION_EMOJIS = ["👍", "✅", "👀", "❤️", "🎉", "🙏"]
 export const reactionCreateSchema = z.object({
   emoji: z.enum(REACTION_EMOJIS),
 });
+
+// M8 — „zadání" (prompt export). `body` je snapshot markdownu (může být velký,
+// agregace mnoha komentářů) — délkový strop v znacích tady, bajtový strop 1 MB
+// hlídá route i DB CHECK. `commentIds` jsou jen informativní (max 500).
+export const promptExportCreateSchema = z.object({
+  documentVersionId: z.number().int().positive(),
+  title: z.string().trim().min(1, "Zadejte název zadání").max(200),
+  body: z.string().min(1, "Prompt je prázdný").max(1_000_000),
+  commentIds: z
+    .array(z.number().int().positive())
+    .max(500)
+    .optional()
+    .default([]),
+});
+
+export const promptExportStatusSchema = z.object({
+  status: z.enum(["CREATED", "HANDED_OFF", "DONE"]),
+});

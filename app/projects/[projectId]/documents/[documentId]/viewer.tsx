@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   FileText,
   Home,
   Loader2,
@@ -50,6 +51,7 @@ import { Label } from "@/components/ui/label";
 import {
   CommentBubble,
   CommentPanel,
+  deriveLabel,
   matchesStatusFilter,
   type BubblePosition,
   type CommentThread,
@@ -57,6 +59,11 @@ import {
   type SelectedElement,
   type StatusFilter,
 } from "@/components/comments/comment-panel";
+import {
+  CreatePromptDialog,
+  PromptExportsDialog,
+} from "@/components/comments/prompt-export";
+import { buildPromptMarkdown, type PromptItem } from "@/lib/comments/prompt";
 import type { MentionMember } from "@/components/comments/mention-textarea";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +100,7 @@ export function DocumentViewer({
   currentUserId,
   canComment,
   canSeeInternal,
+  canCreatePrompt,
   members,
 }: {
   documentId: number;
@@ -103,6 +111,7 @@ export function DocumentViewer({
   currentUserId: number;
   canComment: boolean;
   canSeeInternal: boolean;
+  canCreatePrompt: boolean;
   members: MentionMember[];
 }) {
   const router = useRouter();
@@ -128,6 +137,16 @@ export function DocumentViewer({
   // Filtr stavu — výchozí „nevyřešené" (vyřešené se běžně nezobrazují, ani
   // špendlíky na stránce; přání Hany). Filtr platí pro panel i špendlíky.
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
+  // M8 — výběr komentářů pro prompt (jen interní tým), rozpracované zadání,
+  // okno „Předaná zadání" a jejich počet (odznak na tlačítku).
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [promptDraft, setPromptDraft] = useState<{
+    title: string;
+    body: string;
+    commentIds: number[];
+  } | null>(null);
+  const [exportsOpen, setExportsOpen] = useState(false);
+  const [exportCount, setExportCount] = useState(0);
   // Kontejner prohlížeče (pro umístění bubliny podle pozice prvku).
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDims, setContainerDims] = useState({ width: 0, height: 0 });
@@ -228,7 +247,50 @@ export function DocumentViewer({
     setBubble(null);
     setActiveThreadId(null);
     setPanelOpen(false);
+    setSelectedIds(new Set()); // výběr pro prompt platí v rámci verze
     setVersionId(Number(v));
+  }
+
+  // M8 — výběr komentářů do promptu.
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // Sestaví markdown prompt z vybraných vláken a otevře okno pro uložení.
+  function openPromptDraft() {
+    const selected = threads.filter(
+      (t) =>
+        selectedIds.has(t.id) &&
+        t.documentVersionId === versionId &&
+        t.status !== "RESOLVED",
+    );
+    if (selected.length === 0) return;
+    const items: PromptItem[] = selected.map((t) => ({
+      label: deriveLabel(t.elementHtml),
+      dataReviewId: t.dataReviewId,
+      domPath: t.domPath,
+      pageLabel: t.pagePath === entryPath ? "Rozcestník" : t.pagePath,
+      authorName: t.author.name,
+      body: t.body,
+      replies: t.replies.map((r) => ({ authorName: r.author.name, body: r.body })),
+    }));
+    const dateStr = new Date().toLocaleDateString("cs-CZ");
+    const body = buildPromptMarkdown(
+      name,
+      currentVersion?.versionNumber ?? 1,
+      dateStr,
+      items,
+    );
+    setPromptDraft({
+      title: `Připomínky ${dateStr}`,
+      body,
+      commentIds: selected.map((t) => t.id),
+    });
   }
 
   // Vrátí platný view-token pro aktuální verzi — reuse dokud je čerstvý (< 50
@@ -424,6 +486,23 @@ export function DocumentViewer({
     return () => ro.disconnect();
   }, []);
 
+  // M8 — počet uložených zadání (odznak na tlačítku „Zadání"). Jen interní tým.
+  useEffect(() => {
+    if (!canCreatePrompt) return;
+    let cancelled = false;
+    fetch(`/api/documents/${documentId}/prompt-exports`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && Array.isArray(d?.exports)) {
+          setExportCount(d.exports.length);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [canCreatePrompt, documentId]);
+
   if (versions.length === 0) {
     return (
       <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -576,6 +655,18 @@ export function DocumentViewer({
           }
           )
         </Button>
+
+        {/* Předaná zadání (M8) — jen interní tým */}
+        {canCreatePrompt && (
+          <Button
+            variant={exportsOpen ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setExportsOpen(true)}
+          >
+            <ClipboardList />
+            Zadání{exportCount > 0 ? ` (${exportCount})` : ""}
+          </Button>
+        )}
       </div>
 
       {/* Drobečková navigace mezi stránkami specifikace — nad dokumentem */}
@@ -746,9 +837,47 @@ export function DocumentViewer({
           canSeeInternal={canSeeInternal}
           isCommenting={mode === "comment"}
           onStartCommenting={() => switchMode("comment")}
+          canCreatePrompt={canCreatePrompt}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onSelectAllUnresolved={(ids) => setSelectedIds(new Set(ids))}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onCreatePrompt={openPromptDraft}
           members={members}
         />
       </div>
+
+      {/* M8 — okno vytvoření zadání (prompt z výběru komentářů) */}
+      {promptDraft && (
+        <CreatePromptDialog
+          open={promptDraft !== null}
+          onOpenChange={(v) => {
+            if (!v) setPromptDraft(null);
+          }}
+          documentId={documentId}
+          documentVersionId={versionId}
+          documentName={name}
+          defaultTitle={promptDraft.title}
+          defaultBody={promptDraft.body}
+          commentIds={promptDraft.commentIds}
+          onCreated={() => {
+            setExportCount((c) => c + 1);
+            setSelectedIds(new Set());
+          }}
+        />
+      )}
+
+      {/* M8 — okno „Předaná zadání" (historie + stavy) */}
+      {canCreatePrompt && (
+        <PromptExportsDialog
+          open={exportsOpen}
+          onOpenChange={setExportsOpen}
+          documentId={documentId}
+          documentName={name}
+          canManage={canCreatePrompt}
+          onCountChange={setExportCount}
+        />
+      )}
     </div>
   );
 }

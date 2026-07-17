@@ -12,6 +12,7 @@ import {
   MousePointer2,
   RotateCcw,
   SmilePlus,
+  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -126,7 +127,7 @@ const TAG_NAMES: Record<string, string> = {
   FORM: "formulář",
 };
 
-function deriveLabel(elementHtml: string | null): string | null {
+export function deriveLabel(elementHtml: string | null): string | null {
   if (!elementHtml) return null;
   const tpl = document.createElement("template");
   tpl.innerHTML = elementHtml;
@@ -176,6 +177,12 @@ export function CommentPanel({
   canSeeInternal,
   isCommenting,
   onStartCommenting,
+  canCreatePrompt,
+  selectedIds,
+  onToggleSelect,
+  onSelectAllUnresolved,
+  onClearSelection,
+  onCreatePrompt,
   members,
 }: {
   open: boolean;
@@ -199,6 +206,13 @@ export function CommentPanel({
   isCommenting: boolean;
   // Zapne režim komentování (tlačítko v prázdném panelu). Nepovinné.
   onStartCommenting?: () => void;
+  // M8 — výběr komentářů pro tvorbu promptu (jen interní tým).
+  canCreatePrompt: boolean;
+  selectedIds: Set<number>;
+  onToggleSelect: (id: number) => void;
+  onSelectAllUnresolved: (ids: number[]) => void;
+  onClearSelection: () => void;
+  onCreatePrompt: () => void;
   members: MentionMember[];
 }) {
   // Jen komentáře aktuální verze (u víceverzového dokumentu se verze nemíchají).
@@ -219,6 +233,11 @@ export function CommentPanel({
     matchesStatusFilter(t.status, statusFilter),
   ).length;
   const otherPagesCount = versionVisibleCount - visibleThreads.length;
+  // M8 — nevyřešená vlákna verze (napříč stránkami) jdou vybrat do promptu.
+  const unresolvedVersionIds = versionThreads
+    .filter((t) => t.status !== "RESOLVED")
+    .map((t) => t.id);
+  const selectedCount = selectedIds.size;
   const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
 
   // Esc zavře otevřený panel (konzistentní s bublinou).
@@ -308,6 +327,28 @@ export function CommentPanel({
         </div>
       )}
 
+      {/* M8 — hromadný výběr nevyřešených pro tvorbu promptu (jen interní tým) */}
+      {mode === "list" && canCreatePrompt && unresolvedVersionIds.length > 0 && (
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5 text-xs">
+          <button
+            type="button"
+            onClick={() => onSelectAllUnresolved(unresolvedVersionIds)}
+            className="font-medium text-pb hover:underline"
+          >
+            Vybrat všechny nevyřešené
+          </button>
+          {selectedCount > 0 && (
+            <button
+              type="button"
+              onClick={onClearSelection}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Zrušit výběr
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
         {mode === "thread" ? (
           activeThread ? (
@@ -386,11 +427,25 @@ export function CommentPanel({
                 canComment={canComment}
                 canSeeInternal={canSeeInternal}
                 members={members}
+                selectable={canCreatePrompt && thread.status !== "RESOLVED"}
+                selected={selectedIds.has(thread.id)}
+                onToggleSelect={() => onToggleSelect(thread.id)}
               />
             ))}
           </>
         )}
       </div>
+
+      {/* M8 — lišta výběru: počet vybraných + tvorba promptu (interní tým) */}
+      {mode === "list" && canCreatePrompt && selectedCount > 0 && (
+        <div className="flex items-center gap-2 border-t bg-background px-3 py-2.5">
+          <span className="text-sm font-medium">Vybráno {selectedCount}</span>
+          <Button size="sm" className="ml-auto" onClick={onCreatePrompt}>
+            <Sparkles />
+            Vytvořit prompt
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -766,6 +821,9 @@ function ThreadCard({
   canComment,
   canSeeInternal,
   members,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   documentId: number;
   thread: CommentThread;
@@ -777,6 +835,10 @@ function ThreadCard({
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
+  // M8 — zaškrtávátko pro výběr do promptu (jen u nevyřešených, interní tým).
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [replying, setReplying] = useState(false);
@@ -824,8 +886,17 @@ function ThreadCard({
         isActive ? "border-pb ring-2 ring-pb/30" : "hover:border-foreground/25",
       )}
     >
-      {/* Badge řádek: číslo špendlíku, stav, interní, cizí stránka, osiřelost */}
+      {/* Badge řádek: výběr, číslo špendlíku, stav, interní, cizí stránka, osiřelost */}
       <div className="flex flex-wrap items-center gap-1.5">
+        {selectable && (
+          <span onClick={(e) => e.stopPropagation()} className="flex items-center">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect?.()}
+              aria-label="Vybrat komentář do promptu"
+            />
+          </span>
+        )}
         {pinNumber !== null && (
           <span className="flex size-5 items-center justify-center rounded-full bg-pb text-[11px] font-bold text-white">
             {pinNumber}
