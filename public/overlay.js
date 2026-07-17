@@ -57,11 +57,12 @@
     "  border: 2px solid #c8102e; outline: 2px solid rgba(200,16,46,.25); outline-offset: 2px; border-radius: 2px; }",
     ".ph-pin { position: absolute; z-index: 2147483646; width: 26px; height: 26px;",
     "  border-radius: 50% 50% 50% 0; transform: rotate(-45deg);",
-    "  border: 2px solid #c8102e; background: #c8102e; cursor: pointer;",
-    "  box-shadow: 0 1px 4px rgba(0,0,0,.4); padding: 0; }",
+    "  border: 1px solid #c8102e; background: #c8102e; cursor: pointer;",
+    "  box-shadow: 0 1px 3px rgba(0,0,0,.25); padding: 0; }",
     ".ph-pin[data-status=RESOLVED] { border-color: #16a34a; background: #16a34a; }",
-    // Vnitřek narovnaný zpět (+45°): avatar autora nebo iniciála.
-    ".ph-pin-inner { position: absolute; inset: 1.5px; border-radius: 50%;",
+    // Vnitřek narovnaný zpět (+45°): avatar autora nebo iniciála. Tenký lem
+    // (barva stavu prosvítá jen mírně), ať orámování není tučné (přání Hany).
+    ".ph-pin-inner { position: absolute; inset: 1px; border-radius: 50%;",
     "  overflow: hidden; transform: rotate(45deg); background: #fff;",
     "  display: flex; align-items: center; justify-content: center; }",
     ".ph-pin-initial { font: 700 12px/1 sans-serif; color: #c8102e; text-transform: uppercase; }",
