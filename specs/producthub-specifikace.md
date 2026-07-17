@@ -15,7 +15,7 @@
 ## Revize
 
 * **2026-07-17**
-  * Uvítání nového uživatele + okno „Co je nového" po nasazení novinky + stránka Nápověda (návod + historie novinek). Novinky vedené v `lib/releases.ts`, viděné se pamatuje v prohlížeči (bez DB). Detailní spec: outputs/co-je-noveho-a-napoveda-spec.md - Hana Ortmannová
+  * Uvítání nového uživatele + okno „Co je nového" po nasazení novinky + stránka Nápověda (návod + historie novinek). Novinky vedené v `lib/releases.ts`, viděné se pamatuje v prohlížeči (bez DB). Detailní spec: specs/co-je-noveho-a-napoveda-spec.md - Hana Ortmannová
   * Zpřehlednění po design review: sjednocené počty komentářů (tlačítko i panel = aktuální stránka, nápověda „+N" u přepínače Všechny stránky), navádění v prázdném panelu, odznaky nevyřešených na kartách projektů i dokumentů, popisek menu „Navigace", špendlíky se drží uvnitř stránky - Hana Ortmannová
   * Reakce emoji na komentáře (po db-security-expert review). Kompletní audit aplikace (bezpečnost/výkon/logika, 0 kritických) + zapracované opravy - viz outputs/audit-2026-07-17.md. Sandbox rozšířen na allow-forms/allow-popups (opaque origin drží). Avatar autora ve špendlíku, filtr stavu, banner režimu, drobečková navigace - Hana Ortmannová
 * **2026-07-15**
@@ -423,7 +423,7 @@ Deaktivovaným uživatelům se notifikace NESKLÁDAJÍ; v našeptávači zmín
 
 ## Uvítání, Co je nového a Nápověda 🟢
 
-Uvedení uživatele do aplikace a do novinek po nasazení. Detailní funkční spec: `outputs/co-je-noveho-a-napoveda-spec.md`.
+Uvedení uživatele do aplikace a do novinek po nasazení. Detailní funkční spec: `specs/co-je-noveho-a-napoveda-spec.md`.
 
 * **Uvítací okno** - nový uživatel při prvním přihlášení uvidí okno „Vítejte v ProductHubu" s krátkým průvodcem (prohlížení, komentování, řešení vláken, kde je Nápověda).
 * **Okno „Co je nového"** - vracející se uživatel po nasazení novinky uvidí seznam změn, které ještě neviděl. „Rozumím" je označí za viděné.

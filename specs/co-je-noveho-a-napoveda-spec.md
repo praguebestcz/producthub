@@ -15,7 +15,7 @@
 ## Revize
 
 * **2026-07-17**
-  * **Implementováno** (`lib/releases.ts`, `components/whats-new-dialog.tsx`, `app/napoveda/page.tsx`, nav položka, mount v AppShellu) - ověřeno v prohlížeči (uvítání / novinky / Rozumím / Nápověda / ruční otevření). Čeká na ruční test Hany. Po schválení přesun do `specs/` - Claude
+  * **Implementováno a nasazeno na produkci** (`lib/releases.ts`, `components/whats-new-dialog.tsx`, `app/napoveda/page.tsx`, nav položka, mount v AppShellu). Ověřeno lokálně i na produkci; schváleno Hanou → přesun do `specs/` - Hana Ortmannová, Claude
   * Rozhodnutí Hany zapracována: zapamatování v prohlížeči (`localStorage`); nový uživatel vidí **celého průvodce** (uvítání), ne „Co je nového"; odkaz na Nápovědu v levém menu - Hana Ortmannová, Claude
   * První návrh funkce - Hana Ortmannová (nápad), Claude (sepsání)
 
@@ -25,7 +25,7 @@
 * Design dokument (technické JAK) - `docs/design-2026-07-10-producthub.md`
 * Nasazovací workflow - `AGENTS.md`
 
-> ⚠️ **Poznámka:** Dokument je rozpracovaný (`outputs/`). Po schválení Hanou se přesune do `specs/` a teprve pak se staví.
+> ⚠️ **Poznámka:** Funkce je **implementovaná a nasazená na produkci** (2026-07-17). Tato specifikace je schválená (`specs/`) a je živým dokumentem - při změně chování se aktualizuje.
 
 ## Obsah
 
