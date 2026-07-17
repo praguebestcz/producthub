@@ -561,7 +561,16 @@ export function DocumentViewer({
           }}
         >
           <MessageSquare />
-          Komentáře ({threads.length})
+          {/* Počet nevyřešených komentářů aktuální verze — odpovídá tomu, co
+              uživatel v panelu ve výchozím filtru uvidí (audit: sjednoceno). */}
+          Komentáře (
+          {
+            threads.filter(
+              (t) =>
+                t.documentVersionId === versionId && t.status !== "RESOLVED",
+            ).length
+          }
+          )
         </Button>
       </div>
 

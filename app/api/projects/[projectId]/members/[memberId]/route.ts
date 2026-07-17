@@ -48,7 +48,10 @@ export async function PATCH(
 
   const body = memberPatchSchema.safeParse(await req.json().catch(() => null));
   if (!body.success) {
-    return NextResponse.json({ error: "Neplatný vstup" }, { status: 400 });
+    return NextResponse.json(
+      { error: body.error.issues[0]?.message ?? "Neplatný vstup" },
+      { status: 400 },
+    );
   }
 
   // Odebrání role AUTHOR poslednímu autorovi by projekt osiřelo.

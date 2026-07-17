@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   CornerDownRight,
@@ -26,6 +26,10 @@ import {
   type MentionMember,
 } from "@/components/comments/mention-textarea";
 import { cn } from "@/lib/utils";
+import {
+  matchesStatusFilter,
+  type StatusFilter,
+} from "@/lib/comments/status";
 
 // Postranní panel komentářových vláken — pravá část prohlížeče dokumentu.
 // Viditelnost interních komentářů řeší SERVER (panel dostává už filtrovaná
@@ -134,18 +138,9 @@ function deriveLabel(elementHtml: string | null): string | null {
 }
 
 export type PanelMode = "thread" | "list";
-export type StatusFilter = "all" | "open" | "resolved";
-
-// Odpovídá vlákno filtru stavu? „open" = nevyřešené (OPEN/REOPENED),
-// „resolved" = jen vyřešené, „all" = vše. Sdílené panelem i špendlíky.
-export function matchesStatusFilter(
-  status: CommentThread["status"],
-  filter: StatusFilter,
-): boolean {
-  if (filter === "open") return status !== "RESOLVED";
-  if (filter === "resolved") return status === "RESOLVED";
-  return true;
-}
+// Filtr stavu žije v lib/comments/status.ts (sdílené + testovatelné);
+// re-export, ať viewer může importovat z jednoho místa.
+export { matchesStatusFilter, type StatusFilter };
 
 // Pozice prvku v prohlížeči (viewportRect z overlay) — pro umístění bubliny.
 export type BubblePosition = {
@@ -731,6 +726,12 @@ function ThreadCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [replying, setReplying] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Popis prvku parsuje HTML — memoizace, ať se to neděje při každém renderu
+  // (audit): přepočítá se jen když se změní elementHtml.
+  const elementLabel = useMemo(
+    () => deriveLabel(thread.elementHtml),
+    [thread.elementHtml],
+  );
 
   // Klik na špendlík v iframe → vlákno se zvýrazní a naroluje do view.
   useEffect(() => {
@@ -803,7 +804,7 @@ function ThreadCard({
       <p className="text-sm whitespace-pre-wrap break-words">{thread.body}</p>
       <ElementInfo
         dataReviewId={thread.dataReviewId}
-        label={deriveLabel(thread.elementHtml)}
+        label={elementLabel}
         elementHtml={thread.elementHtml}
       />
       <div onClick={(e) => e.stopPropagation()}>
