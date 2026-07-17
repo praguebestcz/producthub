@@ -477,23 +477,30 @@ function ReactionBar({
   reactions,
   currentUserId,
   canComment,
-  onChanged,
 }: {
   commentId: number;
   reactions: CommentReaction[];
   currentUserId: number;
   canComment: boolean;
-  onChanged: () => Promise<void>;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // Optimistický lokální stav (audit): reakce se projeví hned a NEstahuje se
+  // celý strom komentářů po každém kliku. Když přijdou nové reakce z props
+  // (po refetchi), převezmeme je — React idiom „úprava stavu při změně props
+  // během renderu" (ne useEffect, react-hooks/set-state-in-effect).
+  const [local, setLocal] = useState(reactions);
+  const [prevReactions, setPrevReactions] = useState(reactions);
+  if (prevReactions !== reactions) {
+    setPrevReactions(reactions);
+    setLocal(reactions);
+  }
 
   // Agregace podle emoji: počet, jestli jsem reagoval já, jména reagujících.
   const grouped = new Map<
     string,
     { count: number; mine: boolean; names: string[] }
   >();
-  for (const r of reactions) {
+  for (const r of local) {
     const g = grouped.get(r.emoji) ?? { count: 0, mine: false, names: [] };
     g.count += 1;
     g.names.push(r.user.name);
@@ -503,8 +510,18 @@ function ReactionBar({
 
   async function toggle(emoji: string) {
     setPickerOpen(false);
-    if (busy) return;
-    setBusy(true);
+    const mine = local.some(
+      (r) => r.emoji === emoji && r.userId === currentUserId,
+    );
+    // Optimistický update — reakce se ukáže/zmizí okamžitě.
+    const previous = local;
+    setLocal(
+      mine
+        ? local.filter(
+            (r) => !(r.emoji === emoji && r.userId === currentUserId),
+          )
+        : [...local, { emoji, userId: currentUserId, user: { name: "Vy" } }],
+    );
     try {
       const res = await fetch(`/api/comments/${commentId}/reactions`, {
         method: "POST",
@@ -512,11 +529,9 @@ function ReactionBar({
         body: JSON.stringify({ emoji }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      await onChanged();
     } catch (err) {
+      setLocal(previous); // revert při chybě
       toast.error(err instanceof Error ? err.message : "Reakce se nezdařila.");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -528,7 +543,7 @@ function ReactionBar({
         <button
           key={emoji}
           type="button"
-          disabled={busy || !canComment}
+          disabled={!canComment}
           onClick={() => toggle(emoji)}
           title={g.names.join(", ")}
           className={cn(
@@ -548,7 +563,6 @@ function ReactionBar({
         <div className="relative">
           <button
             type="button"
-            disabled={busy}
             onClick={() => setPickerOpen((v) => !v)}
             aria-label="Přidat reakci"
             className="flex size-6 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted"
@@ -798,7 +812,6 @@ function ThreadCard({
           reactions={thread.reactions}
           currentUserId={currentUserId}
           canComment={canComment}
-          onChanged={onChanged}
         />
       </div>
 
@@ -823,7 +836,6 @@ function ThreadCard({
                   reactions={reply.reactions}
                   currentUserId={currentUserId}
                   canComment={canComment}
-                  onChanged={onChanged}
                 />
               </div>
             </div>

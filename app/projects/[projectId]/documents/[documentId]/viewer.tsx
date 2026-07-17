@@ -140,6 +140,12 @@ export function DocumentViewer({
   // Vlákno, které se má zvýraznit, až se donačte cílová stránka (klik na
   // komentář z JINÉ stránky → nejdřív navigace, pak highlight).
   const pendingHighlightRef = useRef<number | null>(null);
+  // Aktivní view-token + kdy vznikl. Reuse napříč navigacemi téže verze, ať se
+  // URL assetů nemění a prohlížeč je cacheuje (výkon, audit). Po ~50 min se
+  // vydá nový (token má TTL ~1 h).
+  const viewTokenRef = useRef<{ token: string; versionId: number; at: number } | null>(
+    null,
+  );
 
   const currentVersion = versions.find((v) => v.id === versionId);
   const entryPath = currentVersion?.entryPath ?? "index.html";
@@ -225,17 +231,34 @@ export function DocumentViewer({
     setVersionId(Number(v));
   }
 
-  // Navigace prohlížeče na jinou stránku specifikace (s čerstvým view-tokenem).
+  // Vrátí platný view-token pro aktuální verzi — reuse dokud je čerstvý (< 50
+  // min), jinak vyžádá nový. Reuse ustálí URL assetů → cache je netahá z DB.
+  const TOKEN_REUSE_MS = 50 * 60 * 1000;
+  async function ensureViewToken(): Promise<string> {
+    const cached = viewTokenRef.current;
+    if (
+      cached &&
+      cached.versionId === versionId &&
+      Date.now() - cached.at < TOKEN_REUSE_MS
+    ) {
+      return cached.token;
+    }
+    const res = await fetch(`/api/versions/${versionId}/view-token`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    viewTokenRef.current = { token: data.token, versionId, at: Date.now() };
+    return data.token;
+  }
+
+  // Navigace prohlížeče na jinou stránku specifikace (reuse tokenu).
   async function goToPage(pagePath: string) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/versions/${versionId}/view-token`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const token = await ensureViewToken();
       const encoded = pagePath.split("/").map(encodeURIComponent).join("/");
-      setViewSrc(`/view/${data.token}/${encoded}`);
+      setViewSrc(`/view/${token}/${encoded}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Načtení se nepovedlo.");
       setLoading(false);
@@ -262,7 +285,10 @@ export function DocumentViewer({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        if (!cancelled) setViewSrc(`/view/${data.token}/${data.entryPath}`);
+        if (!cancelled) {
+          viewTokenRef.current = { token: data.token, versionId, at: Date.now() };
+          setViewSrc(`/view/${data.token}/${data.entryPath}`);
+        }
       } catch (e) {
         if (!cancelled) {
           toast.error(e instanceof Error ? e.message : "Načtení se nepovedlo.");

@@ -18,7 +18,10 @@ import { injectOverlay } from "@/lib/html/inject-overlay";
 //  - do HTML se injektuje overlay.js (komentovací vrstva)
 
 // Bezpečné hlavičky pro každou view odpověď.
-function viewHeaders(contentType: string): Headers {
+// `cacheable` = neměnný asset verze (CSS/JS/obrázek/font) — smí se cacheovat,
+// verze je snapshot a obsah se nikdy nezmění (výkon: nečíst bytea z DB při
+// každé navigaci). HTML NEcacheovat (injektuje se overlay, stav se může měnit).
+function viewHeaders(contentType: string, cacheable = false): Headers {
   const h = new Headers();
   h.set("Content-Type", contentType);
   h.set("X-Content-Type-Options", "nosniff");
@@ -30,7 +33,11 @@ function viewHeaders(contentType: string): Headers {
   // přes fetch() (např. spec.md), musí view odpověď povolit cross-origin čtení.
   // Bezpečné: bránou je token v URL (kdo ho nemá, nenačte nic), ne origin.
   h.set("Access-Control-Allow-Origin", "*");
-  h.set("Cache-Control", "private, no-store");
+  // max-age ~ životnost view-tokenu (1 h); po expiraci se stejně vydá nový token.
+  h.set(
+    "Cache-Control",
+    cacheable ? "private, max-age=3600, immutable" : "private, no-store",
+  );
   return h;
 }
 
@@ -45,21 +52,23 @@ export async function GET(
     return new NextResponse("Neplatný nebo prošlý odkaz", { status: 403 });
   }
 
-  const version = await prisma.documentVersion.findUnique({
-    where: { id: payload.versionId },
-    select: {
-      id: true,
-      entryPath: true,
-      document: { select: { projectId: true } },
-    },
-  });
+  // Verze a re-check uživatele jsou nezávislé — paralelně (šetří round-trip).
+  const [version, user] = await Promise.all([
+    prisma.documentVersion.findUnique({
+      where: { id: payload.versionId },
+      select: {
+        id: true,
+        entryPath: true,
+        document: { select: { projectId: true } },
+      },
+    }),
+    // Re-check: uživatel pořád existuje, není deaktivovaný, token je čerstvý.
+    prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { deactivatedAt: true, tokenValidFrom: true },
+    }),
+  ]);
   if (!version) return new NextResponse("Nenalezeno", { status: 404 });
-
-  // Re-check: uživatel pořád existuje, není deaktivovaný, token je čerstvý.
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: { deactivatedAt: true, tokenValidFrom: true },
-  });
   if (
     !user ||
     user.deactivatedAt ||
@@ -100,6 +109,6 @@ export async function GET(
   }
 
   return new NextResponse(Buffer.from(asset.data), {
-    headers: viewHeaders(asset.contentType),
+    headers: viewHeaders(asset.contentType, true),
   });
 }
