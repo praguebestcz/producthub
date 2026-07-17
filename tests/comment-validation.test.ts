@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { commentCreateSchema, commentStatusSchema } from "@/lib/validation";
+import {
+  commentCreateSchema,
+  commentStatusSchema,
+  reactionCreateSchema,
+} from "@/lib/validation";
 
 // Platný kořenový vstup — základ, který testy obměňují.
 const validRoot = {
@@ -128,5 +132,20 @@ describe("commentStatusSchema", () => {
     expect(commentStatusSchema.safeParse({ status: "OPEN" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("reactionCreateSchema", () => {
+  it("přijme emoji z povolené sady", () => {
+    expect(reactionCreateSchema.parse({ emoji: "👍" }).emoji).toBe("👍");
+    expect(reactionCreateSchema.parse({ emoji: "✅" }).emoji).toBe("✅");
+  });
+
+  it("odmítne emoji mimo sadu i libovolný string (obrana proti XSS/spamu)", () => {
+    expect(reactionCreateSchema.safeParse({ emoji: "😈" }).success).toBe(false);
+    expect(reactionCreateSchema.safeParse({ emoji: "x".repeat(500) }).success).toBe(
+      false,
+    );
+    expect(reactionCreateSchema.safeParse({ emoji: "" }).success).toBe(false);
   });
 });
