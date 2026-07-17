@@ -19,6 +19,13 @@ const MAX_BODY_BYTES = 131_072;
 
 // Explicitní select — NIKDY neposílat `screenshot` (bytea) ani interní FK navíc.
 const authorSelect = { select: { id: true, name: true, avatarUrl: true } };
+// Reakce emoji — kdo a čím reagoval. Zdědí filtr viditelnosti komentáře
+// (nested select nad už filtrovaným komentářem), takže reakce interních
+// komentářů se neinternímu členovi nevrátí.
+const reactionSelect = {
+  select: { emoji: true, userId: true, user: { select: { name: true } } },
+} satisfies Prisma.Comment$reactionsArgs;
+
 const replySelect = {
   id: true,
   parentId: true,
@@ -27,6 +34,7 @@ const replySelect = {
   createdAt: true,
   author: authorSelect,
   mentions: { select: { user: { select: { id: true, name: true } } } },
+  reactions: reactionSelect,
 } satisfies Prisma.CommentSelect;
 const threadSelect = {
   id: true,
@@ -46,6 +54,7 @@ const threadSelect = {
   resolvedBy: { select: { id: true, name: true } },
   author: authorSelect,
   mentions: { select: { user: { select: { id: true, name: true } } } },
+  reactions: reactionSelect,
 } satisfies Prisma.CommentSelect;
 
 // Dokument + členství s minimální rolí; nečlen i neexistující dokument = null (404).

@@ -10,6 +10,7 @@ import {
   MessageSquare,
   MousePointer2,
   RotateCcw,
+  SmilePlus,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -32,12 +33,20 @@ import { cn } from "@/lib/utils";
 
 export type CommentUser = { id: number; name: string; avatarUrl?: string | null };
 
+// Reakce emoji na komentář — kdo a čím reagoval.
+export type CommentReaction = {
+  emoji: string;
+  userId: number;
+  user: { name: string };
+};
+
 export type CommentReply = {
   id: number;
   body: string;
   visibility: "PUBLIC" | "INTERNAL";
   createdAt: string;
   author: CommentUser;
+  reactions: CommentReaction[];
 };
 
 export type CommentThread = {
@@ -56,6 +65,7 @@ export type CommentThread = {
   resolvedBy: { id: number; name: string } | null;
   author: CommentUser;
   replies: CommentReply[];
+  reactions: CommentReaction[];
 };
 
 // Element vybraný v iframe (zpráva element.selected z overlay.js).
@@ -164,6 +174,7 @@ export function CommentPanel({
   activeThreadId,
   onActivateThread,
   onChanged,
+  currentUserId,
   canComment,
   canSeeInternal,
   members,
@@ -181,6 +192,7 @@ export function CommentPanel({
   activeThreadId: number | null;
   onActivateThread: (thread: CommentThread) => void;
   onChanged: () => Promise<void>;
+  currentUserId: number;
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
@@ -284,6 +296,7 @@ export function CommentPanel({
               isActive
               onActivate={() => onActivateThread(activeThread)}
               onChanged={onChanged}
+              currentUserId={currentUserId}
               canComment={canComment}
               canSeeInternal={canSeeInternal}
               members={members}
@@ -311,6 +324,7 @@ export function CommentPanel({
                 isActive={thread.id === activeThreadId}
                 onActivate={() => onActivateThread(thread)}
                 onChanged={onChanged}
+                currentUserId={currentUserId}
                 canComment={canComment}
                 canSeeInternal={canSeeInternal}
                 members={members}
@@ -445,6 +459,114 @@ function AuthorLine({ author, createdAt }: { author: CommentUser; createdAt: str
   );
 }
 
+// Reakce emoji na komentář (styl Slack/Figma): existující reakce jako „chipy"
+// (emoji + počet, zvýrazněné když jsem reagoval já), + tlačítko pro přidání.
+// Klik = toggle (server rozhodne přidat/odebrat). Píše jen COMMENTER+.
+const REACTION_CHOICES = ["👍", "✅", "👀", "❤️", "🎉", "🙏"];
+
+function ReactionBar({
+  commentId,
+  reactions,
+  currentUserId,
+  canComment,
+  onChanged,
+}: {
+  commentId: number;
+  reactions: CommentReaction[];
+  currentUserId: number;
+  canComment: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // Agregace podle emoji: počet, jestli jsem reagoval já, jména reagujících.
+  const grouped = new Map<
+    string,
+    { count: number; mine: boolean; names: string[] }
+  >();
+  for (const r of reactions) {
+    const g = grouped.get(r.emoji) ?? { count: 0, mine: false, names: [] };
+    g.count += 1;
+    g.names.push(r.user.name);
+    if (r.userId === currentUserId) g.mine = true;
+    grouped.set(r.emoji, g);
+  }
+
+  async function toggle(emoji: string) {
+    setPickerOpen(false);
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/comments/${commentId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      await onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Reakce se nezdařila.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (grouped.size === 0 && !canComment) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {[...grouped.entries()].map(([emoji, g]) => (
+        <button
+          key={emoji}
+          type="button"
+          disabled={busy || !canComment}
+          onClick={() => toggle(emoji)}
+          title={g.names.join(", ")}
+          className={cn(
+            "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors",
+            g.mine
+              ? "border-pb/40 bg-pb-soft text-pb"
+              : "border-border hover:bg-muted",
+            !canComment && "cursor-default",
+          )}
+        >
+          <span>{emoji}</span>
+          <span className="tabular-nums">{g.count}</span>
+        </button>
+      ))}
+
+      {canComment && (
+        <div className="relative">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setPickerOpen((v) => !v)}
+            aria-label="Přidat reakci"
+            className="flex size-6 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted"
+          >
+            <SmilePlus size={13} />
+          </button>
+          {pickerOpen && (
+            <div className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-lg border bg-popover p-1 shadow-md">
+              {REACTION_CHOICES.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => toggle(emoji)}
+                  className="rounded-md px-1 py-0.5 text-base hover:bg-accent"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NewThreadForm({
   documentId,
   versionId,
@@ -568,6 +690,7 @@ function ThreadCard({
   isActive,
   onActivate,
   onChanged,
+  currentUserId,
   canComment,
   canSeeInternal,
   members,
@@ -578,6 +701,7 @@ function ThreadCard({
   isActive: boolean;
   onActivate: () => void;
   onChanged: () => Promise<void>;
+  currentUserId: number;
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
@@ -660,6 +784,15 @@ function ThreadCard({
         label={deriveLabel(thread.elementHtml)}
         elementHtml={thread.elementHtml}
       />
+      <div onClick={(e) => e.stopPropagation()}>
+        <ReactionBar
+          commentId={thread.id}
+          reactions={thread.reactions}
+          currentUserId={currentUserId}
+          canComment={canComment}
+          onChanged={onChanged}
+        />
+      </div>
 
       {/* Odpovědi */}
       {thread.replies.length > 0 && (
@@ -676,6 +809,15 @@ function ThreadCard({
               <p className="text-sm whitespace-pre-wrap break-words">
                 {reply.body}
               </p>
+              <div onClick={(e) => e.stopPropagation()}>
+                <ReactionBar
+                  commentId={reply.id}
+                  reactions={reply.reactions}
+                  currentUserId={currentUserId}
+                  canComment={canComment}
+                  onChanged={onChanged}
+                />
+              </div>
             </div>
           ))}
         </div>

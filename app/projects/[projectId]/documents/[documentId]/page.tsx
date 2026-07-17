@@ -80,6 +80,7 @@ export default async function DocumentPage({
           createdAt: v.createdAt.toISOString(),
         }))}
         isAuthor={member.role === "AUTHOR"}
+        currentUserId={user.id}
         canComment={roleAtLeast(member.role, "COMMENTER")}
         canSeeInternal={canSeeInternal(member)}
         members={members.map((m) => ({

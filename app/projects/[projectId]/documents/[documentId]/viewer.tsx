@@ -90,6 +90,7 @@ export function DocumentViewer({
   name,
   versions,
   isAuthor,
+  currentUserId,
   canComment,
   canSeeInternal,
   members,
@@ -99,6 +100,7 @@ export function DocumentViewer({
   name: string;
   versions: Version[];
   isAuthor: boolean;
+  currentUserId: number;
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
@@ -696,6 +698,7 @@ export function DocumentViewer({
             }
           }}
           onChanged={loadComments}
+          currentUserId={currentUserId}
           canComment={canComment}
           canSeeInternal={canSeeInternal}
           members={members}

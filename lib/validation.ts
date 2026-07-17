@@ -85,3 +85,10 @@ export const commentCreateSchema = z
 export const commentStatusSchema = z.object({
   status: z.enum(["RESOLVED", "REOPENED"]),
 });
+
+// Reakce emoji — omezená sada (security review: NE libovolný string, obrana
+// proti XSS/obřím hodnotám). Frontend posílá přesně tyto hodnoty.
+export const REACTION_EMOJIS = ["👍", "✅", "👀", "❤️", "🎉", "🙏"] as const;
+export const reactionCreateSchema = z.object({
+  emoji: z.enum(REACTION_EMOJIS),
+});

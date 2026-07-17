@@ -105,6 +105,7 @@ model User {
   comments             Comment[]         @relation("CommentAuthor")
   resolvedComments     Comment[]         @relation("CommentResolver")
   mentions             Mention[]
+  reactions            Reaction[]
   createdRequirements  Requirement[]     @relation("RequirementCreator")
   approvedRequirements Requirement[]     @relation("RequirementApprover")
   notifications        Notification[]    @relation("NotificationRecipient")
@@ -294,6 +295,7 @@ model Comment {
   updatedAt DateTime @updatedAt
 
   mentions         Mention[]
+  reactions        Reaction[]
   requirementLinks RequirementComment[]
   notifications    Notification[]
 
@@ -314,6 +316,25 @@ model Mention {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
+  @@index([userId])
+}
+
+// Reakce emoji na komentář — lehká zpětná vazba bez psaní (👍 ✅ 👀 …).
+// Po expert review: emoji má DB délkový strop (obrana do hloubky nad Zod enum);
+// samostatný commentId index je redundantní (unique má commentId vedoucí).
+model Reaction {
+  id        Int     @id @default(autoincrement())
+  commentId Int
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Omezená sada emoji — validaci hlídá kód (Zod enum), NE libovolný string.
+  // VarChar(16) = obrana do hloubky proti zápisu mimo aplikační cestu.
+  emoji     String  @db.VarChar(16)
+  createdAt DateTime @default(now())
+
+  // Jeden uživatel = jedna reakce daného emoji na komentář (toggle přes create/delete).
+  @@unique([commentId, userId, emoji])
   @@index([userId])
 }
 
