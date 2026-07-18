@@ -183,7 +183,8 @@ export function CommentPanel({
   onSelectAllUnresolved,
   onClearSelection,
   onCreatePrompt,
-  promptGenerating,
+  onCreatePromptForThread,
+  generatingKey,
   members,
 }: {
   open: boolean;
@@ -214,7 +215,10 @@ export function CommentPanel({
   onSelectAllUnresolved: (ids: number[]) => void;
   onClearSelection: () => void;
   onCreatePrompt: () => void;
-  promptGenerating: boolean;
+  // Zkratka: vytvořit prompt z jednoho konkrétního vlákna.
+  onCreatePromptForThread: (id: number) => void;
+  // Co se právě generuje: "bulk" (výběr) / id vlákna / null.
+  generatingKey: number | "bulk" | null;
   members: MentionMember[];
 }) {
   // Jen komentáře aktuální verze (u víceverzového dokumentu se verze nemíchají).
@@ -365,6 +369,13 @@ export function CommentPanel({
               canComment={canComment}
               canSeeInternal={canSeeInternal}
               members={members}
+              onCreatePrompt={
+                canCreatePrompt
+                  ? () => onCreatePromptForThread(activeThread.id)
+                  : undefined
+              }
+              generatingPrompt={generatingKey === activeThread.id}
+              generateDisabled={generatingKey !== null}
             />
           ) : (
             <p className="px-1 py-6 text-center text-sm text-muted-foreground">
@@ -432,6 +443,13 @@ export function CommentPanel({
                 selectable={canCreatePrompt && thread.status !== "RESOLVED"}
                 selected={selectedIds.has(thread.id)}
                 onToggleSelect={() => onToggleSelect(thread.id)}
+                onCreatePrompt={
+                  canCreatePrompt
+                    ? () => onCreatePromptForThread(thread.id)
+                    : undefined
+                }
+                generatingPrompt={generatingKey === thread.id}
+                generateDisabled={generatingKey !== null}
               />
             ))}
           </>
@@ -445,15 +463,15 @@ export function CommentPanel({
           <Button
             size="sm"
             className="ml-auto"
-            disabled={promptGenerating}
+            disabled={generatingKey !== null}
             onClick={onCreatePrompt}
           >
-            {promptGenerating ? (
+            {generatingKey === "bulk" ? (
               <Loader2 className="animate-spin" />
             ) : (
               <Sparkles />
             )}
-            {promptGenerating ? "Generuji…" : "Vytvořit prompt"}
+            {generatingKey === "bulk" ? "Generuji…" : "Vytvořit prompt"}
           </Button>
         </div>
       )}
@@ -835,6 +853,9 @@ function ThreadCard({
   selectable = false,
   selected = false,
   onToggleSelect,
+  onCreatePrompt,
+  generatingPrompt = false,
+  generateDisabled = false,
 }: {
   documentId: number;
   thread: CommentThread;
@@ -850,6 +871,10 @@ function ThreadCard({
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  // M8 — zkratka „Vytvořit prompt z tohoto komentáře" (interní tým).
+  onCreatePrompt?: () => void;
+  generatingPrompt?: boolean;
+  generateDisabled?: boolean;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [replying, setReplying] = useState(false);
@@ -1021,6 +1046,22 @@ function ThreadCard({
             >
               <Check />
               Vyřešit
+            </Button>
+          )}
+          {/* Zkratka: prompt rovnou z tohoto komentáře (interní tým) */}
+          {onCreatePrompt && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={generateDisabled}
+              onClick={onCreatePrompt}
+            >
+              {generatingPrompt ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Sparkles />
+              )}
+              {generatingPrompt ? "Generuji…" : "Vytvořit prompt"}
             </Button>
           )}
         </div>

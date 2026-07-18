@@ -145,8 +145,11 @@ export function DocumentViewer({
   } | null>(null);
   const [exportsOpen, setExportsOpen] = useState(false);
   const [exportCount, setExportCount] = useState(0);
-  // Probíhá AI generování promptu (může trvat pár vteřin) → spinner na tlačítku.
-  const [promptGenerating, setPromptGenerating] = useState(false);
+  // Co se právě generuje přes AI: "bulk" (výběr), id konkrétního vlákna, nebo
+  // nic. Řídí spinner na správném tlačítku a zamkne ostatní během generování.
+  const [generatingKey, setGeneratingKey] = useState<number | "bulk" | null>(
+    null,
+  );
   // Kontejner prohlížeče (pro umístění bubliny podle pozice prvku).
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDims, setContainerDims] = useState({ width: 0, height: 0 });
@@ -261,21 +264,13 @@ export function DocumentViewer({
     });
   }
 
-  // Vygeneruje přes AI (server → Claude) prompt se ZMĚNAMI z vybraných vláken
-  // a otevře okno pro kontrolu/uložení. Generování běží na serveru — komentáře
+  // Vygeneruje přes AI (server → Claude) prompt se ZMĚNAMI z daných vláken a
+  // otevře okno pro kontrolu/uložení. Generování běží na serveru — komentáře
   // se berou z DB (autoritativně, s filtrem viditelnosti), ne z klienta.
-  async function openPromptDraft() {
-    const selectedIdList = threads
-      .filter(
-        (t) =>
-          selectedIds.has(t.id) &&
-          t.documentVersionId === versionId &&
-          t.status !== "RESOLVED",
-      )
-      .map((t) => t.id);
-    if (selectedIdList.length === 0) return;
-
-    setPromptGenerating(true);
+  // `key` = "bulk" (z výběru) nebo id vlákna (zkratka u konkrétního komentáře).
+  async function generatePromptFor(commentIds: number[], key: number | "bulk") {
+    if (commentIds.length === 0) return;
+    setGeneratingKey(key);
     try {
       const res = await fetch(
         `/api/documents/${documentId}/prompt-exports/generate`,
@@ -284,7 +279,7 @@ export function DocumentViewer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             documentVersionId: versionId,
-            commentIds: selectedIdList,
+            commentIds,
           }),
         },
       );
@@ -294,15 +289,26 @@ export function DocumentViewer({
       setPromptDraft({
         title: `Úpravy ${dateStr}`,
         body: data.body,
-        commentIds: selectedIdList,
+        commentIds,
       });
     } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Generování se nezdařilo.",
-      );
+      toast.error(e instanceof Error ? e.message : "Generování se nezdařilo.");
     } finally {
-      setPromptGenerating(false);
+      setGeneratingKey(null);
     }
+  }
+
+  // Prompt z výběru (hromadná lišta).
+  function openPromptDraft() {
+    const ids = threads
+      .filter(
+        (t) =>
+          selectedIds.has(t.id) &&
+          t.documentVersionId === versionId &&
+          t.status !== "RESOLVED",
+      )
+      .map((t) => t.id);
+    void generatePromptFor(ids, "bulk");
   }
 
   // Vrátí platný view-token pro aktuální verzi — reuse dokud je čerstvý (< 50
@@ -855,7 +861,8 @@ export function DocumentViewer({
           onSelectAllUnresolved={(ids) => setSelectedIds(new Set(ids))}
           onClearSelection={() => setSelectedIds(new Set())}
           onCreatePrompt={openPromptDraft}
-          promptGenerating={promptGenerating}
+          onCreatePromptForThread={(id) => generatePromptFor([id], id)}
+          generatingKey={generatingKey}
           members={members}
         />
       </div>

@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-18**
+  * Zkratka: tlačítko „Vytvořit prompt" přímo u konkrétního komentáře (v akcích vlákna), ne jen přes hromadný výběr. Spinner „Generuji…" u správného místa (stav `generatingKey`: „bulk"/id vlákna) - Hana Ortmannová (přání), Claude
   * **Zásadní upřesnění (Hana):** prompt nemá komentáře jen přepsat, ale **vyvodit z nich konkrétní změny** (vyhodnotit i diskusi). Generování proto běží **přes AI (Claude, model `claude-sonnet-5`)** na serveru - z připomínek vznikne seznam změn (imperativně: Uprav/Přidej/Odstraň). Deterministický přepis komentářů slouží jen jako **podklad** pro AI. Vyžaduje `ANTHROPIC_API_KEY` (nastavuje Hana). Implementováno: `lib/ai/change-prompt.ts`, route `.../prompt-exports/generate`, spinner „Generuji…", bez klíče srozumitelná hláška - Hana Ortmannová (upřesnění), Claude
 * **2026-07-17**
   * **Implementováno** (migrace `PromptExport` + CHECK limity, API create/list/patch s gate na interního člena, generátor `lib/comments/prompt.ts` + test, výběr komentářů v panelu, okno promptu, sekce „Předaná zadání" se stavy). Ověřeno lokálně: výběr → prompt (17 připomínek) → uložení → seznam → změna stavu. Čeká na ruční test Hany; po schválení přesun do `specs/` - Claude
@@ -77,6 +78,7 @@ Recenzenti nasbírají v ProductHubu komentáře nad prvky specifikace. Autor (i
 **In scope:**
 
 * Výběr více komentářů v panelu (zaškrtávátka + hromadná lišta), „Vybrat všechny nevyřešené".
+* **Zkratka:** tlačítko „Vytvořit prompt" přímo v akcích jednoho vlákna (prompt z jediného komentáře, bez zaškrtávání).
 * **AI generování** (Claude): z vybraných komentářů a diskuse vyvodí konkrétní změny (server-side, `ANTHROPIC_API_KEY`).
 * Okno s náhledem změn (editovatelný text - autor může doladit).
 * **Uložení promptu jako „zadání"** (nová tabulka `PromptExport`): text, kdo, kdy, verze dokumentu, zahrnuté komentáře, stav.
@@ -114,6 +116,7 @@ Komentáře samotné workflow **nemění** (žádné auto-vyřešení).
 * Výběr platí **napříč stránkami** verze (přepínač „Všechny stránky" pomůže).
 * Když je vybráno aspoň 1 vlákno, dole **lišta**: „Vybráno {N} · **Vytvořit prompt**".
 * Zaškrtávátka a lišta vidí **jen** interní tým.
+* **Zkratka u vlákna:** v akcích každého vlákna (vedle „Odpovědět"/„Vyřešit") je tlačítko **„Vytvořit prompt"** - vygeneruje prompt jen z tohoto jednoho komentáře (i vyřešeného). Během generování ukazuje „Generuji…"; ostatní tlačítka jsou po tu dobu zamčená.
 
 ## Obrazovka: okno s promptem
 
