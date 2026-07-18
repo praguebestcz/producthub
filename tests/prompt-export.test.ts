@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildPromptMarkdown, type PromptItem } from "@/lib/comments/prompt";
+import {
+  buildPromptMarkdown,
+  labelFromHtml,
+  type PromptItem,
+} from "@/lib/comments/prompt";
 
 const base: PromptItem = {
   label: "tlačítko Odeslat",
@@ -63,5 +67,28 @@ describe("buildPromptMarkdown", () => {
     expect(md).toContain("## 1.");
     expect(md).toContain("## 2.");
     expect(md).toContain("## 3.");
+  });
+});
+
+describe("labelFromHtml (bez DOM, server)", () => {
+  it("odvodí typ prvku a začátek textu", () => {
+    const btn = labelFromHtml("<button>Odeslat dotaz</button>");
+    expect(btn).toContain("tlačítko");
+    expect(btn).toContain("Odeslat dotaz");
+    const h = labelFromHtml("<h2>Nadpis sekce</h2>");
+    expect(h).toContain("nadpis");
+    expect(h).toContain("Nadpis sekce");
+  });
+
+  it("null pro prázdný vstup", () => {
+    expect(labelFromHtml(null)).toBe(null);
+    expect(labelFromHtml("")).toBe(null);
+  });
+
+  it("zkrátí dlouhý text", () => {
+    const long = "<p>" + "a".repeat(60) + "</p>";
+    const label = labelFromHtml(long) ?? "";
+    expect(label).toContain("…");
+    expect(label.length).toBeLessThan(60);
   });
 });

@@ -14,6 +14,48 @@ export type PromptItem = {
   replies: PromptReply[];
 };
 
+// Popis prvku z HTML výstřižku BEZ DOM (regex) — použitelné i na serveru
+// (deriveLabel v comment-panel.tsx potřebuje document.createElement). Stejná
+// myšlenka: název typu prvku + začátek textu.
+const TAG_LABELS: Record<string, string> = {
+  a: "odkaz",
+  button: "tlačítko",
+  input: "pole",
+  textarea: "pole",
+  select: "výběr",
+  img: "obrázek",
+  h1: "nadpis",
+  h2: "nadpis",
+  h3: "nadpis",
+  h4: "nadpis",
+  p: "odstavec",
+  li: "položka",
+  td: "buňka",
+  th: "buňka",
+  label: "popisek",
+  span: "text",
+  div: "blok",
+  section: "sekce",
+  nav: "navigace",
+  ul: "seznam",
+  ol: "seznam",
+  form: "formulář",
+};
+
+export function labelFromHtml(html: string | null): string | null {
+  if (!html) return null;
+  const tagMatch = html.match(/^\s*<([a-zA-Z0-9]+)/);
+  const tag = tagMatch ? tagMatch[1].toLowerCase() : null;
+  const name = tag ? (TAG_LABELS[tag] ?? tag) : null;
+  let text = html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length > 40) text = text.slice(0, 40) + "…";
+  if (!name) return text || null;
+  return text ? `${name} „${text}"` : name;
+}
+
 // České skloňování „připomínka" podle počtu.
 function pluralPripominka(n: number): string {
   if (n === 1) return "připomínka";

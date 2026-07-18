@@ -51,7 +51,6 @@ import { Label } from "@/components/ui/label";
 import {
   CommentBubble,
   CommentPanel,
-  deriveLabel,
   matchesStatusFilter,
   type BubblePosition,
   type CommentThread,
@@ -63,7 +62,6 @@ import {
   CreatePromptDialog,
   PromptExportsDialog,
 } from "@/components/comments/prompt-export";
-import { buildPromptMarkdown, type PromptItem } from "@/lib/comments/prompt";
 import type { MentionMember } from "@/components/comments/mention-textarea";
 import { cn } from "@/lib/utils";
 
@@ -147,6 +145,8 @@ export function DocumentViewer({
   } | null>(null);
   const [exportsOpen, setExportsOpen] = useState(false);
   const [exportCount, setExportCount] = useState(0);
+  // Probíhá AI generování promptu (může trvat pár vteřin) → spinner na tlačítku.
+  const [promptGenerating, setPromptGenerating] = useState(false);
   // Kontejner prohlížeče (pro umístění bubliny podle pozice prvku).
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDims, setContainerDims] = useState({ width: 0, height: 0 });
@@ -261,36 +261,48 @@ export function DocumentViewer({
     });
   }
 
-  // Sestaví markdown prompt z vybraných vláken a otevře okno pro uložení.
-  function openPromptDraft() {
-    const selected = threads.filter(
-      (t) =>
-        selectedIds.has(t.id) &&
-        t.documentVersionId === versionId &&
-        t.status !== "RESOLVED",
-    );
-    if (selected.length === 0) return;
-    const items: PromptItem[] = selected.map((t) => ({
-      label: deriveLabel(t.elementHtml),
-      dataReviewId: t.dataReviewId,
-      domPath: t.domPath,
-      pageLabel: t.pagePath === entryPath ? "Rozcestník" : t.pagePath,
-      authorName: t.author.name,
-      body: t.body,
-      replies: t.replies.map((r) => ({ authorName: r.author.name, body: r.body })),
-    }));
-    const dateStr = new Date().toLocaleDateString("cs-CZ");
-    const body = buildPromptMarkdown(
-      name,
-      currentVersion?.versionNumber ?? 1,
-      dateStr,
-      items,
-    );
-    setPromptDraft({
-      title: `Připomínky ${dateStr}`,
-      body,
-      commentIds: selected.map((t) => t.id),
-    });
+  // Vygeneruje přes AI (server → Claude) prompt se ZMĚNAMI z vybraných vláken
+  // a otevře okno pro kontrolu/uložení. Generování běží na serveru — komentáře
+  // se berou z DB (autoritativně, s filtrem viditelnosti), ne z klienta.
+  async function openPromptDraft() {
+    const selectedIdList = threads
+      .filter(
+        (t) =>
+          selectedIds.has(t.id) &&
+          t.documentVersionId === versionId &&
+          t.status !== "RESOLVED",
+      )
+      .map((t) => t.id);
+    if (selectedIdList.length === 0) return;
+
+    setPromptGenerating(true);
+    try {
+      const res = await fetch(
+        `/api/documents/${documentId}/prompt-exports/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentVersionId: versionId,
+            commentIds: selectedIdList,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const dateStr = new Date().toLocaleDateString("cs-CZ");
+      setPromptDraft({
+        title: `Úpravy ${dateStr}`,
+        body: data.body,
+        commentIds: selectedIdList,
+      });
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Generování se nezdařilo.",
+      );
+    } finally {
+      setPromptGenerating(false);
+    }
   }
 
   // Vrátí platný view-token pro aktuální verzi — reuse dokud je čerstvý (< 50
@@ -843,6 +855,7 @@ export function DocumentViewer({
           onSelectAllUnresolved={(ids) => setSelectedIds(new Set(ids))}
           onClearSelection={() => setSelectedIds(new Set())}
           onCreatePrompt={openPromptDraft}
+          promptGenerating={promptGenerating}
           members={members}
         />
       </div>

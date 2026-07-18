@@ -110,3 +110,10 @@ export const promptExportCreateSchema = z.object({
 export const promptExportStatusSchema = z.object({
   status: z.enum(["CREATED", "HANDED_OFF", "DONE"]),
 });
+
+// M8 — vygenerování promptu se změnami přes AI z vybraných komentářů.
+// Limit počtu komentářů drží náklady na AI volání pod kontrolou.
+export const promptGenerateSchema = z.object({
+  documentVersionId: z.number().int().positive(),
+  commentIds: z.array(z.number().int().positive()).min(1, "Vyberte komentáře").max(100),
+});

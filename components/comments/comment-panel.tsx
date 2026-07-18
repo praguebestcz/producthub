@@ -183,6 +183,7 @@ export function CommentPanel({
   onSelectAllUnresolved,
   onClearSelection,
   onCreatePrompt,
+  promptGenerating,
   members,
 }: {
   open: boolean;
@@ -213,6 +214,7 @@ export function CommentPanel({
   onSelectAllUnresolved: (ids: number[]) => void;
   onClearSelection: () => void;
   onCreatePrompt: () => void;
+  promptGenerating: boolean;
   members: MentionMember[];
 }) {
   // Jen komentáře aktuální verze (u víceverzového dokumentu se verze nemíchají).
@@ -440,9 +442,18 @@ export function CommentPanel({
       {mode === "list" && canCreatePrompt && selectedCount > 0 && (
         <div className="flex items-center gap-2 border-t bg-background px-3 py-2.5">
           <span className="text-sm font-medium">Vybráno {selectedCount}</span>
-          <Button size="sm" className="ml-auto" onClick={onCreatePrompt}>
-            <Sparkles />
-            Vytvořit prompt
+          <Button
+            size="sm"
+            className="ml-auto"
+            disabled={promptGenerating}
+            onClick={onCreatePrompt}
+          >
+            {promptGenerating ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Sparkles />
+            )}
+            {promptGenerating ? "Generuji…" : "Vytvořit prompt"}
           </Button>
         </div>
       )}
