@@ -21,7 +21,7 @@
 
 ## Související dokumenty
 
-* Funkce M8 (generování promptů): `outputs/m8-prompt-z-komentaru-spec.md`
+* Funkce M8 (generování promptů): `specs/m8-prompt-z-komentaru-spec.md`
 * Hlavní specifikace: `specs/producthub-specifikace.md`
 
 > ⚠️ **Bezpečnostní revize:** Nové tabulky i způsob šifrování klíče projdou revizí `db-security-expert` PŘED migrací. Schématu se nedotýkáme, dokud Hana nedá výslovné „ano" k databázi.
