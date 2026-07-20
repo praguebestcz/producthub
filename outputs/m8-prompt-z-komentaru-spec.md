@@ -14,6 +14,9 @@
 
 ## Revize
 
+* **2026-07-20**
+  * „Doplnit a přegenerovat": v okně promptu pole pro odpovědi autora na nejasnosti → AI přegeneruje prompt z původních komentářů + doplnění (`clarification` do generate route i AI promptu, má přednost při řešení „k upřesnění") - Hana Ortmannová (přání), Claude
+  * Zvýraznění nejasností: AI označuje body, které nejdou jednoznačně určit, značkou „⚠️ K upřesnění:". V okně promptu se nad textem ukáže žluté upozornění se seznamem (počítá se živě z textu - jak autor body vyřeší, mizí). Okno promptu (tvorba i prohlížení) zvětšeno na `max-w-4xl` pro delší prompty. `lib/comments/prompt.ts` → `findClarifications` - Hana Ortmannová (přání), Claude
 * **2026-07-18**
   * Zkratka: tlačítko „Vytvořit prompt" přímo u konkrétního komentáře (v akcích vlákna), ne jen přes hromadný výběr. Spinner „Generuji…" u správného místa (stav `generatingKey`: „bulk"/id vlákna) - Hana Ortmannová (přání), Claude
   * **Zásadní upřesnění (Hana):** prompt nemá komentáře jen přepsat, ale **vyvodit z nich konkrétní změny** (vyhodnotit i diskusi). Generování proto běží **přes AI (Claude, model `claude-sonnet-5`)** na serveru - z připomínek vznikne seznam změn (imperativně: Uprav/Přidej/Odstraň). Deterministický přepis komentářů slouží jen jako **podklad** pro AI. Vyžaduje `ANTHROPIC_API_KEY` (nastavuje Hana). Implementováno: `lib/ai/change-prompt.ts`, route `.../prompt-exports/generate`, spinner „Generuji…", bez klíče srozumitelná hláška - Hana Ortmannová (upřesnění), Claude
@@ -80,7 +83,8 @@ Recenzenti nasbírají v ProductHubu komentáře nad prvky specifikace. Autor (i
 * Výběr více komentářů v panelu (zaškrtávátka + hromadná lišta), „Vybrat všechny nevyřešené".
 * **Zkratka:** tlačítko „Vytvořit prompt" přímo v akcích jednoho vlákna (prompt z jediného komentáře, bez zaškrtávání).
 * **AI generování** (Claude): z vybraných komentářů a diskuse vyvodí konkrétní změny (server-side, `ANTHROPIC_API_KEY`).
-* Okno s náhledem změn (editovatelný text - autor může doladit).
+* Okno s náhledem změn (editovatelný text - autor může doladit); nejasné body AI označí značkou „⚠️ K upřesnění:" a okno je nad textem **zvýrazní** (počítá se živě).
+* **„Doplnit a přegenerovat":** autor napíše odpovědi na nejasnosti a AI z původních komentářů + doplnění vygeneruje nový prompt.
 * **Uložení promptu jako „zadání"** (nová tabulka `PromptExport`): text, kdo, kdy, verze dokumentu, zahrnuté komentáře, stav.
 * Kopírování do schránky + stažení jako `.md`.
 * **Seznam „Předaná zadání"** na stránce dokumentu - historie, znovuotevření, kopie/stažení, změna stavu.

@@ -116,4 +116,6 @@ export const promptExportStatusSchema = z.object({
 export const promptGenerateSchema = z.object({
   documentVersionId: z.number().int().positive(),
   commentIds: z.array(z.number().int().positive()).min(1, "Vyberte komentáře").max(100),
+  // Doplnění od autora (odpovědi na „k upřesnění") pro přegenerování. Nepovinné.
+  clarification: z.string().trim().max(5_000).optional(),
 });

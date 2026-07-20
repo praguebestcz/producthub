@@ -92,7 +92,7 @@ export async function POST(
       { status: 400 },
     );
   }
-  const { documentVersionId, commentIds } = parsed.data;
+  const { documentVersionId, commentIds, clarification } = parsed.data;
 
   const version = await prisma.documentVersion.findFirst({
     where: { id: documentVersionId, documentId },
@@ -164,6 +164,7 @@ export async function POST(
       versionNumber: version.versionNumber,
       feedback,
       constraints: project?.constraints,
+      clarification,
     });
     return NextResponse.json({ body });
   } catch (e) {

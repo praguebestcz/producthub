@@ -8,6 +8,7 @@ import {
   Copy,
   Download,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -154,12 +155,48 @@ export function CreatePromptDialog({
   const [title, setTitle] = useState(defaultTitle);
   const [body, setBody] = useState(defaultBody);
   const [busy, setBusy] = useState(false);
+  // Doplnění pro AI (odpovědi na „k upřesnění") + probíhající přegenerování.
+  const [clarifyNote, setClarifyNote] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
   // Nový vygenerovaný prompt (defaultBody se změní) → přenačíst pole.
   const [prevBody, setPrevBody] = useState(defaultBody);
   if (prevBody !== defaultBody) {
     setPrevBody(defaultBody);
     setTitle(defaultTitle);
     setBody(defaultBody);
+    setClarifyNote("");
+  }
+
+  // „Doplnit a přegenerovat": pošle AI původní komentáře + doplnění autora,
+  // ta vyřeší nejasnosti a vrátí nový prompt (nahradí text v okně).
+  async function regenerate() {
+    if (!clarifyNote.trim()) return;
+    setRegenerating(true);
+    try {
+      const res = await fetch(
+        `/api/documents/${documentId}/prompt-exports/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentVersionId,
+            commentIds,
+            clarification: clarifyNote,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBody(data.body);
+      setClarifyNote("");
+      toast.success("Prompt přegenerován s doplněním.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Přegenerování se nezdařilo.",
+      );
+    } finally {
+      setRegenerating(false);
+    }
   }
 
   async function save(then: "copy" | "download") {
@@ -215,22 +252,49 @@ export function CreatePromptDialog({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           spellCheck={false}
-          className="min-h-[45vh] flex-1 resize-none rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-[40vh] flex-1 resize-none rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
+        {/* Doplnit odpovědi na „k upřesnění" a nechat AI přegenerovat */}
+        <div className="space-y-1.5 rounded-md border border-dashed p-2.5">
+          <Label htmlFor="pe-clarify" className="text-xs font-medium">
+            Doplnit pro AI a přegenerovat
+          </Label>
+          <textarea
+            id="pe-clarify"
+            value={clarifyNote}
+            onChange={(e) => setClarifyNote(e.target.value)}
+            rows={2}
+            placeholder="Odpovězte na otázky „k upřesnění“ nebo přidejte kontext, AI z toho udělá konkrétní změny…"
+            className="w-full resize-none rounded-md border bg-background p-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={regenerating || !clarifyNote.trim()}
+            onClick={regenerate}
+          >
+            {regenerating ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Sparkles />
+            )}
+            {regenerating ? "Generuji…" : "Doplnit a přegenerovat"}
+          </Button>
+        </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Zavřít
           </Button>
           <Button
             variant="outline"
-            disabled={busy || !title.trim() || !body.trim()}
+            disabled={busy || regenerating || !title.trim() || !body.trim()}
             onClick={() => save("download")}
           >
             {busy ? <Loader2 className="animate-spin" /> : <Download />}
             Uložit a stáhnout .md
           </Button>
           <Button
-            disabled={busy || !title.trim() || !body.trim()}
+            disabled={busy || regenerating || !title.trim() || !body.trim()}
             onClick={() => save("copy")}
           >
             {busy ? <Loader2 className="animate-spin" /> : <Copy />}
