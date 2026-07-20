@@ -19,7 +19,9 @@ import { rateLimit } from "@/lib/rate-limit";
 // komentáře načte z DB (autoritativně, s filtrem viditelnosti) — nedůvěřuje
 // textu z klienta.
 
-const MAX_BODY_BYTES = 8_192; // jen {documentVersionId, commentIds}
+// {documentVersionId, commentIds, clarification, currentDraft} — currentDraft
+// může být celý prompt (až ~1 MB), proto vyšší strop.
+const MAX_BODY_BYTES = 1_300_000;
 
 const authorSelect = { select: { name: true } };
 const replySelect = {
@@ -92,7 +94,8 @@ export async function POST(
       { status: 400 },
     );
   }
-  const { documentVersionId, commentIds, clarification } = parsed.data;
+  const { documentVersionId, commentIds, clarification, currentDraft } =
+    parsed.data;
 
   const version = await prisma.documentVersion.findFirst({
     where: { id: documentVersionId, documentId },
@@ -165,6 +168,7 @@ export async function POST(
       feedback,
       constraints: project?.constraints,
       clarification,
+      currentDraft,
     });
     return NextResponse.json({ body });
   } catch (e) {

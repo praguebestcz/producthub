@@ -118,4 +118,7 @@ export const promptGenerateSchema = z.object({
   commentIds: z.array(z.number().int().positive()).min(1, "Vyberte komentáře").max(100),
   // Doplnění od autora (odpovědi na „k upřesnění") pro přegenerování. Nepovinné.
   clarification: z.string().trim().max(5_000).optional(),
+  // Aktuální návrh promptu (i s ručními úpravami) — když je vyplněný, AI ho
+  // zpřesní podle doplnění místo generování od nuly (zachová úpravy). Nepovinné.
+  currentDraft: z.string().max(1_000_000).optional(),
 });

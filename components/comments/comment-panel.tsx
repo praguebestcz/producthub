@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   MentionTextarea,
@@ -165,8 +164,6 @@ export function CommentPanel({
   versionId,
   currentPagePath,
   threads,
-  showAllPages,
-  onShowAllPagesChange,
   statusFilter,
   onStatusFilterChange,
   activeThreadId,
@@ -194,8 +191,6 @@ export function CommentPanel({
   versionId: number;
   currentPagePath: string;
   threads: CommentThread[];
-  showAllPages: boolean;
-  onShowAllPagesChange: (v: boolean) => void;
   statusFilter: StatusFilter;
   onStatusFilterChange: (v: StatusFilter) => void;
   activeThreadId: number | null;
@@ -228,17 +223,12 @@ export function CommentPanel({
   const pageThreads = versionThreads.filter(
     (t) => t.pagePath === currentPagePath,
   );
-  const scopeThreads = showAllPages ? versionThreads : pageThreads;
-  const visibleThreads = scopeThreads.filter((t) =>
+  // Panel vždy ukazuje CELOU specifikaci (všechny stránky verze) — přání Hany,
+  // komentuje se celá spec, ne jen část. Komentáře z jiných stránek mají v kartě
+  // badge se stránkou; klik na ně přepne prohlížeč na tu stránku.
+  const visibleThreads = versionThreads.filter((t) =>
     matchesStatusFilter(t.status, statusFilter),
   );
-  // Kolik komentářů (dle aktuálního filtru) je na OSTATNÍCH stránkách verze —
-  // nápověda u přepínače, ať uživatel ví, že tu nejsou všechny (sjednocení
-  // počtů: tlačítko nahoře i panel ukazují aktuální stránku).
-  const versionVisibleCount = versionThreads.filter((t) =>
-    matchesStatusFilter(t.status, statusFilter),
-  ).length;
-  const otherPagesCount = versionVisibleCount - visibleThreads.length;
   // M8 — nevyřešená vlákna verze (napříč stránkami) jdou vybrat do promptu.
   const unresolvedVersionIds = versionThreads
     .filter((t) => t.status !== "RESOLVED")
@@ -279,31 +269,14 @@ export function CommentPanel({
             ? "Komentář"
             : `Komentáře (${visibleThreads.length})`}
         </span>
-        <div className="flex items-center gap-2">
-          {mode === "list" && (
-            <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              Všechny stránky
-              {!showAllPages && otherPagesCount > 0 && (
-                <span className="rounded-full bg-pb-soft px-1.5 py-0.5 text-[10px] font-semibold text-pb">
-                  +{otherPagesCount}
-                </span>
-              )}
-              <Switch
-                size="sm"
-                checked={showAllPages}
-                onCheckedChange={onShowAllPagesChange}
-              />
-            </Label>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Zavřít panel"
-            onClick={onClose}
-          >
-            <X />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Zavřít panel"
+          onClick={onClose}
+        >
+          <X />
+        </Button>
       </div>
 
       {/* Filtr stavu — jen v seznamu */}

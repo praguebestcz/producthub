@@ -9,6 +9,7 @@ import {
   Download,
   Loader2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -108,8 +109,11 @@ function StatusBadge({ status }: { status: PromptExportStatus }) {
 // v textu, autor má co doplnit. Seznam se počítá živě z aktuálního textu.
 function ClarificationBanner({ items }: { items: string[] }) {
   if (items.length === 0) return null;
+  const MAX_SHOWN = 3;
+  const shown = items.slice(0, MAX_SHOWN);
+  const rest = items.length - shown.length;
   return (
-    <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+    <div className="shrink-0 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
       <p className="flex items-center gap-1.5 font-semibold">
         <AlertTriangle size={14} aria-hidden="true" />
         {items.length}{" "}
@@ -118,12 +122,18 @@ function ClarificationBanner({ items }: { items: string[] }) {
           : items.length >= 2 && items.length <= 4
             ? "místa k upřesnění"
             : "míst k upřesnění"}{" "}
-        — doplňte je přímo do textu níže, pak uložte.
+        — v textu níže jsou označené značkou ⚠️ K upřesnění: — doplňte je a
+        uložte.
       </p>
       <ul className="mt-1.5 ml-1 list-disc space-y-0.5 pl-4">
-        {items.map((it, i) => (
-          <li key={i}>{it}</li>
+        {shown.map((it, i) => (
+          <li key={i} className="line-clamp-1">
+            {it}
+          </li>
         ))}
+        {rest > 0 && (
+          <li className="list-none font-medium">…a další {rest} v textu níže</li>
+        )}
       </ul>
     </div>
   );
@@ -182,6 +192,8 @@ export function CreatePromptDialog({
             documentVersionId,
             commentIds,
             clarification: clarifyNote,
+            // Pošli aktuální text (i s ručními úpravami) — AI ho zpřesní, nezahodí.
+            currentDraft: body,
           }),
         },
       );
@@ -231,7 +243,7 @@ export function CreatePromptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] w-[92vw] max-w-4xl flex-col">
+      <DialogContent className="flex max-h-[90vh] w-[92vw] max-w-4xl flex-col overflow-hidden sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Prompt z komentářů</DialogTitle>
           <DialogDescription>
@@ -252,7 +264,7 @@ export function CreatePromptDialog({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           spellCheck={false}
-          className="min-h-[40vh] flex-1 resize-none rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-[25vh] flex-1 resize-none rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         {/* Doplnit odpovědi na „k upřesnění" a nechat AI přegenerovat */}
         <div className="space-y-1.5 rounded-md border border-dashed p-2.5">
@@ -314,6 +326,8 @@ export function PromptExportsDialog({
   documentId,
   documentName,
   canManage,
+  currentUserId,
+  isAuthor,
   onCountChange,
 }: {
   open: boolean;
@@ -321,12 +335,35 @@ export function PromptExportsDialog({
   documentId: number;
   documentName: string;
   canManage: boolean;
+  currentUserId: number;
+  isAuthor: boolean;
   onCountChange?: (n: number) => void;
 }) {
   const [items, setItems] = useState<PromptExportRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewing, setViewing] = useState<PromptExportRecord | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  // Které zadání se právě ptá na potvrzení smazání (inline, bez dalšího okna).
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  async function deleteExport(rec: PromptExportRecord) {
+    setBusyId(rec.id);
+    try {
+      const res = await fetch(`/api/prompt-exports/${rec.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const next = items.filter((x) => x.id !== rec.id);
+      setItems(next);
+      onCountChange?.(next.length);
+      setConfirmDeleteId(null);
+      toast.success("Zadání smazáno.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Smazání se nezdařilo.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -373,7 +410,7 @@ export function PromptExportsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] w-[92vw] max-w-4xl flex-col">
+      <DialogContent className="flex max-h-[90vh] w-[92vw] max-w-4xl flex-col overflow-hidden sm:max-w-4xl">
         {viewing ? (
           <>
             <DialogHeader>
@@ -433,60 +470,113 @@ export function PromptExportsDialog({
                   Zatím žádná zadání. Vyberte komentáře a vytvořte první.
                 </p>
               ) : (
-                items.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="space-y-2 rounded-lg border p-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {rec.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {rec.createdBy.name} · {formatWhen(rec.createdAt)} ·{" "}
-                          {rec.commentIds.length}{" "}
-                          {rec.commentIds.length === 1
-                            ? "komentář"
-                            : rec.commentIds.length >= 2 &&
-                                rec.commentIds.length <= 4
-                              ? "komentáře"
-                              : "komentářů"}
-                        </p>
-                      </div>
-                      <StatusBadge status={rec.status} />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setViewing(rec)}
-                      >
-                        Zobrazit
-                      </Button>
-                      {canManage && (
-                        <div className="flex items-center gap-0.5 rounded-md border p-0.5">
-                          {STATUS_ORDER.map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              disabled={busyId === rec.id}
-                              onClick={() => changeStatus(rec, s)}
-                              className={cn(
-                                "rounded px-2 py-1 text-xs font-medium transition-colors",
-                                rec.status === s
-                                  ? "bg-pb-soft text-pb"
-                                  : "text-muted-foreground hover:bg-muted",
-                              )}
-                            >
-                              {STATUS_LABEL[s]}
-                            </button>
-                          ))}
+                items.map((rec) => {
+                  const openCount = findClarifications(rec.body).length;
+                  const canDelete =
+                    rec.createdBy.id === currentUserId || isAuthor;
+                  return (
+                    <div
+                      key={rec.id}
+                      className="space-y-2 rounded-lg border p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {rec.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {rec.createdBy.name} · {formatWhen(rec.createdAt)} ·{" "}
+                            {rec.commentIds.length}{" "}
+                            {rec.commentIds.length === 1
+                              ? "komentář"
+                              : rec.commentIds.length >= 2 &&
+                                  rec.commentIds.length <= 4
+                                ? "komentáře"
+                                : "komentářů"}
+                          </p>
                         </div>
-                      )}
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <StatusBadge status={rec.status} />
+                          {openCount > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 border-amber-300 bg-amber-50 text-[10px] text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                              title="Zadání ještě obsahuje body k upřesnění"
+                            >
+                              <AlertTriangle size={10} aria-hidden="true" />
+                              {openCount} k upřesnění
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewing(rec)}
+                        >
+                          Zobrazit
+                        </Button>
+                        {canManage && (
+                          <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+                            {STATUS_ORDER.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                disabled={busyId === rec.id}
+                                onClick={() => changeStatus(rec, s)}
+                                className={cn(
+                                  "rounded px-2 py-1 text-xs font-medium transition-colors",
+                                  rec.status === s
+                                    ? "bg-pb-soft text-pb"
+                                    : "text-muted-foreground hover:bg-muted",
+                                )}
+                              >
+                                {STATUS_LABEL[s]}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {canDelete &&
+                          (confirmDeleteId === rec.id ? (
+                            <span className="ml-auto flex items-center gap-1 text-xs">
+                              <span className="text-muted-foreground">
+                                Smazat?
+                              </span>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={busyId === rec.id}
+                                onClick={() => deleteExport(rec)}
+                              >
+                                {busyId === rec.id && (
+                                  <Loader2 className="animate-spin" />
+                                )}
+                                Ano
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setConfirmDeleteId(null)}
+                              >
+                                Ne
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="ml-auto text-destructive hover:text-destructive"
+                              onClick={() => setConfirmDeleteId(rec.id)}
+                              aria-label="Smazat zadání"
+                            >
+                              <Trash2 />
+                            </Button>
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </>

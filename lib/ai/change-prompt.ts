@@ -42,6 +42,7 @@ export function buildUserPrompt(input: {
   feedback: string;
   constraints?: string | null;
   clarification?: string | null;
+  currentDraft?: string | null;
 }): string {
   const parts: string[] = [];
   parts.push(
@@ -66,9 +67,18 @@ export function buildUserPrompt(input: {
       input.clarification.trim(),
     );
   }
+  // Zpřesnění existujícího návrhu — zachovej ruční úpravy, jen vyřeš nejasnosti.
+  if (input.currentDraft && input.currentDraft.trim()) {
+    parts.push(
+      "",
+      "Aktuální návrh promptu (uprav ho podle doplnění výše — vyřeš body označené k upřesnění a zapracuj doplnění jako konkrétní změny; zbytek včetně ručních úprav autora zachovej):",
+      "",
+      input.currentDraft.trim(),
+    );
+  }
   parts.push(
     "",
-    `Sestav prompt se změnami. Začni nadpisem „# Úpravy specifikace: ${input.documentName} — verze ${input.versionNumber}".`,
+    `Vrať celý ${input.currentDraft ? "upravený " : ""}prompt jako Markdown. Začni nadpisem „# Úpravy specifikace: ${input.documentName} — verze ${input.versionNumber}", pak větou „Zapracuj následující změny do specifikace:" a číslovaným seznamem změn.`,
   );
   return parts.join("\n");
 }
@@ -81,6 +91,7 @@ export async function synthesizeChanges(input: {
   feedback: string;
   constraints?: string | null;
   clarification?: string | null;
+  currentDraft?: string | null;
 }): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new MissingApiKeyError();

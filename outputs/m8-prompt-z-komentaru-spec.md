@@ -97,6 +97,8 @@ Recenzenti nasbírají v ProductHubu komentáře nad prvky specifikace. Autor (i
 * Automatické založení GitHub Issue z zadání.
 * Napojení stavu zadání zpět na stav jednotlivého komentáře (např. auto-vyřešení).
 * Výběr AI modelu v UI, streamování odpovědi, vícejazyčnost promptu (napevno čeština, model `claude-sonnet-5`).
+* **Nastavení AI v UI (backlog, přání Hany):** možnost nastavit jiný Anthropic API klíč pro Claude prompty (per projekt / app) + **max limit tvorby AI promptů** (rozpočet / počet generování). Zatím klíč jen přes env, limit je pevný rate-limit 10/min.
+* **Přehled ceny generování (backlog, přání Hany):** kolik stálo které generování (token usage z Anthropic API → odhad ceny), přehled per zadání / projekt. Vyžaduje uložení `usage` (schéma → db-security-expert review).
 
 ## Workflow
 

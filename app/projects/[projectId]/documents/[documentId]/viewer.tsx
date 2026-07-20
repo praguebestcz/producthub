@@ -122,7 +122,6 @@ export function DocumentViewer({
   // M6 — komentování:
   const [mode, setMode] = useState<"browse" | "comment">("browse");
   const [threads, setThreads] = useState<CommentThread[]>([]);
-  const [showAllPages, setShowAllPages] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
   // Bublina nového komentáře u prvku (styl Google Docs).
   const [bubble, setBubble] = useState<{
@@ -287,7 +286,9 @@ export function DocumentViewer({
       if (!res.ok) throw new Error(data.error);
       const dateStr = new Date().toLocaleDateString("cs-CZ");
       setPromptDraft({
-        title: `Úpravy ${dateStr}`,
+        title: `Úpravy z ${commentIds.length} ${
+          commentIds.length === 1 ? "připomínky" : "připomínek"
+        } · ${dateStr}`,
         body: data.body,
         commentIds,
       });
@@ -658,17 +659,13 @@ export function DocumentViewer({
           }}
         >
           <MessageSquare />
-          {/* Počet nevyřešených komentářů AKTUÁLNÍ stránky — sedí s tím, co
-              panel ve výchozím filtru ukáže po otevření. Komentáře z dalších
-              stránek verze najde uživatel přes přepínač „Všechny stránky"
-              v panelu (tam je i jejich počet). */}
+          {/* Nevyřešené komentáře CELÉ verze (panel ukazuje celou specifikaci,
+              ne jen aktuální stránku) — počet tlačítka i panelu tak sedí. */}
           Komentáře (
           {
             threads.filter(
               (t) =>
-                t.documentVersionId === versionId &&
-                t.pagePath === pagePath &&
-                t.status !== "RESOLVED",
+                t.documentVersionId === versionId && t.status !== "RESOLVED",
             ).length
           }
           )
@@ -833,8 +830,6 @@ export function DocumentViewer({
           versionId={versionId}
           currentPagePath={pagePath}
           threads={threads}
-          showAllPages={showAllPages}
-          onShowAllPagesChange={setShowAllPages}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           activeThreadId={activeThreadId}
@@ -895,6 +890,8 @@ export function DocumentViewer({
           documentId={documentId}
           documentName={name}
           canManage={canCreatePrompt}
+          currentUserId={currentUserId}
+          isAuthor={isAuthor}
           onCountChange={setExportCount}
         />
       )}
