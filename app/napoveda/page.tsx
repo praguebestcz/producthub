@@ -94,6 +94,66 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
   },
 ];
 
+// Zvýrazněné místo ve screenshotu Nápovědy: rámeček + číslo, popisek je v
+// legendě pod obrázkem. Pozice v % (nezávislé na velikosti) — při větší změně
+// UI je nutné screenshot přefotit (viz pravidlo „živá Nápověda" v AGENTS.md).
+type Spot = { l: number; t: number; w: number; h: number; label: string };
+
+function HelpShot({
+  src,
+  alt,
+  spots,
+}: {
+  src: string;
+  alt: string;
+  spots: Spot[];
+}) {
+  return (
+    <figure className="mt-4 overflow-hidden rounded-xl border">
+      <div className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt} className="block w-full" />
+        {spots.map((s, i) => (
+          <div
+            key={i}
+            className="absolute rounded-md ring-2 ring-pb ring-offset-1 ring-offset-white/40"
+            style={{
+              left: `${s.l}%`,
+              top: `${s.t}%`,
+              width: `${s.w}%`,
+              height: `${s.h}%`,
+            }}
+          >
+            <span className="absolute -top-2.5 -left-2.5 flex size-5 items-center justify-center rounded-full bg-pb text-[11px] font-bold text-white shadow">
+              {i + 1}
+            </span>
+          </div>
+        ))}
+      </div>
+      <figcaption className="flex flex-wrap gap-x-4 gap-y-1 border-t bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        {spots.map((s, i) => (
+          <span key={i}>
+            <strong className="text-foreground">{i + 1}.</strong> {s.label}
+          </span>
+        ))}
+      </figcaption>
+    </figure>
+  );
+}
+
+// Zvýrazněná místa v prohlížeči dokumentu (pozice odpovídají public/napoveda/prohlizec.png).
+const VIEWER_SPOTS: Spot[] = [
+  { l: 68.5, t: 17.8, w: 17.2, h: 5.6, label: "Přepínač Procházení / Komentování" },
+  { l: 85.6, t: 18.6, w: 13.2, h: 4.2, label: "Panel komentářů a Předaná zadání" },
+  {
+    l: 76.6,
+    t: 49.6,
+    w: 3.4,
+    h: 3.6,
+    label: "Zaškrtávátka — výběr komentářů do promptu",
+  },
+];
+
 // Nápověda — návod k použití + přehled novinek. Dostupná všem přihlášeným.
 export default async function NapovedaPage() {
   const user = await getSessionUser();
@@ -110,7 +170,15 @@ export default async function NapovedaPage() {
         <h2 className="text-lg font-semibold tracking-tight">
           Jak aplikaci používat
         </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <p className="mt-1 text-sm text-muted-foreground">
+          Kde co v prohlížeči dokumentu najdete:
+        </p>
+        <HelpShot
+          src="/napoveda/prohlizec.png"
+          alt="Prohlížeč dokumentu se zvýrazněnými ovládacími prvky"
+          spots={VIEWER_SPOTS}
+        />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {GUIDE.map((topic) => (
             <Card key={topic.title}>
               <CardContent className="space-y-3">

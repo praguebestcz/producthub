@@ -11,7 +11,7 @@ konkrétní HTML elementy, nad komentáři běží diskuse, autor je převede na
 požadavek a systém vygeneruje hotový prompt pro Claude Code.
 
 - **Funkční specifikace (CO aplikace dělá):** `specs/producthub-specifikace.md` — **živý dokument**: po KAŽDÉ úpravě, která mění chování aplikace, aktualizuj dotčené sekce, markery (🟢/🟠) a Revizi; patří do stejného commitu jako změna kódu
-- **⚠️ Nápověda a novinky jsou taky ŽIVÉ (závazné, přání Hany):** KAŽDÁ změna, která se dotkne uživatele (nová funkce / změna UI), musí ve **stejném commitu** doplnit i **(1) Nápovědu** `app/napoveda/page.tsx` (pole `GUIDE` = návod k použití) a **(2) novinky** `lib/releases.ts` (nové vydání s vyšším `id` → okno „Co je nového" po přihlášení). Drobné opravy bez dopadu na uživatele ne. Nezapomínat — u M8 (prompty) se na to zapomnělo a Hana to musela připomínat.
+- **⚠️ Nápověda a novinky jsou taky ŽIVÉ (závazné, přání Hany):** KAŽDÁ změna, která se dotkne uživatele (nová funkce / změna UI), musí ve **stejném commitu** doplnit i **(1) Nápovědu** `app/napoveda/page.tsx` (pole `GUIDE` = návod k použití) a **(2) novinky** `lib/releases.ts` (nové vydání s vyšším `id` → okno „Co je nového" po přihlášení). Drobné opravy bez dopadu na uživatele ne. Nezapomínat — u M8 (prompty) se na to zapomnělo a Hana to musela připomínat. **Nápověda má i anotované screenshoty** (`public/napoveda/*.png` + komponenta `HelpShot` s pozicemi zvýraznění v %) — při větší změně UI je PŘEFOŤ (jinak ukazují staré rozložení a šipky nesedí).
 - **Design dokument (technické JAK):** `docs/design-2026-07-10-producthub.md` — architektura, milníky, závazné podmínky ze security review
 - **Zadání od Hany:** `inputs/claude-code-zadani-cz.md`
 
