@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Bell,
   Eye,
   Flag,
   Hash,
@@ -39,6 +40,7 @@ const ICONS: Record<ReleaseIcon, LucideIcon> = {
   flag: Flag,
   map: Map,
   eye: Eye,
+  bell: Bell,
 };
 
 type Mode = "welcome" | "whatsnew";

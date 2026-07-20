@@ -9,6 +9,7 @@ import {
   visibleCommentsWhere,
 } from "@/lib/comments/visibility";
 import { invalidMentionIds } from "@/lib/comments/mentions";
+import { createCommentNotifications } from "@/lib/comments/notifications";
 import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -259,7 +260,9 @@ export async function POST(
     };
   }
 
-  // Atomicky: komentář + zmínky. Notifikace řeší M7 (stejná transakční cesta).
+  // Atomicky: komentář + zmínky + notifikace (M7, zvoneček). Interní komentář
+  // generuje notifikaci jen internímu příjemci (filtr v createCommentNotifications).
+  const isReply = input.parentId !== undefined;
   const created = await prisma.$transaction(async (tx) => {
     const comment = await tx.comment.create({ data, select: { id: true } });
     if (input.mentions.length > 0) {
@@ -271,6 +274,18 @@ export async function POST(
         skipDuplicates: true,
       });
     }
+    await createCommentNotifications(tx, {
+      projectId: ctx.document.projectId,
+      commentId: comment.id,
+      // Kořen vlákna: u odpovědi je to rodič, u nového vlákna sám komentář.
+      rootId: isReply ? input.parentId! : comment.id,
+      actorId: user.id,
+      baseType: isReply ? "NEW_REPLY" : "NEW_COMMENT",
+      // data.visibility je u odpovědi už vyřešená (INTERNAL rodič vynucuje INTERNAL).
+      isInternalComment: data.visibility === "INTERNAL",
+      mentionedUserIds: input.mentions,
+      scope: isReply ? "PARTICIPANTS" : "ALL_MEMBERS",
+    });
     return comment;
   });
 

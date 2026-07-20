@@ -161,6 +161,10 @@ export function DocumentViewer({
   // Vlákno, které se má zvýraznit, až se donačte cílová stránka (klik na
   // komentář z JINÉ stránky → nejdřív navigace, pak highlight).
   const pendingHighlightRef = useRef<number | null>(null);
+  // Proklik ze zvonečku: cílové vlákno z URL (?comment=<rootId>). Otevře se
+  // jednorázově, jakmile se vlákna donačtou.
+  const wantCommentRef = useRef<number | null>(null);
+  const highlightFromUrlDoneRef = useRef(false);
   // Aktivní view-token + kdy vznikl. Reuse napříč navigacemi téže verze, ať se
   // URL assetů nemění a prohlížeč je cacheuje (výkon, audit). Po ~50 min se
   // vydá nový (token má TTL ~1 h).
@@ -504,6 +508,35 @@ export function DocumentViewer({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Proklik ze zvonečku — přečti ?comment=<rootId> z URL (jednou, na klientu).
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("comment");
+    const id = raw ? Number(raw) : NaN;
+    if (Number.isInteger(id) && id > 0) wantCommentRef.current = id;
+  }, []);
+
+  // Když jsou vlákna načtená a přišli jsme s ?comment=<rootId>, otevři panel na
+  // daném vláknu a zvýrazni ho (na jiné stránce nejdřív naviguj). Jednorázově.
+  useEffect(() => {
+    if (highlightFromUrlDoneRef.current || wantCommentRef.current === null) {
+      return;
+    }
+    const thread = threads.find((t) => t.id === wantCommentRef.current);
+    if (!thread) return;
+    highlightFromUrlDoneRef.current = true;
+    setActiveThreadId(thread.id);
+    setPanelMode("thread");
+    setPanelOpen(true);
+    if (thread.pagePath === pagePathRef.current) {
+      postToOverlay({ type: "highlight", commentId: thread.id });
+    } else {
+      pendingHighlightRef.current = thread.id;
+      void goToPage(thread.pagePath);
+    }
+    // goToPage není memoizovaná; efekt běží jednorázově (guard ref).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads]);
 
   // M8 — počet uložených zadání (odznak na tlačítku „Zadání"). Jen interní tým.
   useEffect(() => {

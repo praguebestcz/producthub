@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import {
+  Bell,
   CheckCircle2,
   Eye,
   Flag,
@@ -27,6 +28,7 @@ const RELEASE_ICONS: Record<ReleaseIcon, LucideIcon> = {
   flag: Flag,
   map: Map,
   eye: Eye,
+  bell: Bell,
 };
 
 // Návod k použití — témata krok za krokem.
@@ -64,6 +66,15 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     points: [
       "Na komentář i odpověď můžete reagovat emoji (👍 ✅ 👀 ❤️) — rychlé vyjádření bez psaní.",
       "Napsáním @ zmíníte člena projektu; našeptávač nabídne jen členy daného projektu.",
+    ],
+  },
+  {
+    icon: Bell,
+    title: "Upozornění (zvoneček)",
+    points: [
+      "Zvoneček v pravém horním rohu ukazuje počet nepřečtených upozornění.",
+      "Upozorní vás na odpověď ve vašem vláknu, na @zmínku i na změnu stavu vlákna, kterého se účastníte.",
+      "Kliknutím na upozornění přejdete rovnou k danému komentáři; tlačítkem Označit vše přečtené počet vynulujete.",
     ],
   },
   {

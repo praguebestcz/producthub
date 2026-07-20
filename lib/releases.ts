@@ -15,7 +15,8 @@ export type ReleaseIcon =
   | "hash"
   | "flag"
   | "map"
-  | "eye";
+  | "eye"
+  | "bell";
 
 export type ReleaseItem = {
   icon: ReleaseIcon;
@@ -32,6 +33,25 @@ export type Release = {
 
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
+  {
+    id: 4,
+    date: "20. 7. 2026",
+    title: "Upozornění (zvoneček)",
+    items: [
+      {
+        icon: "bell",
+        title: "Zvoneček s upozorněními",
+        description:
+          "V horní liště přibyl zvoneček. Upozorní vás na odpovědi ve vašich vláknech, na @zmínky i na změny stavu vláken, kterých se účastníte.",
+      },
+      {
+        icon: "message",
+        title: "Proklik rovnou ke komentáři",
+        description:
+          "Kliknutím na upozornění přejdete přímo k danému komentáři v dokumentu. Přečtená upozornění se odečtou z počtu.",
+      },
+    ],
+  },
   {
     id: 3,
     date: "20. 7. 2026",

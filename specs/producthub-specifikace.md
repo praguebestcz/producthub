@@ -14,6 +14,8 @@
 
 ## Revize
 
+* **2026-07-20**
+  * M7 Fáze 1 - **notifikace (zvoneček)**: server zakládá notifikace (nový komentář / odpověď / @zmínka / změna stavu) s filtrem viditelnosti (interní jen internímu příjemci), zvoneček v horní liště s počtem nepřečtených, proklik na vlákno, označení přečtení. Bez migrace (tabulka Notification z M1). Realtime (SSE) je Fáze 2. Detailní spec: outputs/m7-realtime-notifikace-spec.md - Hana Ortmannová
 * **2026-07-17**
   * M8 (light) - **Prompt z komentářů**: interní tým vybere komentáře → **AI (Claude, `claude-sonnet-5`) z nich vyvodí konkrétní změny** (ne přepis - vyhodnotí i diskusi; server-side, vyžaduje `ANTHROPIC_API_KEY`) → uloží jako „zadání" (nová tabulka `PromptExport` po db-security-expert review) → seznam „Předaná zadání" se stavy (Vytvořeno/Předáno vývoji/Zapracováno), kopie/stažení .md. Zjednodušená verze původního M8 (bez schvalovacího procesu). Detailní spec: specs/m8-prompt-z-komentaru-spec.md - Hana Ortmannová
   * Uvítání nového uživatele + okno „Co je nového" po nasazení novinky + stránka Nápověda (návod + historie novinek). Novinky vedené v `lib/releases.ts`, viděné se pamatuje v prohlížeči (bez DB). Detailní spec: specs/co-je-noveho-a-napoveda-spec.md - Hana Ortmannová
@@ -80,8 +82,8 @@
 * 🟠 Komentáře navázané na konkrétní HTML element (identifikátor, DOM cesta, viewport) - M6
 * 🟠 Komentářová vlákna: odpovědi, @zmínky, stavy otevřený/vyřešený/znovu otevřený - M6
 * 🟠 Interní vs. veřejné komentáře - M6
-* 🟠 Realtime spolupráce (živé komentáře, přítomnost, indikace psaní) - M7
-* 🟠 Notifikace v aplikaci (zvoneček) - M7
+* 🟠 Realtime spolupráce (živé komentáře, přítomnost, indikace psaní) - M7 Fáze 2
+* 🟢 Notifikace v aplikaci (zvoneček) - M7 Fáze 1 (hotovo)
 * 🟠 Požadavky + generování Claude promptu - M8
 * 🟠 Zachování komentářů mezi verzemi dokumentu - M9
 * 🟠 GitHub integrace - přesunuto do v2 (rozhodnutí z brainstormingu; zadání ji řadilo do MVP)
@@ -152,7 +154,7 @@ Aplikace je nasazená na produkci a milníky M0-M5 jsou hotové a otestované
 | M4 | Nasazení na Railway; M4.5 deaktivace/mazání uživatelů, tři úrovně rolí | 🟢 hotovo |
 | M5 | Dokumenty: upload/import, verze, sandboxovaný prohlížeč | 🟢 hotovo |
 | M6 | Komentáře nad elementy + vlákna | 🟠 implementováno - čeká na ruční test Hany |
-| M7 | Realtime (SSE) + notifikace | 🟠 plánováno |
+| M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček hotový (Fáze 1), realtime SSE plánováno (Fáze 2) |
 | M8 | Požadavky + Claude prompt | 🟠 plánováno |
 | M9 | Přenos komentářů mezi verzemi + dokončení | 🟠 plánováno |
 
@@ -230,9 +232,12 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
 
 * Seznam požadavků s filtry stavů; detail: název, popis, dotčený element, akceptační kritéria, propojené komentáře, akce podle stavu (schválit - jen AUTHOR, vygenerovat prompt, zkopírovat, Zapracováno, Uzavřeno).
 
-### Zvoneček (hlavička) 🟠 M7
+### Zvoneček (hlavička) 🟢 M7 Fáze 1
 
-* Počet nepřečtených notifikací, výpis s proklikem na dotčený komentář/požadavek, označení přečtení.
+* Ikona zvonku v horní liště s odznakem počtu nepřečtených (strop 99+).
+* Dropdown: posledních 20 upozornění - avatar aktéra, věta (odpověď / zmínka / změna stavu), náhled textu, relativní čas; nepřečtené zvýrazněné.
+* Klik na položku → proklik na dokument s daným vláknem (`?comment=<rootId>`) + otevření vlákna v panelu; položka se označí přečtená. Tlačítko „Označit vše přečtené".
+* Počet nepřečtených se obnovuje pollem (~60 s); živé doručení přes SSE je Fáze 2 (🟠).
 
 ## Administrace
 
@@ -346,10 +351,16 @@ Milníky M0-M5 jsou akceptované (ruční test Hany proběhl u každého). Pro 
 * [ ] Interní komentář od interního člena A neinterní člen B NEVIDÍ - v UI ani v odpovědi API (DevTools), včetně interní odpovědi pod veřejným vláknem
 * [ ] Našeptávač @zmínek nabízí jen členy; zmínka na nečlena vrací 400
 
-**M7 - realtime + notifikace:**
+**M7 Fáze 1 - notifikace (zvoneček) - HOTOVO:**
 
-* [ ] Komentář od B se u A objeví do ~1 s bez refreshe; indikace psaní; seznam přítomných
-* [ ] Zmínka od A doručí B notifikaci na zvoneček živě; označení přečtení funguje
+* [x] Nový komentář / odpověď / zmínka / změna stavu založí notifikaci správným příjemcům (kromě aktéra, jen aktivním členům)
+* [x] Interní komentář NEZALOŽÍ notifikaci neinternímu členovi (ověřeno přes API i unit testy)
+* [x] Zvoneček ukazuje počet nepřečtených; proklik otevře dané vlákno; označení přečtení funguje
+
+**M7 Fáze 2 - realtime (SSE) - plánováno:**
+
+* [ ] Komentář od B se u A objeví do ~1 s bez refreshe; indikace psaní; seznam přítomných
+* [ ] Notifikace i živé aktualizace chodí přes SSE bez pollování
 
 **M8 - požadavky + prompt:**
 
@@ -410,7 +421,7 @@ Milníky M0-M5 jsou akceptované (ruční test Hany proběhl u každého). Pro 
 
 ## Notifikace v aplikaci
 
-E‑mailové notifikace NEJSOU v v1 (v2). Notifikace v aplikaci (zvoneček, M7) 🟠:
+E‑mailové notifikace NEJSOU v v1 (v2). Notifikace v aplikaci (zvoneček, M7 Fáze 1) 🟢 - server zakládá při vzniku komentáře / změny stavu:
 
 | Událost | Příjemci | Poznámka |
 |---------|----------|----------|

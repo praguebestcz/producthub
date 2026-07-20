@@ -7,6 +7,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 
 // Kostra přihlášené aplikace: sbalitelné boční menu vlevo (preference Hany)
@@ -38,7 +39,8 @@ export function AppShell({
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-md">
           <SidebarTrigger />
           <Separator orientation="vertical" className="mr-1 !h-4" />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
             <ThemeToggle />
           </div>
         </header>

@@ -3,6 +3,7 @@ import { getSessionUser, requireProjectRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { commentStatusSchema } from "@/lib/validation";
 import { canViewComment } from "@/lib/comments/visibility";
+import { createCommentNotifications } from "@/lib/comments/notifications";
 
 // Změna stavu vlákna (Vyřešit / Znovu otevřít) — COMMENTER+ (design doc
 // neomezuje na autora). Stav má jen kořenový komentář.
@@ -68,13 +69,27 @@ export async function PATCH(
     );
   }
 
-  const updated = await prisma.comment.update({
-    where: { id: commentId },
-    data:
-      status === "RESOLVED"
-        ? { status, resolvedById: user.id, resolvedAt: new Date() }
-        : { status, resolvedById: null, resolvedAt: null },
-    select: { id: true, status: true, resolvedAt: true },
+  // Atomicky: změna stavu + notifikace účastníkům vlákna (M7, zvoneček).
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.comment.update({
+      where: { id: commentId },
+      data:
+        status === "RESOLVED"
+          ? { status, resolvedById: user.id, resolvedAt: new Date() }
+          : { status, resolvedById: null, resolvedAt: null },
+      select: { id: true, status: true, resolvedAt: true },
+    });
+    await createCommentNotifications(tx, {
+      projectId: comment.projectId,
+      commentId: comment.id, // kořen vlákna
+      rootId: comment.id,
+      actorId: user.id,
+      baseType: "COMMENT_STATUS_CHANGED",
+      isInternalComment: comment.visibility === "INTERNAL",
+      mentionedUserIds: [],
+      scope: "PARTICIPANTS",
+    });
+    return u;
   });
 
   return NextResponse.json(updated);
