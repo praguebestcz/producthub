@@ -120,7 +120,7 @@ export function WhatsNewDialog() {
       open={panel.open}
       onOpenChange={(o) => setPanel((p) => ({ ...p, open: o }))}
     >
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[85vh] w-[92vw] max-w-3xl overflow-y-auto sm:max-w-3xl">
         {panel.mode === "welcome" ? (
           <>
             <DialogHeader>
