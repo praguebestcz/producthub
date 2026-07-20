@@ -111,6 +111,30 @@ export const promptExportStatusSchema = z.object({
   status: z.enum(["CREATED", "HANDED_OFF", "DONE"]),
 });
 
+// AI nastavení (admin). anthropicApiKey: string = nastavit, null = smazat,
+// undefined = neměnit. Klíč se v odpovědi NIKDY nezrcadlí zpět.
+export const aiConfigPatchSchema = z
+  .object({
+    anthropicApiKey: z
+      .string()
+      .trim()
+      .regex(/^sk-ant-/, "Neplatný Anthropic klíč (má začínat sk-ant-)")
+      .max(300)
+      .nullable()
+      .optional(),
+    monthlyGenerationLimit: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(1_000_000)
+      .optional(),
+  })
+  .refine(
+    (v) =>
+      v.anthropicApiKey !== undefined || v.monthlyGenerationLimit !== undefined,
+    { message: "Nic ke změně" },
+  );
+
 // M8 — vygenerování promptu se změnami přes AI z vybraných komentářů.
 // Limit počtu komentářů drží náklady na AI volání pod kontrolou.
 export const promptGenerateSchema = z.object({

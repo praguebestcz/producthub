@@ -10,6 +10,14 @@ import {
   type PromptItem,
 } from "@/lib/comments/prompt";
 import { MissingApiKeyError, synthesizeChanges } from "@/lib/ai/change-prompt";
+import {
+  KeyDecryptError,
+  countGenerationsThisMonth,
+  getAppConfig,
+  isOverLimit,
+  logAiUsage,
+  resolveAnthropicApiKey,
+} from "@/lib/ai/config";
 import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -155,6 +163,32 @@ export async function POST(
     items,
   );
 
+  // Měsíční limit počtu generování (app-wide, admin nastavení) — kontrola PŘED
+  // placeným voláním. 0 = bez limitu (isOverLimit to řeší).
+  const cfg = await getAppConfig();
+  if (cfg.monthlyGenerationLimit > 0) {
+    const used = await countGenerationsThisMonth();
+    if (isOverLimit(used, cfg.monthlyGenerationLimit)) {
+      return NextResponse.json(
+        {
+          error: `Vyčerpán měsíční limit generování (${cfg.monthlyGenerationLimit}). Zvyšte ho v AI nastavení.`,
+        },
+        { status: 429 },
+      );
+    }
+  }
+
+  // Klíč pro Claude: z DB (dešifrovaný) má přednost, jinak env.
+  let apiKey: string | null;
+  try {
+    apiKey = await resolveAnthropicApiKey();
+  } catch (e) {
+    if (e instanceof KeyDecryptError) {
+      return NextResponse.json({ error: e.message }, { status: 503 });
+    }
+    throw e;
+  }
+
   // Omezení projektu (vkládá se do promptu) — pokud jsou nastavená.
   const project = await prisma.project.findUnique({
     where: { id: document.projectId },
@@ -162,13 +196,22 @@ export async function POST(
   });
 
   try {
-    const body = await synthesizeChanges({
+    const { text: body, usage } = await synthesizeChanges({
       documentName: document.name,
       versionNumber: version.versionNumber,
       feedback,
       constraints: project?.constraints,
       clarification,
       currentDraft,
+      apiKey,
+    });
+    // Log spotřeby (jen po úspěchu) — podklad pro limit i přehled ceny.
+    await logAiUsage({
+      projectId: document.projectId,
+      userId: user.id,
+      model: usage.model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
     });
     return NextResponse.json({ body });
   } catch (e) {
@@ -176,7 +219,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "AI generování zatím není nastavené (chybí Anthropic API klíč). Nastavte ANTHROPIC_API_KEY.",
+            "AI generování zatím není nastavené (chybí Anthropic API klíč). Nastavte ho v AI nastavení nebo přes ANTHROPIC_API_KEY.",
         },
         { status: 503 },
       );

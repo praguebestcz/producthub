@@ -19,6 +19,13 @@ function required(
 export const getJwtSecret = () =>
   required("JWT_SECRET", (v) => v.length >= 32, "min. 32 znaků");
 
+// Klíč pro šifrování tajemství v DB (Anthropic API klíč). Samostatná proměnná,
+// NE odvozená z JWT_SECRET — ten se rotuje (odhlášení všech) a rozbil by
+// dešifrování. Volá se lazy jen při šifrování/dešifrování (app nastartuje
+// i bez ní; jen AI cesty s DB klíčem vrátí čitelnou chybu). Viz .env.example.
+export const getEncKey = () =>
+  required("SECRET_ENC_KEY", (v) => v.length >= 32, "min. 32 znaků, viz .env.example");
+
 // Lomítka na konci se odstraňují — APP_URL s koncovým „/" jinak vyrobí
 // dvojité lomítko v redirect_uri a Google přihlášení odmítne (stalo se při
 // prvním nasazení na Railway 2026-07-13).

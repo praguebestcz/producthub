@@ -118,6 +118,7 @@ model User {
   notifications        Notification[]    @relation("NotificationRecipient")
   actedNotifications   Notification[]    @relation("NotificationActor")
   promptExports        PromptExport[]    @relation("PromptExportCreator")
+  aiUsage              AiUsage[]
 }
 
 // Klient — složka seskupující projekty (DDS, Foto Škoda, Harfasport, … i PB).
@@ -158,6 +159,7 @@ model Project {
   comments      Comment[]
   requirements  Requirement[]
   notifications Notification[]
+  aiUsage       AiUsage[]
 
   @@index([createdById])
   @@index([clientId]) // FK index (zásada z expert review)
@@ -459,4 +461,39 @@ model PromptExport {
   @@index([documentId])
   @@index([documentVersionId])
   @@index([createdById])
+}
+
+// App-wide konfigurace (jediný řádek, id=1). Drží šifrovaný Anthropic API klíč
+// a měsíční limit generování. Po db-security-expert review (2026-07-20):
+//  - klíč AES-256-GCM ciphertext ("v1:iv:tag:ct" base64), šifr. klíč ze
+//    samostatné env SECRET_ENC_KEY (ne z JWT_SECRET — ten se rotuje);
+//  - klíč se NIKDY nevrací klientovi (GET vrací jen keyLast4), dešifruje se
+//    JEN server-side při volání Claude;
+//  - single-row vynucen CHECK (id=1) v migraci; přístup jen isAdmin.
+model AppConfig {
+  id                     Int      @id @default(1)
+  anthropicApiKeyEnc     String?  @db.Text
+  anthropicApiKeyLast4   String?  @db.VarChar(8)
+  // 0 = bez limitu (aplikace 0 vyhodnocuje zvlášť, ne jako „blokuj vše").
+  monthlyGenerationLimit Int      @default(0)
+  updatedAt              DateTime @updatedAt
+}
+
+// Log každého AI generování — podklad pro měsíční limit a přehled nákladů.
+// SetNull u projectId/userId: log zůstává pro účetnictví i po smazání
+// projektu/uživatele. CHECK na nezáporné tokeny je v migraci (obrana do hloubky).
+model AiUsage {
+  id           Int      @id @default(autoincrement())
+  projectId    Int?
+  project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId       Int?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  model        String   @db.VarChar(64)
+  inputTokens  Int
+  outputTokens Int
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt]) // měsíční count
+  @@index([projectId]) // FK index
+  @@index([userId]) // FK index (po expert review K1)
 }

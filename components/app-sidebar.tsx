@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bot,
   Building2,
   ChevronsUpDown,
   FolderOpen,
@@ -57,7 +58,10 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
       ? [{ title: "Klienti", href: "/clients", icon: Building2 }]
       : []),
     ...(user.isAdmin
-      ? [{ title: "Uživatelé", href: "/admin/users", icon: Shield }]
+      ? [
+          { title: "Uživatelé", href: "/admin/users", icon: Shield },
+          { title: "AI nastavení", href: "/admin/ai", icon: Bot },
+        ]
       : []),
     // Nápověda pro všechny přihlášené (návod + přehled novinek).
     { title: "Nápověda", href: "/napoveda", icon: LifeBuoy },

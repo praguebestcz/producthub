@@ -83,8 +83,15 @@ export function buildUserPrompt(input: {
   return parts.join("\n");
 }
 
-// Zavolá Claudea a vrátí markdown se změnami. Vyhazuje MissingApiKeyError,
-// když chybí klíč; jinak nechá bublat chybu SDK (route ji přeloží).
+export type ChangeUsage = {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+// Zavolá Claudea a vrátí markdown se změnami + spotřebu tokenů (pro limit a
+// přehled ceny). Klíč se PŘEDÁVÁ (route ho bere z DB/env) — funkce ho nečte
+// sama. Vyhazuje MissingApiKeyError, když klíč chybí.
 export async function synthesizeChanges(input: {
   documentName: string;
   versionNumber: number;
@@ -92,11 +99,11 @@ export async function synthesizeChanges(input: {
   constraints?: string | null;
   clarification?: string | null;
   currentDraft?: string | null;
-}): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new MissingApiKeyError();
+  apiKey: string | null;
+}): Promise<{ text: string; usage: ChangeUsage }> {
+  if (!input.apiKey) throw new MissingApiKeyError();
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey: input.apiKey });
   const message = await client.messages.create({
     model: CHANGE_MODEL,
     max_tokens: 4096,
@@ -110,5 +117,12 @@ export async function synthesizeChanges(input: {
     .join("\n")
     .trim();
   if (!text) throw new Error("AI vrátila prázdnou odpověď.");
-  return text;
+  return {
+    text,
+    usage: {
+      model: CHANGE_MODEL,
+      inputTokens: message.usage.input_tokens,
+      outputTokens: message.usage.output_tokens,
+    },
+  };
 }
