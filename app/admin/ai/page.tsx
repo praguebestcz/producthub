@@ -25,7 +25,7 @@ export default async function AiSettingsPage() {
     <AppShell user={user}>
       <PageHeader
         title="AI nastavení"
-        description="Anthropic API klíč, měsíční limit a přehled spotřeby pro generování promptů (M8)."
+        description="Anthropic API klíč, měsíční rozpočet a přehled spotřeby pro generování promptů (M8)."
       />
       <AiConfigForm
         initial={{
