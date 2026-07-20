@@ -10,6 +10,7 @@ import {
   LifeBuoy,
   LogOut,
   MessagesSquare,
+  PanelLeftClose,
   Shield,
 } from "lucide-react";
 import {
@@ -24,7 +25,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +52,7 @@ export type SidebarUser = {
 // pamatuje v cookie. SidebarRail = klikací hrana pro sbalení myší.
 export function AppSidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
+  const { toggleSidebar } = useSidebar();
 
   // Styleguide v menu záměrně není (rozhodnutí Hany) — je dostupný na /styleguide.
   // Klienti jen pro tým s právem zakládat projekty (názvy klientů = obchodní info).
@@ -69,20 +73,34 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
 
   return (
     <Sidebar collapsible="icon">
-      {/* Logo — po sbalení zůstane jen gradientní dlaždice */}
+      {/* Logo + tlačítko na sbalení panelu (u loga, ne v liště vedle — přání
+          Hany). Sbalovací tlačítko zmizí ve sbaleném (ikonovém) režimu; zpět se
+          panel otevře přepínačem v horní liště (HeaderSidebarToggle). */}
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-pb to-pb-orange text-white">
-                <MessagesSquare className="size-4" strokeWidth={2.4} />
-              </span>
-              <span className="truncate text-[15px] font-semibold tracking-tight">
-                ProductHub
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex items-center gap-1">
+          <SidebarMenu className="flex-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" render={<Link href="/" />}>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-pb to-pb-orange text-white">
+                  <MessagesSquare className="size-4" strokeWidth={2.4} />
+                </span>
+                <span className="truncate text-[15px] font-semibold tracking-tight">
+                  ProductHub
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleSidebar}
+            aria-label="Sbalit panel"
+            className="shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden"
+          >
+            <PanelLeftClose />
+          </Button>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>

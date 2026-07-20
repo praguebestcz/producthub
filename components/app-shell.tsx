@@ -1,11 +1,7 @@
 import type { User } from "@prisma/client";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { HeaderSidebarToggle } from "@/components/header-sidebar-toggle";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
@@ -37,8 +33,7 @@ export function AppShell({
       />
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-md">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="mr-1 !h-4" />
+          <HeaderSidebarToggle />
           <div className="ml-auto flex items-center gap-1">
             <NotificationBell />
             <ThemeToggle />
