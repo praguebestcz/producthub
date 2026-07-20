@@ -5,6 +5,11 @@ import { canSeeInternal } from "@/lib/auth";
 // notifikace jsou 3. kanál úniku interních komentářů (vedle REST a SSE),
 // takže interní komentář smí vygenerovat notifikaci JEN internímu příjemci.
 
+// Preference notifikací uživatele. ALL = veškeré dění v dokumentech projektů;
+// INVOLVED = jen když je zapojen (zmínka NEBO odpověď/změna stavu v jeho vláknu).
+// Zrcadlí enum NotifyScope ze schématu (bez importu @prisma kvůli testům).
+export type NotifyScope = "ALL" | "INVOLVED";
+
 // Členství potřebné k výpočtu příjemce (role + interní příznak + zda deaktivovaný).
 export type RecipientMemberInfo = {
   role: ProjectRole;
@@ -17,7 +22,10 @@ export type RecipientMemberInfo = {
 //  - NIKDY aktérovi (sám sebe neupozorňuje),
 //  - jen aktivním členům projektu,
 //  - interní komentář → jen internímu příjemci (canSeeInternal),
-//  - dedup: max. jedna notifikace na příjemce; zmínka přebíjí základní typ.
+//  - dedup: max. jedna notifikace na příjemce; zmínka přebíjí základní typ,
+//  - preference INVOLVED: příjemce NEDOSTANE „nový kořenový komentář" (NEW_COMMENT),
+//    kde je jen členem projektu, POKUD není zároveň zmíněn. Odpovědi / změny stavu
+//    (účastník vlákna) a zmínky chodí vždy. Preference NEMĚNÍ filtr viditelnosti.
 export function computeRecipients(opts: {
   candidateUserIds: number[];
   mentionedUserIds: number[];
@@ -25,6 +33,7 @@ export function computeRecipients(opts: {
   isInternalComment: boolean;
   actorId: number;
   memberIndex: Map<number, RecipientMemberInfo>;
+  scopeIndex?: Map<number, NotifyScope>;
 }): { userId: number; type: NotificationType }[] {
   const {
     candidateUserIds,
@@ -33,6 +42,7 @@ export function computeRecipients(opts: {
     isInternalComment,
     actorId,
     memberIndex,
+    scopeIndex,
   } = opts;
 
   const out = new Map<number, NotificationType>();
@@ -42,6 +52,9 @@ export function computeRecipients(opts: {
     const info = memberIndex.get(userId);
     if (!info || info.deactivated) return;
     if (isInternalComment && !canSeeInternal(info)) return;
+    // Preference INVOLVED: „nový kořenový komentář" (jen členství) nechodí.
+    // MENTION i odpovědi/změny stavu (účastník) chodí vždy → key jen NEW_COMMENT.
+    if (type === "NEW_COMMENT" && scopeIndex?.get(userId) === "INVOLVED") return;
     // Zmínku už nepřebíjí základní typ (mention má přednost).
     if (out.get(userId) === "MENTION") return;
     out.set(userId, type);

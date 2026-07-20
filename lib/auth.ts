@@ -44,10 +44,13 @@ export async function requireProjectRole(
   return member;
 }
 
-// Přihlášený uživatel z session cookie, nebo null.
-// Kontroluje podpis, typ tokenu i `iat >= tokenValidFrom` (zneplatnění relací).
-export async function getSessionUser(): Promise<User | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+// Ověří konkrétní session token a vrátí uživatele, nebo null. Kontroluje podpis,
+// typ tokenu, existenci účtu, deaktivaci i `iat >= tokenValidFrom`. Oddělené od
+// cookies() kvůli SSE (M7): heartbeat běží v odpojeném intervalu, kde už není
+// požadavkový kontext pro cookies() - token se zachytí při připojení a re-ověří tudy.
+export async function getUserFromToken(
+  token: string | undefined,
+): Promise<User | null> {
   if (!token) return null;
   const payload = await verifySessionToken(token);
   if (!payload) return null;
@@ -61,6 +64,11 @@ export async function getSessionUser(): Promise<User | null> {
     return null;
   }
   return user;
+}
+
+// Přihlášený uživatel z session cookie, nebo null.
+export async function getSessionUser(): Promise<User | null> {
+  return getUserFromToken((await cookies()).get(SESSION_COOKIE)?.value);
 }
 
 // Chyba, kterou callback umí přeložit na čitelnou hlášku (ne 500).

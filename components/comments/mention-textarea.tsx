@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useTypingSignal } from "@/components/presence/typing-context";
 import { cn } from "@/lib/utils";
 
 // Textarea s @našeptávačem členů projektu — bez knihovny. Seznam členů
@@ -27,6 +28,7 @@ export function MentionTextarea({
   placeholder,
   disabled,
   autoFocus,
+  onTypingChange,
 }: {
   value: string;
   onValueChange: (value: string) => void;
@@ -36,11 +38,19 @@ export function MentionTextarea({
   placeholder?: string;
   disabled?: boolean;
   autoFocus?: boolean;
+  // Signalizace přítomnosti „píše / přestal" (M7 Fáze 2). Volitelné.
+  onTypingChange?: (typing: boolean) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [query, setQuery] = useState<string | null>(null); // null = zavřeno
   const [tokenStart, setTokenStart] = useState(0); // pozice @ v textu
   const [highlighted, setHighlighted] = useState(0);
+  // Signalizace „píše" do přítomnosti (kontext prohlížeče) + volitelný prop.
+  const signalTyping = useTypingSignal();
+  const notifyTyping = (typing: boolean) => {
+    onTypingChange?.(typing);
+    signalTyping(typing);
+  };
 
   const suggestions =
     query === null
@@ -64,6 +74,7 @@ export function MentionTextarea({
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     onValueChange(e.target.value);
     refreshSuggester(e.target.value, e.target.selectionStart ?? 0);
+    notifyTyping(true);
   }
 
   function pick(member: MentionMember) {
@@ -106,7 +117,10 @@ export function MentionTextarea({
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onBlur={() => setTimeout(() => setQuery(null), 150)}
+        onBlur={() => {
+          setTimeout(() => setQuery(null), 150);
+          notifyTyping(false);
+        }}
         placeholder={placeholder}
         disabled={disabled}
         autoFocus={autoFocus}

@@ -63,6 +63,9 @@ import {
   PromptExportsDialog,
 } from "@/components/comments/prompt-export";
 import type { MentionMember } from "@/components/comments/mention-textarea";
+import { usePresence } from "@/components/presence/use-presence";
+import { PresenceBar } from "@/components/presence/presence-bar";
+import { TypingSignalProvider } from "@/components/presence/typing-context";
 import { cn } from "@/lib/utils";
 
 type Version = {
@@ -113,6 +116,9 @@ export function DocumentViewer({
   members: MentionMember[];
 }) {
   const router = useRouter();
+  // Přítomnost u dokumentu (M7 Fáze 2) — kdo je tu + signalizace „píše".
+  const { users: presentUsers, signalTyping, stopTyping } =
+    usePresence(documentId);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [versionId, setVersionId] = useState<number>(versions[0]?.id ?? 0);
   const [viewSrc, setViewSrc] = useState<string | null>(null);
@@ -564,6 +570,9 @@ export function DocumentViewer({
   }
 
   return (
+    <TypingSignalProvider
+      value={(typing) => (typing ? signalTyping() : stopTyping())}
+    >
     <div className="mt-4 flex flex-col">
       {/* Hlavička dokumentu: název + akce autora */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -640,6 +649,9 @@ export function DocumentViewer({
             · {new Date(currentVersion.createdAt).toLocaleString("cs-CZ")}
           </span>
         )}
+
+        {/* Kdo je právě u dokumentu + kdo píše (M7 Fáze 2) */}
+        <PresenceBar users={presentUsers} />
 
         {/* Režim prohlížeče — komentovat smí COMMENTER+. Výrazný přepínač:
             aktivní „Komentování" svítí PB červenou. */}
@@ -929,6 +941,7 @@ export function DocumentViewer({
         />
       )}
     </div>
+    </TypingSignalProvider>
   );
 }
 

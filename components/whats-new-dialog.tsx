@@ -10,6 +10,7 @@ import {
   Map,
   MessageSquare,
   Sparkles,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -41,6 +42,7 @@ const ICONS: Record<ReleaseIcon, LucideIcon> = {
   map: Map,
   eye: Eye,
   bell: Bell,
+  users: Users,
 };
 
 type Mode = "welcome" | "whatsnew";

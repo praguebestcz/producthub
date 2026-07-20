@@ -16,7 +16,8 @@ export type ReleaseIcon =
   | "flag"
   | "map"
   | "eye"
-  | "bell";
+  | "bell"
+  | "users";
 
 export type ReleaseItem = {
   icon: ReleaseIcon;
@@ -33,6 +34,19 @@ export type Release = {
 
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
+  {
+    id: 5,
+    date: "20. 7. 2026",
+    title: "Přítomnost u dokumentu",
+    items: [
+      {
+        icon: "users",
+        title: "Kdo je právě u dokumentu",
+        description:
+          "V liště dokumentu vidíte avatary lidí, kteří ho mají zrovna otevřený, a kdo právě píše komentář. Externí recenzent nikdy nevidí interní tým.",
+      },
+    ],
+  },
   {
     id: 4,
     date: "20. 7. 2026",

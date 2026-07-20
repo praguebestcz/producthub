@@ -11,6 +11,7 @@ import {
   MousePointer2,
   Smile,
   Sparkles,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
@@ -29,6 +30,7 @@ const RELEASE_ICONS: Record<ReleaseIcon, LucideIcon> = {
   map: Map,
   eye: Eye,
   bell: Bell,
+  users: Users,
 };
 
 // Návod k použití — témata krok za krokem.
@@ -75,6 +77,15 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "Zvoneček v pravém horním rohu ukazuje počet nepřečtených upozornění.",
       "Upozorní vás na odpověď ve vašem vláknu, na @zmínku i na změnu stavu vlákna, kterého se účastníte.",
       "Kliknutím na upozornění přejdete rovnou k danému komentáři; tlačítkem Označit vše přečtené počet vynulujete.",
+    ],
+  },
+  {
+    icon: Users,
+    title: "Přítomnost u dokumentu",
+    points: [
+      "V liště dokumentu vidíte avatary lidí, kteří ho mají zrovna otevřený.",
+      "Zelená tečka u avataru ukazuje, kdo právě píše komentář.",
+      "Externí recenzent (klient) nikdy nevidí interní tým PragueBest ani jeho aktivitu.",
     ],
   },
   {

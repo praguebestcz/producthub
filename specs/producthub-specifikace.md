@@ -16,6 +16,7 @@
 
 * **2026-07-20**
   * M7 Fáze 1 - **notifikace (zvoneček)**: server zakládá notifikace (nový komentář / odpověď / @zmínka / změna stavu) s filtrem viditelnosti (interní jen internímu příjemci), zvoneček v horní liště s počtem nepřečtených, proklik na vlákno, označení přečtení. Bez migrace (tabulka Notification z M1). Realtime (SSE) je Fáze 2. Detailní spec: outputs/m7-realtime-notifikace-spec.md - Hana Ortmannová
+  * M7 Fáze 2 (část) - **přítomnost u dokumentu**: přes SSE (paměťový hub, 1 instance) se ukazuje, kdo je u dokumentu a kdo právě píše komentář; EXTERNÍ nevidí interní (filtr per spojení na serveru, `computeRoster` + testy). Bez DB. Živé doručení komentářů/notifikací přes SSE zatím ne. Přepínač panelu přesunut dovnitř panelu. Detailní spec: outputs/m7-realtime-notifikace-spec.md - Hana Ortmannová
 * **2026-07-17**
   * M8 (light) - **Prompt z komentářů**: interní tým vybere komentáře → **AI (Claude, `claude-sonnet-5`) z nich vyvodí konkrétní změny** (ne přepis - vyhodnotí i diskusi; server-side, vyžaduje `ANTHROPIC_API_KEY`) → uloží jako „zadání" (nová tabulka `PromptExport` po db-security-expert review) → seznam „Předaná zadání" se stavy (Vytvořeno/Předáno vývoji/Zapracováno), kopie/stažení .md. Zjednodušená verze původního M8 (bez schvalovacího procesu). Detailní spec: specs/m8-prompt-z-komentaru-spec.md - Hana Ortmannová
   * Uvítání nového uživatele + okno „Co je nového" po nasazení novinky + stránka Nápověda (návod + historie novinek). Novinky vedené v `lib/releases.ts`, viděné se pamatuje v prohlížeči (bez DB). Detailní spec: specs/co-je-noveho-a-napoveda-spec.md - Hana Ortmannová
@@ -154,7 +155,7 @@ Aplikace je nasazená na produkci a milníky M0-M5 jsou hotové a otestované
 | M4 | Nasazení na Railway; M4.5 deaktivace/mazání uživatelů, tři úrovně rolí | 🟢 hotovo |
 | M5 | Dokumenty: upload/import, verze, sandboxovaný prohlížeč | 🟢 hotovo |
 | M6 | Komentáře nad elementy + vlákna | 🟠 implementováno - čeká na ruční test Hany |
-| M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček hotový (Fáze 1), realtime SSE plánováno (Fáze 2) |
+| M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček + přítomnost hotové, živé doručení komentářů plánováno |
 | M8 | Požadavky + Claude prompt | 🟠 plánováno |
 | M9 | Přenos komentářů mezi verzemi + dokončení | 🟠 plánováno |
 
@@ -225,7 +226,7 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
   * Jeden prvek = jedno vlákno: klik na už okomentovaný prvek NEzaloží nový komentář, ale otevře jeho existující vlákno - další připomínky se řeší jako odpovědi v diskusi.
   * Formulář nového komentáře po výběru elementu: čitelný popis prvku, textarea s @našeptávačem členů, checkbox Interní (jen pro interní členy).
 * 🟠 M6 - špendlíky: číslované značky na komentovaných elementech uvnitř iframe. Špendlík skrytého elementu (zavřený modal) se schová a objeví se, až je element vidět. Klik na špendlík (v obou režimech) aktivuje vlákno v panelu.
-* 🟠 M7 - avatary přítomných, indikace psaní, živé aktualizace bez refreshe.
+* 🟢 M7 Fáze 2 - přítomnost: kdo je u dokumentu + kdo píše (externí nevidí interní); 🟠 živé aktualizace komentářů bez refreshe zbývají
 * 🟠 M9 - prohlížení starých verzí read-only, badge „prvek už neexistuje" u osiřelých komentářů.
 
 ### Požadavky (`/projects/[id]/requirements`) 🟠 M8
@@ -357,10 +358,10 @@ Milníky M0-M5 jsou akceptované (ruční test Hany proběhl u každého). Pro 
 * [x] Interní komentář NEZALOŽÍ notifikaci neinternímu členovi (ověřeno přes API i unit testy)
 * [x] Zvoneček ukazuje počet nepřečtených; proklik otevře dané vlákno; označení přečtení funguje
 
-**M7 Fáze 2 - realtime (SSE) - plánováno:**
+**M7 Fáze 2 - realtime (SSE) - přítomnost hotová, živé doručení plánováno:**
 
-* [ ] Komentář od B se u A objeví do ~1 s bez refreshe; indikace psaní; seznam přítomných
-* [ ] Notifikace i živé aktualizace chodí přes SSE bez pollování
+* [x] Přítomnost: kdo je u dokumentu + kdo právě píše; externí NEVIDÍ interní (SSE + computeRoster + testy)
+* [ ] Nový komentář se u ostatních objeví bez refreshe; zvoneček živě přes SSE (dnes poll ~60 s)
 
 **M8 - požadavky + prompt:**
 
