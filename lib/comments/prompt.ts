@@ -14,6 +14,24 @@ export type PromptItem = {
   replies: PromptReply[];
 };
 
+// Značka, kterou AI označuje body, které nejdou z připomínky jednoznačně
+// určit a potřebují doplnit od autora. Musí sedět s pokynem v lib/ai/change-prompt.ts.
+export const CLARIFY_MARKER = "K upřesnění:";
+
+// Najde v promptu body „k upřesnění" (vrátí text za značkou). Slouží k
+// zvýraznění v okně — dokud tam značka je, autor má co doplnit.
+export function findClarifications(text: string): string[] {
+  const marker = CLARIFY_MARKER.toLowerCase();
+  return text
+    .split("\n")
+    .map((line) => {
+      const idx = line.toLowerCase().indexOf(marker);
+      if (idx === -1) return null;
+      return line.slice(idx + CLARIFY_MARKER.length).trim();
+    })
+    .filter((s): s is string => s !== null && s.length > 0);
+}
+
 // Popis prvku z HTML výstřižku BEZ DOM (regex) — použitelné i na serveru
 // (deriveLabel v comment-panel.tsx potřebuje document.createElement). Stejná
 // myšlenka: název typu prvku + začátek textu.

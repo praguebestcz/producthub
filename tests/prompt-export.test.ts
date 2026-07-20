@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildPromptMarkdown,
+  findClarifications,
   labelFromHtml,
   type PromptItem,
 } from "@/lib/comments/prompt";
@@ -90,5 +91,26 @@ describe("labelFromHtml (bez DOM, server)", () => {
     const label = labelFromHtml(long) ?? "";
     expect(label).toContain("…");
     expect(label.length).toBeLessThan(60);
+  });
+});
+
+describe("findClarifications", () => {
+  it("najde body k upřesnění (se značkou i bez emoji)", () => {
+    const text = [
+      "# Úpravy",
+      "## 1. Prvek X",
+      "- Uprav barvu na zelenou",
+      "⚠️ K upřesnění: není jasné, který nadpis zkrátit",
+      "## 2. Prvek Y",
+      "Otázka k upřesnění: chybí cílová stránka",
+    ].join("\n");
+    const c = findClarifications(text);
+    expect(c.length).toBe(2);
+    expect(c[0]).toContain("který nadpis");
+    expect(c[1]).toContain("cílová stránka");
+  });
+
+  it("prázdné pole, když není co upřesnit", () => {
+    expect(findClarifications("- Uprav X\n- Přidej Y")).toEqual([]);
   });
 });

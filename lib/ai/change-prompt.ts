@@ -27,7 +27,7 @@ export function buildSystemPrompt(): string {
     "- NEOPISUJ připomínky. Rozhodni, co se má UDĚLAT, a napiš to imperativně (Uprav, Přidej, Odstraň, Sjednoť).",
     "- Vyhodnoť i diskusi — pokud padl závěr (například přidat přepínač), zapracuj ho jako výslednou změnu.",
     "- U každé změny uveď, kterého PRVKU a STRÁNKY se týká (kotva data-review-id nebo cesta, pokud je k dispozici).",
-    "- Pokud z připomínky NEJDE jednoznačně určit změna, uveď ji jako otázku k upřesnění (neodhaduj).",
+    "- Pokud z připomínky NEJDE jednoznačně určit změna, začni takový bod PŘESNĚ značkou: ⚠️ K upřesnění: a stručně popiš, co je potřeba doplnit (neodhaduj). Značku používej vždy stejně - aplikace podle ní body zvýrazní.",
     "- Nevymýšlej změny, které z připomínek nevyplývají. Drž se jen toho, co recenzenti řekli.",
     "- Piš česky, stručně a konkrétně, ve formátu Markdown: číslovaný seznam změn.",
     "- Respektuj omezení projektu, pokud jsou uvedená.",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   ClipboardList,
   Copy,
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { findClarifications } from "@/lib/comments/prompt";
 
 // „Zadání" (M8) — uložený prompt z komentářů pro Claude Code.
 export type PromptExportStatus = "CREATED" | "HANDED_OFF" | "DONE";
@@ -101,6 +103,31 @@ function StatusBadge({ status }: { status: PromptExportStatus }) {
   );
 }
 
+// Upozornění na body, které AI označila jako „k upřesnění" — dokud jsou
+// v textu, autor má co doplnit. Seznam se počítá živě z aktuálního textu.
+function ClarificationBanner({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+      <p className="flex items-center gap-1.5 font-semibold">
+        <AlertTriangle size={14} aria-hidden="true" />
+        {items.length}{" "}
+        {items.length === 1
+          ? "místo k upřesnění"
+          : items.length >= 2 && items.length <= 4
+            ? "místa k upřesnění"
+            : "míst k upřesnění"}{" "}
+        — doplňte je přímo do textu níže, pak uložte.
+      </p>
+      <ul className="mt-1.5 ml-1 list-disc space-y-0.5 pl-4">
+        {items.map((it, i) => (
+          <li key={i}>{it}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // Okno pro VYTVOŘENÍ zadání — editovatelný název + text promptu, uložení
 // + kopie/stažení. Text se generuje v prohlížeči a předává přes defaultBody.
 export function CreatePromptDialog({
@@ -162,9 +189,12 @@ export function CreatePromptDialog({
     }
   }
 
+  // Body „k upřesnění" se počítají živě z textu — jak je autor doplní, mizí.
+  const clarifications = findClarifications(body);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col">
+      <DialogContent className="flex max-h-[90vh] w-[92vw] max-w-4xl flex-col">
         <DialogHeader>
           <DialogTitle>Prompt z komentářů</DialogTitle>
           <DialogDescription>
@@ -180,11 +210,12 @@ export function CreatePromptDialog({
             maxLength={200}
           />
         </div>
+        <ClarificationBanner items={clarifications} />
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           spellCheck={false}
-          className="min-h-[40vh] flex-1 resize-none rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-[45vh] flex-1 resize-none rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -278,7 +309,7 @@ export function PromptExportsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col">
+      <DialogContent className="flex max-h-[90vh] w-[92vw] max-w-4xl flex-col">
         {viewing ? (
           <>
             <DialogHeader>
@@ -294,7 +325,8 @@ export function PromptExportsDialog({
                 {viewing.createdBy.name} · {formatWhen(viewing.createdAt)}
               </DialogDescription>
             </DialogHeader>
-            <pre className="min-h-[35vh] flex-1 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+            <ClarificationBanner items={findClarifications(viewing.body)} />
+            <pre className="min-h-[45vh] flex-1 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
               {viewing.body}
             </pre>
             <DialogFooter>
