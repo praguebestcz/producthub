@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-20**
+  * **Změna (Hana):** limit z „počtu generování za měsíc" → **měsíční rozpočet v USD** (logičtější - limituje přímo náklady). `AppConfig.monthlyGenerationLimit` → `monthlyBudgetUsdCents` (rename migrace, řádek zachován); kontrola porovnává utracený odhad ceny za měsíc s rozpočtem. Admin zadává v dolarech. `isOverLimit` → `isOverBudget` - Hana Ortmannová, Claude
   * **Implementováno.** Bezpečnostní revize `db-security-expert` (SCHVÁLENO S VÝHRADAMI) zapracována: index na `AiUsage.userId`, CHECK `id=1` u `AppConfig`, CHECK na nezáporné tokeny/limit, seed řádku; šifrování klíče přes **samostatnou `SECRET_ENC_KEY`** (ne z JWT_SECRET), AES-256-GCM, formát `v1:iv:tag:ct`, klíč se dešifruje jen server-side a nikdy se nevrací klientovi. Tabulky `AppConfig`+`AiUsage`, `lib/crypto/secret.ts`, `lib/ai/config.ts`, admin stránka `/admin/ai` + API, napojení do generate route (limit + log spotřeby). Ověřeno: stránka, uložení limitu, logování (1 generování → počet/tokeny/cena), env klíč. Vyžaduje `SECRET_ENC_KEY` (nastaví Hana) pro klíč v aplikaci - Hana Ortmannová, Claude
   * První návrh podle rozhodnutí Hany: klíč v **admin nastavení** (šifrovaně v DB), limit = **počet generování za měsíc**, rozsah = **celá aplikace**. Detailní schéma k `db-security-expert` review - Hana Ortmannová (rozhodnutí), Claude (sepsání)
 

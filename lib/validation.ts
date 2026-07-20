@@ -122,16 +122,12 @@ export const aiConfigPatchSchema = z
       .max(300)
       .nullable()
       .optional(),
-    monthlyGenerationLimit: z
-      .number()
-      .int()
-      .nonnegative()
-      .max(1_000_000)
-      .optional(),
+    // Měsíční rozpočet na AI v USD (dolarech). 0 = bez limitu.
+    monthlyBudgetUsd: z.number().nonnegative().max(100_000).optional(),
   })
   .refine(
     (v) =>
-      v.anthropicApiKey !== undefined || v.monthlyGenerationLimit !== undefined,
+      v.anthropicApiKey !== undefined || v.monthlyBudgetUsd !== undefined,
     { message: "Nic ke změně" },
   );
 

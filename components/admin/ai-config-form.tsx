@@ -22,7 +22,7 @@ export type AiUsageSummary = {
 };
 export type AiConfig = {
   apiKey: ApiKeyStatus;
-  monthlyGenerationLimit: number;
+  monthlyBudgetUsd: number;
   usage: AiUsageSummary;
 };
 
@@ -35,12 +35,12 @@ function keyStatusText(k: ApiKeyStatus): string {
 export function AiConfigForm({ initial }: { initial: AiConfig }) {
   const [cfg, setCfg] = useState<AiConfig>(initial);
   const [newKey, setNewKey] = useState("");
-  const [limit, setLimit] = useState(String(initial.monthlyGenerationLimit));
-  const [busy, setBusy] = useState<null | "key" | "clear" | "limit">(null);
+  const [budget, setBudget] = useState(String(initial.monthlyBudgetUsd));
+  const [busy, setBusy] = useState<null | "key" | "clear" | "budget">(null);
 
   async function patch(
     body: Record<string, unknown>,
-    which: "key" | "clear" | "limit",
+    which: "key" | "clear" | "budget",
   ): Promise<boolean> {
     setBusy(which);
     try {
@@ -52,7 +52,7 @@ export function AiConfigForm({ initial }: { initial: AiConfig }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCfg(data);
-      setLimit(String(data.monthlyGenerationLimit));
+      setBudget(String(data.monthlyBudgetUsd));
       return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Uložení se nezdařilo.");
@@ -74,14 +74,14 @@ export function AiConfigForm({ initial }: { initial: AiConfig }) {
       toast.success("Klíč smazán z aplikace (použije se env, pokud je).");
     }
   }
-  async function saveLimit() {
-    const n = Number(limit);
-    if (!Number.isInteger(n) || n < 0) {
-      toast.error("Zadejte celé nezáporné číslo (0 = bez limitu).");
+  async function saveBudget() {
+    const n = Number(budget);
+    if (!Number.isFinite(n) || n < 0) {
+      toast.error("Zadejte nezáporné číslo (0 = bez limitu).");
       return;
     }
-    if (await patch({ monthlyGenerationLimit: n }, "limit")) {
-      toast.success("Limit uložen.");
+    if (await patch({ monthlyBudgetUsd: n }, "budget")) {
+      toast.success("Rozpočet uložen.");
     }
   }
 
@@ -154,35 +154,40 @@ export function AiConfigForm({ initial }: { initial: AiConfig }) {
         </CardContent>
       </Card>
 
-      {/* Měsíční limit */}
+      {/* Měsíční rozpočet */}
       <Card>
         <CardContent className="space-y-4">
           <div>
-            <h2 className="font-semibold">Měsíční limit generování</h2>
+            <h2 className="font-semibold">Měsíční rozpočet na AI</h2>
             <p className="text-xs text-muted-foreground">
-              Kolik AI generování se smí za kalendářní měsíc vytvořit. 0 = bez
-              limitu.
+              Kolik smí AI generování za kalendářní měsíc stát (v USD, podle
+              odhadu ceny). Při dosažení se generování zastaví. 0 = bez limitu.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="ai-limit">Limit (počet / měsíc)</Label>
+              <Label htmlFor="ai-budget">Rozpočet ($ / měsíc)</Label>
               <Input
-                id="ai-limit"
+                id="ai-budget"
                 type="number"
                 min={0}
-                value={limit}
-                onChange={(e) => setLimit(e.target.value)}
+                step="0.5"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
                 className="w-40"
               />
             </div>
             <Button
               variant="outline"
               disabled={busy !== null}
-              onClick={saveLimit}
+              onClick={saveBudget}
             >
-              {busy === "limit" ? <Loader2 className="animate-spin" /> : <Save />}
-              Uložit limit
+              {busy === "budget" ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Save />
+              )}
+              Uložit rozpočet
             </Button>
           </div>
         </CardContent>
@@ -193,21 +198,18 @@ export function AiConfigForm({ initial }: { initial: AiConfig }) {
         <CardContent className="space-y-3">
           <h2 className="font-semibold">Přehled tento měsíc</h2>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Stat
-              label="Generování"
-              value={
-                cfg.monthlyGenerationLimit > 0
-                  ? `${u.count} / ${cfg.monthlyGenerationLimit}`
-                  : `${u.count}`
-              }
-            />
+            <Stat label="Počet generování" value={`${u.count}`} />
             <Stat
               label="Tokeny (vstup + výstup)"
               value={`${u.inputTokens.toLocaleString("cs-CZ")} + ${u.outputTokens.toLocaleString("cs-CZ")}`}
             />
             <Stat
-              label="Odhad ceny"
-              value={`~${u.costCzk.toFixed(2)} Kč ($${u.costUsd.toFixed(4)})`}
+              label="Útrata (odhad)"
+              value={
+                cfg.monthlyBudgetUsd > 0
+                  ? `$${u.costUsd.toFixed(4)} / $${cfg.monthlyBudgetUsd.toFixed(2)}`
+                  : `$${u.costUsd.toFixed(4)} (~${u.costCzk.toFixed(2)} Kč)`
+              }
             />
           </div>
           <p className="text-xs text-muted-foreground">

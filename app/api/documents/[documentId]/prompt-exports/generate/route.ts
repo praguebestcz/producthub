@@ -12,10 +12,10 @@ import {
 import { MissingApiKeyError, synthesizeChanges } from "@/lib/ai/change-prompt";
 import {
   KeyDecryptError,
-  countGenerationsThisMonth,
   getAppConfig,
-  isOverLimit,
+  isOverBudget,
   logAiUsage,
+  monthlyUsageSummary,
   resolveAnthropicApiKey,
 } from "@/lib/ai/config";
 import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
@@ -163,15 +163,15 @@ export async function POST(
     items,
   );
 
-  // Měsíční limit počtu generování (app-wide, admin nastavení) — kontrola PŘED
-  // placeným voláním. 0 = bez limitu (isOverLimit to řeší).
+  // Měsíční rozpočet na AI (app-wide, admin nastavení) — kontrola PŘED placeným
+  // voláním. 0 = bez limitu. Porovnává už utracený odhad ceny za měsíc.
   const cfg = await getAppConfig();
-  if (cfg.monthlyGenerationLimit > 0) {
-    const used = await countGenerationsThisMonth();
-    if (isOverLimit(used, cfg.monthlyGenerationLimit)) {
+  if (cfg.monthlyBudgetUsdCents > 0) {
+    const spent = await monthlyUsageSummary();
+    if (isOverBudget(spent.costUsd, cfg.monthlyBudgetUsdCents / 100)) {
       return NextResponse.json(
         {
-          error: `Vyčerpán měsíční limit generování (${cfg.monthlyGenerationLimit}). Zvyšte ho v AI nastavení.`,
+          error: `Vyčerpán měsíční rozpočet na AI ($${(cfg.monthlyBudgetUsdCents / 100).toFixed(2)}). Zvyšte ho v AI nastavení.`,
         },
         { status: 429 },
       );

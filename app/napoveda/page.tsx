@@ -80,7 +80,16 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     title: "Kde je vidět práce",
     points: [
       "Na kartách projektů i dokumentů je odznak s počtem nevyřešených komentářů.",
-      "Tlačítko Komentáře ukazuje počet na aktuální stránce; přepínač Všechny stránky odhalí zbytek.",
+      "Panel komentářů ukazuje komentáře z celé specifikace pohromadě (bez přepínání po stránkách).",
+    ],
+  },
+  {
+    icon: Sparkles,
+    title: "Prompt z komentářů pro Claude Code (interní tým)",
+    points: [
+      "Z komentářů vytvoříte prompt pro vývoj: v panelu zaškrtnete komentáře (nebo kliknete Vytvořit prompt přímo u jednoho).",
+      "AI z připomínek a diskuse vyvodí konkrétní změny. Co není jasné, označí k upřesnění - doplníte přímo v textu nebo napíšete odpověď a necháte přegenerovat.",
+      "Prompt uložíte jako zadání (stav Vytvořeno / Předáno vývoji / Zapracováno), zkopírujete nebo stáhnete jako .md. Přehled v tlačítku Zadání.",
     ],
   },
 ];

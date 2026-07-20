@@ -33,6 +33,37 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 2,
+    date: "20. 7. 2026",
+    title: "Prompt z komentářů pro Claude Code",
+    items: [
+      {
+        icon: "sparkles",
+        title: "Z komentářů rovnou prompt",
+        description:
+          "Vyberte komentáře (nebo u jednoho klikněte na Vytvořit prompt) a AI z nich vyvodí konkrétní změny - hotový prompt pro Claude Code. Jen interní tým.",
+      },
+      {
+        icon: "message",
+        title: "Doplnění a přegenerování",
+        description:
+          "Co AI označí k upřesnění, doplníte přímo v textu, nebo napíšete odpověď a necháte AI prompt přegenerovat.",
+      },
+      {
+        icon: "flag",
+        title: "Předaná zadání se stavy",
+        description:
+          "Vytvořené prompty se ukládají jako zadání se stavem Vytvořeno → Předáno vývoji → Zapracováno. Jdou kopírovat, stáhnout jako .md i smazat.",
+      },
+      {
+        icon: "hash",
+        title: "Celá specifikace v panelu",
+        description:
+          "Komentáře z celé specifikace máte v panelu pohromadě, bez přepínání po stránkách.",
+      },
+    ],
+  },
+  {
     id: 1,
     date: "17. 7. 2026",
     title: "Přehlednější komentování",

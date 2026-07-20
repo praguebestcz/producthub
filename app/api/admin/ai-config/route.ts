@@ -7,7 +7,7 @@ import {
   getAppConfig,
   monthlyUsageSummary,
   setAnthropicApiKey,
-  setMonthlyLimit,
+  setMonthlyBudgetCents,
 } from "@/lib/ai/config";
 
 // AI nastavení (app-wide) — JEN pro admina. GET vrací maskovaný stav + přehled
@@ -23,7 +23,7 @@ async function payload() {
   ]);
   return {
     apiKey: key, // { source, last4 } — NIKDY plný klíč
-    monthlyGenerationLimit: cfg.monthlyGenerationLimit,
+    monthlyBudgetUsd: cfg.monthlyBudgetUsdCents / 100,
     usage,
   };
 }
@@ -76,8 +76,8 @@ export async function PATCH(req: NextRequest) {
       );
     }
   }
-  if (input.monthlyGenerationLimit !== undefined) {
-    await setMonthlyLimit(input.monthlyGenerationLimit);
+  if (input.monthlyBudgetUsd !== undefined) {
+    await setMonthlyBudgetCents(Math.round(input.monthlyBudgetUsd * 100));
   }
 
   return NextResponse.json(await payload());

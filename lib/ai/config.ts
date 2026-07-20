@@ -75,11 +75,12 @@ export async function setAnthropicApiKey(plainOrNull: string | null) {
   });
 }
 
-export async function setMonthlyLimit(limit: number) {
+// Rozpočet v centech USD (0 = bez limitu).
+export async function setMonthlyBudgetCents(cents: number) {
   await prisma.appConfig.upsert({
     where: { id: 1 },
-    update: { monthlyGenerationLimit: limit },
-    create: { id: 1, monthlyGenerationLimit: limit },
+    update: { monthlyBudgetUsdCents: cents },
+    create: { id: 1, monthlyBudgetUsdCents: cents },
   });
 }
 
@@ -89,15 +90,10 @@ function startOfMonth(): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-// Čistá logika limitu (testovatelná): 0 = bez limitu, jinak blokuj při dosažení.
-export function isOverLimit(used: number, limit: number): boolean {
-  return limit > 0 && used >= limit;
-}
-
-export async function countGenerationsThisMonth(): Promise<number> {
-  return prisma.aiUsage.count({
-    where: { createdAt: { gte: startOfMonth() } },
-  });
+// Čistá logika rozpočtu (testovatelná): 0 = bez limitu, jinak blokuj, když už
+// utracená částka za měsíc dosáhla rozpočtu (obě v USD).
+export function isOverBudget(spentUsd: number, budgetUsd: number): boolean {
+  return budgetUsd > 0 && spentUsd >= budgetUsd;
 }
 
 // Zapíše spotřebu po ÚSPĚŠNÉM generování (neúspěch se nepočítá do limitu).

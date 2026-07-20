@@ -471,12 +471,13 @@ model PromptExport {
 //    JEN server-side při volání Claude;
 //  - single-row vynucen CHECK (id=1) v migraci; přístup jen isAdmin.
 model AppConfig {
-  id                     Int      @id @default(1)
-  anthropicApiKeyEnc     String?  @db.Text
-  anthropicApiKeyLast4   String?  @db.VarChar(8)
-  // 0 = bez limitu (aplikace 0 vyhodnocuje zvlášť, ne jako „blokuj vše").
-  monthlyGenerationLimit Int      @default(0)
-  updatedAt              DateTime @updatedAt
+  id                   Int      @id @default(1)
+  anthropicApiKeyEnc   String?  @db.Text
+  anthropicApiKeyLast4 String?  @db.VarChar(8)
+  // Měsíční rozpočet na AI generování v CENTECH USD (0 = bez limitu). Cents
+  // (Int) kvůli přesnosti; aplikace 0 vyhodnocuje zvlášť jako „bez limitu".
+  monthlyBudgetUsdCents Int     @default(0)
+  updatedAt            DateTime @updatedAt
 }
 
 // Log každého AI generování — podklad pro měsíční limit a přehled nákladů.

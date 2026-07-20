@@ -30,7 +30,7 @@ export default async function AiSettingsPage() {
       <AiConfigForm
         initial={{
           apiKey,
-          monthlyGenerationLimit: cfg.monthlyGenerationLimit,
+          monthlyBudgetUsd: cfg.monthlyBudgetUsdCents / 100,
           usage,
         }}
       />

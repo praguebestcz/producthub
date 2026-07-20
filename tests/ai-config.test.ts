@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { encryptSecret, decryptSecret } from "@/lib/crypto/secret";
-import { isOverLimit, estimateCostUsd } from "@/lib/ai/config";
+import { isOverBudget, estimateCostUsd } from "@/lib/ai/config";
 
 describe("šifrování tajemství (AES-256-GCM)", () => {
   beforeAll(() => {
@@ -34,15 +34,15 @@ describe("šifrování tajemství (AES-256-GCM)", () => {
   });
 });
 
-describe("isOverLimit", () => {
+describe("isOverBudget", () => {
   it("0 = bez limitu (nikdy neblokuje)", () => {
-    expect(isOverLimit(0, 0)).toBe(false);
-    expect(isOverLimit(999, 0)).toBe(false);
+    expect(isOverBudget(0, 0)).toBe(false);
+    expect(isOverBudget(999, 0)).toBe(false);
   });
-  it("blokuje při dosažení limitu", () => {
-    expect(isOverLimit(4, 5)).toBe(false);
-    expect(isOverLimit(5, 5)).toBe(true);
-    expect(isOverLimit(6, 5)).toBe(true);
+  it("blokuje, když útrata dosáhne rozpočtu (USD)", () => {
+    expect(isOverBudget(4.99, 5)).toBe(false);
+    expect(isOverBudget(5, 5)).toBe(true);
+    expect(isOverBudget(6.2, 5)).toBe(true);
   });
 });
 
