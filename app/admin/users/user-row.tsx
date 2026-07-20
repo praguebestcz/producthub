@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, UserCheck, UserX } from "lucide-react";
+import { Eraser, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -39,10 +39,12 @@ export function UserRow({
   user,
   myId,
   canDelete,
+  canAnonymize,
 }: {
   user: AdminUser;
   myId: number;
   canDelete: boolean;
+  canAnonymize: boolean;
 }) {
   const router = useRouter();
   const [canCreate, setCanCreate] = useState(user.canCreateProjects);
@@ -50,7 +52,11 @@ export function UserRow({
   const isMe = user.id === myId;
   const isDeactivated = user.deactivatedAt !== null;
 
-  async function patch(data: { canCreateProjects?: boolean; deactivated?: boolean }) {
+  async function patch(data: {
+    canCreateProjects?: boolean;
+    deactivated?: boolean;
+    anonymize?: boolean;
+  }) {
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -104,6 +110,13 @@ export function UserRow({
       toast.error(e instanceof Error ? e.message : "Smazání se nepovedlo.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function anonymizeUser() {
+    if (await patch({ anonymize: true })) {
+      toast.success(`Účet ${user.name} byl anonymizován.`);
+      router.refresh();
     }
   }
 
@@ -235,6 +248,45 @@ export function UserRow({
                   <AlertDialogCancel>Zrušit</AlertDialogCancel>
                   <AlertDialogAction onClick={deleteUser}>
                     Smazat účet
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
+          {/* Anonymizovat — GDPR výmaz účtu s obsahem (osobní údaje pryč,
+              historie zůstane pod anonymním autorem). Nevratné. */}
+          {canAnonymize && (
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={saving}
+                    className="text-destructive hover:text-destructive"
+                  />
+                }
+              >
+                <Eraser />
+                Anonymizovat
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Anonymizovat účet {user.name}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Pro žádost o výmaz osobních údajů (GDPR). Jméno, e-mail a
+                    fotka se přepíšou na neutrální hodnoty a účet se deaktivuje.
+                    Komentáře a historie zůstanou, ale pod anonymním autorem.
+                    Akce je nevratná.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                  <AlertDialogAction onClick={anonymizeUser}>
+                    Anonymizovat
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

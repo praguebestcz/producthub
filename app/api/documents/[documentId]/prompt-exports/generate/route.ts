@@ -147,14 +147,29 @@ export async function POST(
   }
 
   // Sestav strukturovaný podklad (stejný formát jako dřív) — vstup pro AI.
+  // GDPR (review 2026-07-20): jména autorů se do Anthropic (USA) NEPOSÍLAJÍ —
+  // pro odvození změn nejsou nutná. Nahrazují se pseudonymem „Recenzent N"
+  // (konzistentně v rámci jednoho generování, ať diskuse dává smysl).
+  const aliasMap = new Map<string, string>();
+  const alias = (name: string): string => {
+    let a = aliasMap.get(name);
+    if (!a) {
+      a = `Recenzent ${aliasMap.size + 1}`;
+      aliasMap.set(name, a);
+    }
+    return a;
+  };
   const items: PromptItem[] = threads.map((t) => ({
     label: labelFromHtml(t.elementHtml),
     dataReviewId: t.dataReviewId,
     domPath: t.domPath,
     pageLabel: t.pagePath === version.entryPath ? "Rozcestník" : t.pagePath,
-    authorName: t.author.name,
+    authorName: alias(t.author.name),
     body: t.body,
-    replies: t.replies.map((r) => ({ authorName: r.author.name, body: r.body })),
+    replies: t.replies.map((r) => ({
+      authorName: alias(r.author.name),
+      body: r.body,
+    })),
   }));
   const feedback = buildPromptMarkdown(
     document.name,

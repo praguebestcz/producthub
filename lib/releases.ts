@@ -33,6 +33,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 3,
+    date: "20. 7. 2026",
+    title: "Ochrana osobních údajů",
+    items: [
+      {
+        icon: "eye",
+        title: "Zásady zpracování osobních údajů",
+        description:
+          "Přibyla stránka se zásadami zpracování (odkaz na přihlašovací obrazovce): kdo je správce, jaké údaje se zpracovávají a komu se předávají.",
+      },
+    ],
+  },
+  {
     id: 2,
     date: "20. 7. 2026",
     title: "Prompt z komentářů pro Claude Code",

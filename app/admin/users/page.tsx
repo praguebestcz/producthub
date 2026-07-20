@@ -51,12 +51,17 @@ export default async function AdminUsersPage() {
   // Smazat lze účet bez obsahu, který není já ani (živý) admin.
   const rows = users.map((u) => {
     const contentCount = Object.values(u._count).reduce((a, b) => a + b, 0);
+    const notSelfNorAdmin =
+      u.id !== user.id && !adminEmails.includes(u.email.toLowerCase());
     return {
       ...u,
-      canDelete:
-        contentCount === 0 &&
-        u.id !== user.id &&
-        !adminEmails.includes(u.email.toLowerCase()),
+      canDelete: contentCount === 0 && notSelfNorAdmin,
+      // Anonymizace (GDPR výmaz) — pro účet s obsahem, který nejde tvrdě smazat;
+      // ne já, ne živý admin, ne už anonymizovaný.
+      canAnonymize:
+        contentCount > 0 &&
+        notSelfNorAdmin &&
+        !u.email.endsWith("@removed.invalid"),
     };
   });
 
@@ -86,6 +91,7 @@ export default async function AdminUsersPage() {
                 user={u}
                 myId={user.id}
                 canDelete={u.canDelete}
+                canAnonymize={u.canAnonymize}
               />
             ))}
           </TableBody>

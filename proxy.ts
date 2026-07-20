@@ -19,9 +19,11 @@ import { prisma } from "@/lib/prisma";
 //  - /login (přihlašovací stránka)
 //  - /api/auth/* (Google OAuth tok + logout)
 //  - /view/* (zobrazení dokumentu — má vlastní autorizaci přes view token, M5)
+//  - /soukromi (zásady zpracování osobních údajů — čitelné i bez přihlášení)
 function isPublicPath(path: string): boolean {
   return (
     path === "/login" ||
+    path === "/soukromi" ||
     path.startsWith("/api/auth/") ||
     path.startsWith("/view/")
   );

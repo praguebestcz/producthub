@@ -248,6 +248,8 @@ export function CreatePromptDialog({
           <DialogTitle>Prompt z komentářů</DialogTitle>
           <DialogDescription>
             Zkontrolujte a případně upravte text, pak uložte jako zadání.
+            Podklad zpracovává AI (Anthropic, USA); jména recenzentů se
+            neposílají.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-1.5">

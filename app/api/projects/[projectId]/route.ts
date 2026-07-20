@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser, requireProjectRole } from "@/lib/auth";
+import { canSeeInternal, getSessionUser, requireProjectRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { projectPatchSchema } from "@/lib/validation";
 
@@ -28,14 +28,36 @@ export async function GET(
   const member = await requireProjectRole(user.id, projectId, "READER");
   if (!member) return notFound();
 
+  // Neinternímu členovi (klientovi) NEvracet e-maily členů, jejich „interní"
+  // příznak ani `constraints` projektu (jde do AI promptů) — GDPR/PII + únik
+  // organizační struktury (db-security-expert review 2026-07-20).
+  const internal = canSeeInternal(member);
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      clientId: true,
+      createdById: true,
+      createdAt: true,
+      updatedAt: true,
+      ...(internal ? { constraints: true } : {}),
       members: {
-        include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
-        },
         orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          role: true,
+          ...(internal ? { isInternal: true } : {}),
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+              ...(internal ? { email: true } : {}),
+            },
+          },
+        },
       },
       _count: { select: { documents: true } },
     },

@@ -99,6 +99,11 @@ export default async function LoginPage({
           <br />
           Přihlášením nevzniká žádný přístup navíc.
         </p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          <a href="/soukromi" className="hover:text-foreground hover:underline">
+            Zásady zpracování osobních údajů
+          </a>
+        </p>
       </div>
     </main>
   );

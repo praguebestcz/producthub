@@ -791,6 +791,10 @@ function NewThreadForm({
         placeholder="Napište komentář… (@ zmíní člena)"
         autoFocus
       />
+      {/* GDPR minimalizace: komentář je volný text a může jít i do AI. */}
+      <p className="text-[10px] leading-tight text-muted-foreground">
+        Nevkládejte zbytečně osobní údaje třetích osob.
+      </p>
       <div className="flex items-center justify-between gap-2">
         {canSeeInternal ? (
           <Label className="flex items-center gap-1.5 text-xs">

@@ -184,9 +184,12 @@ export default async function ProjectPage({
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{m.user.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {m.user.email}
-                  </p>
+                  {/* E-mail jen internímu členovi (klient nevidí PII týmu). */}
+                  {canSeeInternal(member) && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {m.user.email}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge
@@ -194,7 +197,9 @@ export default async function ProjectPage({
                   >
                     {ROLE_LABELS[m.role]}
                   </Badge>
-                  {canSeeInternal(m) && (
+                  {/* Odznak „interní" taky jen internímu členovi (neprozrazovat
+                      klientovi organizační strukturu týmu). */}
+                  {canSeeInternal(member) && canSeeInternal(m) && (
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                       interní
                     </span>

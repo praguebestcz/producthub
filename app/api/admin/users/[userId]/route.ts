@@ -12,9 +12,15 @@ const patchSchema = z
   .object({
     canCreateProjects: z.boolean().optional(),
     deactivated: z.boolean().optional(),
+    // GDPR „právo na výmaz": anonymizace účtu s obsahem (osobní údaje se
+    // přepíšou, historie zůstane pod anonymním autorem).
+    anonymize: z.boolean().optional(),
   })
   .refine(
-    (v) => v.canCreateProjects !== undefined || v.deactivated !== undefined,
+    (v) =>
+      v.canCreateProjects !== undefined ||
+      v.deactivated !== undefined ||
+      v.anonymize === true,
     { message: "Nic ke změně" },
   );
 
@@ -43,6 +49,42 @@ export async function PATCH(
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) {
     return NextResponse.json({ error: "Uživatel nenalezen" }, { status: 404 });
+  }
+
+  // GDPR výmaz: anonymizace (přepíše osobní údaje, zachová anonymní historii).
+  // Pro účet s obsahem, který nejde tvrdě smazat (Restrict FK). Nezvratné.
+  if (body.data.anonymize) {
+    if (target.id === admin.id) {
+      return NextResponse.json(
+        { error: "Sám sebe anonymizovat nemůžete" },
+        { status: 409 },
+      );
+    }
+    if (getAdminEmails().includes(target.email.toLowerCase())) {
+      return NextResponse.json(
+        {
+          error:
+            "Admina nelze anonymizovat — nejdřív ho vyřaďte z ADMIN_EMAILS",
+        },
+        { status: 409 },
+      );
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        // Placeholdery zachovávají unikátnost (email, googleId) a jsou neplatné.
+        name: "Smazaný uživatel",
+        email: `deleted+${userId}@removed.invalid`,
+        avatarUrl: null,
+        googleId: `deleted-${userId}`,
+        canCreateProjects: false,
+        isAdmin: false,
+        // Zabít session i view tokeny okamžitě.
+        deactivatedAt: new Date(),
+        tokenValidFrom: new Date(),
+      },
+    });
+    return NextResponse.json({ ok: true, anonymized: true });
   }
 
   if (body.data.deactivated !== undefined) {
