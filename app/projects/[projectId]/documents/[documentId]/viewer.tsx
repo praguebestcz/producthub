@@ -599,14 +599,34 @@ export function DocumentViewer({
   }, [canCreatePrompt, documentId]);
 
   // Živé značky „píše" na AKTUÁLNÍ stránce → overlay (u prvku/špendlíku).
+  // Víc lidí u STEJNÉHO prvku se sloučí do jedné značky (jinak by se štítky
+  // překrývaly na stejné pozici).
   useEffect(() => {
-    const markers = presentUsers
-      .filter((u) => u.typing && u.typing.pagePath === pagePath)
-      .map((u) => ({
-        dataReviewId: u.typing?.dataReviewId ?? null,
-        domPath: u.typing?.domPath ?? null,
-        label: `${u.name} píše…`,
-      }));
+    const byAnchor = new Map<
+      string,
+      { dataReviewId: string | null; domPath: string | null; names: string[] }
+    >();
+    for (const u of presentUsers) {
+      const t = u.typing;
+      if (!t || t.pagePath !== pagePath) continue;
+      const key = t.dataReviewId ? "id:" + t.dataReviewId : "dom:" + (t.domPath ?? "");
+      const cur = byAnchor.get(key);
+      if (cur) cur.names.push(u.name);
+      else
+        byAnchor.set(key, {
+          dataReviewId: t.dataReviewId,
+          domPath: t.domPath,
+          names: [u.name],
+        });
+    }
+    const markers = [...byAnchor.values()].map((m) => ({
+      dataReviewId: m.dataReviewId,
+      domPath: m.domPath,
+      label:
+        m.names.length === 1
+          ? `${m.names[0]} píše…`
+          : `${m.names.length} lidí píše…`,
+    }));
     postToOverlay({ type: "presence.markers", markers });
   }, [presentUsers, pagePath, postToOverlay]);
 
