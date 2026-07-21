@@ -87,6 +87,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "V liště dokumentu vidíte avatary lidí, kteří ho mají zrovna otevřený - každý má svou barvu.",
       "Když někdo píše komentář, jeho avatar se ukáže přímo u daného prvku na stránce (podle barvy poznáte kdo); taky u avataru v liště a u vlákna v panelu.",
       "Kliknutím na avatar píšícího v liště skočíte rovnou na prvek, kde právě píše (i na jiné stránce).",
+      "Nový komentář, odpověď nebo změna stavu od někoho jiného se u vás objeví živě, bez obnovení stránky.",
       "Externí recenzent (klient) nikdy nevidí interní tým PragueBest ani jeho aktivitu.",
     ],
   },

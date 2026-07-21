@@ -117,8 +117,6 @@ export function DocumentViewer({
   members: MentionMember[];
 }) {
   const router = useRouter();
-  // Přítomnost u dokumentu (M7 Fáze 2) — kdo je tu + signalizace „píše (kde)".
-  const { users: presentUsers, setTyping } = usePresence(documentId);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [versionId, setVersionId] = useState<number>(versions[0]?.id ?? 0);
   const [viewSrc, setViewSrc] = useState<string | null>(null);
@@ -246,6 +244,13 @@ export function DocumentViewer({
       );
     }
   }, [documentId, sendPins]);
+
+  // Přítomnost u dokumentu (M7 Fáze 2) — kdo je tu + „píše (kde)" + živé doručení
+  // komentářů: když někdo jiný přidá/změní komentář, přenačteme (loadComments).
+  const { users: presentUsers, setTyping } = usePresence(
+    documentId,
+    loadComments,
+  );
 
   // Kotva komentáře = (dataReviewId, jinak domPath). Slouží k rozpoznání
   // „stejného prvku" — jeden prvek má jen jedno vlákno (další jako odpovědi).

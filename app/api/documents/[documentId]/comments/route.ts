@@ -10,6 +10,7 @@ import {
 } from "@/lib/comments/visibility";
 import { invalidMentionIds } from "@/lib/comments/mentions";
 import { createCommentNotifications } from "@/lib/comments/notifications";
+import { signalCommentsChanged } from "@/lib/presence/hub";
 import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -288,6 +289,9 @@ export async function POST(
     });
     return comment;
   });
+
+  // Živě oznámit ostatním u dokumentu, ať si komentáře přenačtou (M7 Fáze 2).
+  signalCommentsChanged(documentId);
 
   return NextResponse.json({ id: created.id }, { status: 201 });
 }

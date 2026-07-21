@@ -19,10 +19,21 @@ const TYPING_IDLE_MS = 4000;
 
 // Napojení na přítomnost dokumentu přes SSE + signalizace psaní i s umístěním.
 // Vrací seznam OSTATNÍCH přítomných (sebe server nevrací) a setTyping.
-export function usePresence(documentId: number) {
+// `onCommentsChanged` = zavolá se, když někdo jiný přidá/změní komentář (živé
+// doručení, M7 Fáze 2) — klient si má komentáře přenačíst.
+export function usePresence(
+  documentId: number,
+  onCommentsChanged?: () => void,
+) {
   const [users, setUsers] = useState<PresenceUser[]>([]);
   const typingRef = useRef(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Callback do refu, ať se EventSource nereconnectne při každém renderu.
+  const commentsCbRef = useRef(onCommentsChanged);
+  useEffect(() => {
+    commentsCbRef.current = onCommentsChanged;
+  });
+  const commentsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const post = useCallback(
     (typing: boolean, location: TypingLocation | null) => {
@@ -52,8 +63,17 @@ export function usePresence(documentId: number) {
         // ignoruj vadnou zprávu
       }
     });
+    // Živé doručení: někdo přidal/změnil komentář → přenačíst (debounce proti
+    // dávce). Vlastní GET klienta aplikuje jeho filtr viditelnosti.
+    es.addEventListener("comments", () => {
+      if (commentsTimer.current) clearTimeout(commentsTimer.current);
+      commentsTimer.current = setTimeout(() => {
+        commentsCbRef.current?.();
+      }, 250);
+    });
     return () => {
       es.close();
+      if (commentsTimer.current) clearTimeout(commentsTimer.current);
     };
   }, [documentId]);
 

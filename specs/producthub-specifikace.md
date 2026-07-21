@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-21**
+  * M7 Fáze 2 - **živé doručení komentářů**: nový komentář / odpověď / změna stavu se u ostatních u dokumentu objeví bez obnovení. Server po zápisu pošle SSE signál, klient přenačte; signál nenese data komentářů, každý klient si je natáhne s vlastním filtrem viditelnosti. - Hana Ortmannová
   * M7 - **volba notifikací per uživatel** (Fáze 1b): v Nastavení (`/nastaveni`) si každý zvolí rozsah upozornění - **vše** (default) / **jen když jsem zapojen** (@zmínka nebo odpověď/změna stavu v mém vláknu). Nový sloupec `User.notifyScope` (enum, default ALL; po db-security-expert review a souhlasu Hany). Endpoint `PATCH /api/me/notification-scope`. Preference jen zužuje příjemce, nemění filtr viditelnosti interních. - Hana Ortmannová
   * M7 Fáze 2 - přítomní mají **barvu per uživatel** (podle userId); u prvku na stránce se místo textového štítku ukazuje **avatar** píšícího (víc lidí u jednoho prvku = shluk avatarů). Podnět Hany - textové štítky u prvku splývaly. - Hana Ortmannová
   * M7 Fáze 2 - **„kdo píše" u konkrétního prvku**: signál psaní nese umístění (stránka + prvek/vlákno); živá značka se ukáže přímo u prvku na stránce (overlay), u vlákna v panelu i u avatara v liště. **Klik na avatar píšícího** naroluje a zvýrazní prvek, kde píše (i přes stránky). Stejný filtr viditelnosti (externí nevidí interní ani jeho psaní). - Hana Ortmannová
@@ -159,7 +160,7 @@ Aplikace je nasazená na produkci a milníky M0-M5 jsou hotové a otestované
 | M4 | Nasazení na Railway; M4.5 deaktivace/mazání uživatelů, tři úrovně rolí | 🟢 hotovo |
 | M5 | Dokumenty: upload/import, verze, sandboxovaný prohlížeč | 🟢 hotovo |
 | M6 | Komentáře nad elementy + vlákna | 🟠 implementováno - čeká na ruční test Hany |
-| M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček + přítomnost hotové, živé doručení komentářů plánováno |
+| M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček, přítomnost, živé komentáře i volba notifikací hotové; zvoneček naživo zbývá |
 | M8 | Požadavky + Claude prompt | 🟠 plánováno |
 | M9 | Přenos komentářů mezi verzemi + dokončení | 🟠 plánováno |
 
@@ -230,7 +231,7 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
   * Jeden prvek = jedno vlákno: klik na už okomentovaný prvek NEzaloží nový komentář, ale otevře jeho existující vlákno - další připomínky se řeší jako odpovědi v diskusi.
   * Formulář nového komentáře po výběru elementu: čitelný popis prvku, textarea s @našeptávačem členů, checkbox Interní (jen pro interní členy).
 * 🟠 M6 - špendlíky: číslované značky na komentovaných elementech uvnitř iframe. Špendlík skrytého elementu (zavřený modal) se schová a objeví se, až je element vidět. Klik na špendlík (v obou režimech) aktivuje vlákno v panelu.
-* 🟢 M7 Fáze 2 - přítomnost: kdo je u dokumentu + kdo píše (u avataru, u prvku na stránce, u vlákna v panelu; klik na avatar skočí na místo psaní); externí nevidí interní; 🟠 živé aktualizace komentářů bez refreshe zbývají
+* 🟢 M7 Fáze 2 - přítomnost + živé komentáře: kdo je u dokumentu + kdo píše (avatar u prvku / panel / lišta, barva per uživatel; klik na avatar skočí na místo psaní); nový komentář/odpověď se u ostatních objeví bez refreshe; externí nevidí interní; 🟠 zvoneček naživo zbývá
 * 🟠 M9 - prohlížení starých verzí read-only, badge „prvek už neexistuje" u osiřelých komentářů.
 
 ### Požadavky (`/projects/[id]/requirements`) 🟠 M8
@@ -365,7 +366,7 @@ Milníky M0-M5 jsou akceptované (ruční test Hany proběhl u každého). Pro 
 **M7 Fáze 2 - realtime (SSE) - přítomnost hotová, živé doručení plánováno:**
 
 * [x] Přítomnost: kdo je u dokumentu + kdo právě píše; externí NEVIDÍ interní (SSE + computeRoster + testy)
-* [ ] Nový komentář se u ostatních objeví bez refreshe; zvoneček živě přes SSE (dnes poll ~60 s)
+* [x] Nový komentář / odpověď / změna stavu se u ostatních objeví bez refreshe (SSE signál + přenačtení, filtr viditelnosti u každého klienta)
 
 **M8 - požadavky + prompt:**
 

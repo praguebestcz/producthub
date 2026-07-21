@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { commentStatusSchema } from "@/lib/validation";
 import { canViewComment } from "@/lib/comments/visibility";
 import { createCommentNotifications } from "@/lib/comments/notifications";
+import { signalCommentsChanged } from "@/lib/presence/hub";
 
 // Změna stavu vlákna (Vyřešit / Znovu otevřít) — COMMENTER+ (design doc
 // neomezuje na autora). Stav má jen kořenový komentář.
@@ -26,6 +27,7 @@ export async function PATCH(
     select: {
       id: true,
       projectId: true,
+      documentId: true,
       parentId: true,
       visibility: true,
       status: true,
@@ -91,6 +93,9 @@ export async function PATCH(
     });
     return u;
   });
+
+  // Živě oznámit ostatním u dokumentu (M7 Fáze 2).
+  signalCommentsChanged(comment.documentId);
 
   return NextResponse.json(updated);
 }

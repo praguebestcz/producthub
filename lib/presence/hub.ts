@@ -85,6 +85,22 @@ export function leave(documentId: number, connId: string): void {
   else broadcast(documentId);
 }
 
+// Živé doručení komentářů (M7 Fáze 2): oznámí všem spojením dokumentu, že se
+// komentáře změnily → klienti si je přenačtou. Signál NEnese data komentářů
+// (každý klient si je natáhne přes GET s VLASTNÍM filtrem viditelnosti — interní
+// komentář se tak neinternímu nikdy nepošle).
+export function signalCommentsChanged(documentId: number): void {
+  const s = docs.get(documentId);
+  if (!s) return;
+  for (const c of s.conns.values()) {
+    try {
+      c.send("comments", {});
+    } catch {
+      // spadlé spojení uklidí leave()
+    }
+  }
+}
+
 // Nastav „píše (kde) / přestal psát" pro uživatele (jen když je opravdu přítomen).
 export function setTyping(
   documentId: number,
