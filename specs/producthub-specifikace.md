@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-21**
+  * M7 Fáze 2 - přítomní mají **barvu per uživatel** (podle userId); u prvku na stránce se místo textového štítku ukazuje **avatar** píšícího (víc lidí u jednoho prvku = shluk avatarů). Podnět Hany - textové štítky u prvku splývaly. - Hana Ortmannová
   * M7 Fáze 2 - **„kdo píše" u konkrétního prvku**: signál psaní nese umístění (stránka + prvek/vlákno); živá značka se ukáže přímo u prvku na stránce (overlay), u vlákna v panelu i u avatara v liště. **Klik na avatar píšícího** naroluje a zvýrazní prvek, kde píše (i přes stránky). Stejný filtr viditelnosti (externí nevidí interní ani jeho psaní). - Hana Ortmannová
 * **2026-07-20**
   * M7 Fáze 1 - **notifikace (zvoneček)**: server zakládá notifikace (nový komentář / odpověď / @zmínka / změna stavu) s filtrem viditelnosti (interní jen internímu příjemci), zvoneček v horní liště s počtem nepřečtených, proklik na vlákno, označení přečtení. Bez migrace (tabulka Notification z M1). Realtime (SSE) je Fáze 2. Detailní spec: outputs/m7-realtime-notifikace-spec.md - Hana Ortmannová

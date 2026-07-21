@@ -11,7 +11,7 @@
  * Protokol parent → iframe (source: "producthub-parent"):
  *   mode            {commenting: boolean}
  *   pins.update     {pins: [{commentId, dataReviewId, domPath, status}]}
- *   presence.markers{markers: [{dataReviewId, domPath, label}]}  — kdo píše u prvku
+ *   presence.markers{markers: [{dataReviewId, domPath, users:[{initial,avatarUrl,color}]}]}  — kdo píše u prvku
  *   highlight       {commentId}
  *   highlight.anchor{dataReviewId, domPath}  — skok na prvek (klik „kde píše")
  */
@@ -81,13 +81,18 @@
     "  outline: 3px solid #c8102e !important; outline-offset: 2px; border-radius: 2px; }",
     "@keyframes ph-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,16,46,.0); }",
     "  50% { box-shadow: 0 0 0 6px rgba(200,16,46,.35); } }",
-    // Živá značka „kdo píše" u prvku (M7 Fáze 2) — zelený štítek nad prvkem.
+    // Živá značka „kdo píše" u prvku (M7 Fáze 2) — avatar(y) píšících nad prvkem,
+    // barva kroužku podle uživatele (--phc). Víc lidí = shluk avatarů.
     ".ph-typing { position: absolute; z-index: 2147483646; pointer-events: none;",
-    "  display: inline-flex; align-items: center; max-width: 220px; padding: 2px 7px;",
-    "  border-radius: 999px; background: #059669; color: #fff; font: 600 11px/1.4 sans-serif;",
-    "  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;",
-    "  box-shadow: 0 1px 3px rgba(0,0,0,.25); animation: ph-typing 1.2s ease-in-out infinite; }",
-    "@keyframes ph-typing { 0%,100% { opacity: .8; } 50% { opacity: 1; } }",
+    "  display: inline-flex; align-items: center; }",
+    ".ph-typing-av { width: 24px; height: 24px; border-radius: 50%; overflow: hidden;",
+    "  margin-left: -7px; border: 2px solid #fff; background: var(--phc,#059669); color: #fff;",
+    "  box-shadow: 0 0 0 2px var(--phc,#059669), 0 1px 3px rgba(0,0,0,.3);",
+    "  font: 700 11px/20px sans-serif; text-align: center; text-transform: uppercase;",
+    "  animation: ph-typing 1.1s ease-in-out infinite; }",
+    ".ph-typing-av:first-child { margin-left: 0; }",
+    ".ph-typing-av img { display: block; width: 100%; height: 100%; object-fit: cover; }",
+    "@keyframes ph-typing { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }",
     ".ph-typing[data-hidden] { display: none; }",
   ].join("\n");
 
@@ -369,11 +374,34 @@
     markerLayer.textContent = "";
     for (var i = 0; i < typingMarkers.length; i++) {
       var m = typingMarkers[i];
-      var el = document.createElement("div");
-      el.className = "ph-typing";
-      el.setAttribute("data-ph-overlay", "");
-      el.textContent = "✎ " + (m.label || "píše…");
-      markerLayer.appendChild(el);
+      var wrap = document.createElement("div");
+      wrap.className = "ph-typing";
+      wrap.setAttribute("data-ph-overlay", "");
+      var users = m.users || [];
+      for (var j = 0; j < users.length; j++) {
+        var u = users[j];
+        var av = document.createElement("div");
+        av.className = "ph-typing-av";
+        av.style.setProperty("--phc", u.color || "#059669");
+        var ini = (u.initial || "?").charAt(0) || "?";
+        if (u.avatarUrl) {
+          var img = document.createElement("img");
+          img.alt = "";
+          img.referrerPolicy = "no-referrer";
+          // Když se avatar nenačte, ukáž iniciálu na barevném podkladu.
+          img.onerror = (function (node, initial) {
+            return function () {
+              node.textContent = initial;
+            };
+          })(av, ini);
+          av.appendChild(img);
+          img.src = u.avatarUrl;
+        } else {
+          av.textContent = ini;
+        }
+        wrap.appendChild(av);
+      }
+      markerLayer.appendChild(wrap);
     }
     repositionMarkers();
   }

@@ -65,6 +65,7 @@ import {
 import type { MentionMember } from "@/components/comments/mention-textarea";
 import { usePresence, type PresenceUser } from "@/components/presence/use-presence";
 import { PresenceBar } from "@/components/presence/presence-bar";
+import { userColor } from "@/lib/presence/colors";
 import { PresenceTypingProvider } from "@/components/presence/typing-context";
 import { cn } from "@/lib/utils";
 
@@ -598,36 +599,40 @@ export function DocumentViewer({
     };
   }, [canCreatePrompt, documentId]);
 
-  // Živé značky „píše" na AKTUÁLNÍ stránce → overlay (u prvku/špendlíku).
-  // Víc lidí u STEJNÉHO prvku se sloučí do jedné značky (jinak by se štítky
-  // překrývaly na stejné pozici).
+  // Živé značky „píše" na AKTUÁLNÍ stránce → overlay: u prvku se ukáže AVATAR
+  // píšícího (barva per uživatel). Víc lidí u STEJNÉHO prvku = shluk avatarů
+  // v jedné značce (jinak by se překrývaly na stejné pozici).
   useEffect(() => {
+    type MUser = {
+      name: string;
+      initial: string;
+      avatarUrl: string | null;
+      color: string;
+    };
     const byAnchor = new Map<
       string,
-      { dataReviewId: string | null; domPath: string | null; names: string[] }
+      { dataReviewId: string | null; domPath: string | null; users: MUser[] }
     >();
     for (const u of presentUsers) {
       const t = u.typing;
       if (!t || t.pagePath !== pagePath) continue;
       const key = t.dataReviewId ? "id:" + t.dataReviewId : "dom:" + (t.domPath ?? "");
+      const entry: MUser = {
+        name: u.name,
+        initial: u.name.slice(0, 1).toUpperCase(),
+        avatarUrl: u.avatarUrl,
+        color: userColor(u.userId),
+      };
       const cur = byAnchor.get(key);
-      if (cur) cur.names.push(u.name);
+      if (cur) cur.users.push(entry);
       else
         byAnchor.set(key, {
           dataReviewId: t.dataReviewId,
           domPath: t.domPath,
-          names: [u.name],
+          users: [entry],
         });
     }
-    const markers = [...byAnchor.values()].map((m) => ({
-      dataReviewId: m.dataReviewId,
-      domPath: m.domPath,
-      label:
-        m.names.length === 1
-          ? `${m.names[0]} píše…`
-          : `${m.names.length} lidí píše…`,
-    }));
-    postToOverlay({ type: "presence.markers", markers });
+    postToOverlay({ type: "presence.markers", markers: [...byAnchor.values()] });
   }, [presentUsers, pagePath, postToOverlay]);
 
   // „Kdo píše u kterého vlákna" (pro panel) — threadId → jména.

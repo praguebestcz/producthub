@@ -43,7 +43,7 @@ export const RELEASES: Release[] = [
         icon: "users",
         title: "Kdo je právě u dokumentu",
         description:
-          "V liště dokumentu vidíte avatary lidí, kteří ho mají otevřený. Když někdo píše komentář, ukáže se to i přímo u daného prvku na stránce a u vlákna v panelu. Kliknutím na avatar píšícího skočíte rovnou na prvek, kde píše. Externí recenzent nikdy nevidí interní tým.",
+          "V liště dokumentu vidíte avatary lidí, kteří ho mají otevřený (každý má svou barvu). Když někdo píše komentář, jeho avatar se ukáže přímo u daného prvku na stránce a u vlákna v panelu. Kliknutím na avatar píšícího skočíte rovnou na prvek, kde píše. Externí recenzent nikdy nevidí interní tým.",
       },
     ],
   },

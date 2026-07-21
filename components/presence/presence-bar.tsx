@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { userColor } from "@/lib/presence/colors";
 import { cn } from "@/lib/utils";
 import type { PresenceUser } from "./use-presence";
 
@@ -34,6 +35,8 @@ export function PresenceBar({
       <div className="flex -space-x-2">
         {shown.map((u) => {
           const clickable = !!u.typing && !!onJump;
+          // Barevný kroužek = identita uživatele (stejná barva jako u prvku).
+          const ring = { boxShadow: `0 0 0 2px ${userColor(u.userId)}` };
           const avatar = (
             <>
               <Avatar className="size-7 ring-2 ring-background">
@@ -56,6 +59,7 @@ export function PresenceBar({
               type="button"
               onClick={() => onJump?.(u)}
               title={`${u.name} píše — přejít na místo`}
+              style={ring}
               className="relative inline-flex rounded-full transition-transform hover:z-10 hover:scale-110"
             >
               {avatar}
@@ -63,7 +67,8 @@ export function PresenceBar({
           ) : (
             <span
               key={u.userId}
-              className="relative inline-flex"
+              style={ring}
+              className="relative inline-flex rounded-full"
               title={u.name}
             >
               {avatar}
