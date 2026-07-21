@@ -13,6 +13,7 @@
  *   pins.update     {pins: [{commentId, dataReviewId, domPath, status}]}
  *   presence.markers{markers: [{dataReviewId, domPath, label}]}  — kdo píše u prvku
  *   highlight       {commentId}
+ *   highlight.anchor{dataReviewId, domPath}  — skok na prvek (klik „kde píše")
  */
 (function () {
   "use strict";
@@ -494,6 +495,20 @@
 
   var highlightTimer = null;
   var highlightedEl = null;
+
+  // Naroluj k prvku a krátce ho zvýrazni (sdílené pro highlight i skok „kde píše").
+  function highlightEl(el) {
+    if (highlightedEl) highlightedEl.classList.remove("ph-highlight");
+    highlightedEl = el;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ph-highlight");
+    if (highlightTimer) clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(function () {
+      el.classList.remove("ph-highlight");
+      highlightedEl = null;
+    }, 2600);
+  }
+
   function highlight(commentId) {
     var pin = null;
     for (var i = 0; i < pins.length; i++) {
@@ -506,17 +521,19 @@
       post("highlight.result", { commentId: commentId, found: false });
       return;
     }
-    // Zruš předchozí zvýraznění.
-    if (highlightedEl) highlightedEl.classList.remove("ph-highlight");
-    highlightedEl = el;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("ph-highlight");
-    if (highlightTimer) clearTimeout(highlightTimer);
-    highlightTimer = setTimeout(function () {
-      el.classList.remove("ph-highlight");
-      highlightedEl = null;
-    }, 2600);
+    highlightEl(el);
     post("highlight.result", { commentId: commentId, found: true });
+  }
+
+  // Skok na prvek podle kotvy (klik na „kde píše") — bez vazby na špendlík.
+  function highlightAnchor(anchor) {
+    var el = resolveAnchor(anchor);
+    if (!el || !isElementVisible(el)) {
+      post("highlight.result", { found: false });
+      return;
+    }
+    highlightEl(el);
+    post("highlight.result", { found: true });
   }
 
   // ---- zprávy od rodiče ----------------------------------------------------
@@ -537,6 +554,8 @@
       renderMarkers();
     } else if (d.type === "highlight") {
       highlight(Number(d.commentId));
+    } else if (d.type === "highlight.anchor") {
+      highlightAnchor({ dataReviewId: d.dataReviewId, domPath: d.domPath });
     } else if (d.type === "selection.clear") {
       // Formulář komentáře se zavřel (uložení/zrušení) → výběr zmizí.
       clearSelection();

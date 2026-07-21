@@ -16,34 +16,60 @@ function typingLabel(names: string[]): string {
 // Lišta přítomných u dokumentu (M7 Fáze 2). Zobrazuje OSTATNÍ přítomné (server
 // už profiltroval podle oprávnění - externí tu nikdy neuvidí interní). Prázdné,
 // když je uživatel na dokumentu sám.
-export function PresenceBar({ users }: { users: PresenceUser[] }) {
+export function PresenceBar({
+  users,
+  onJump,
+}: {
+  users: PresenceUser[];
+  // Klik na avatar píšícího → skok na prvek, kde píše. Nepovinné.
+  onJump?: (user: PresenceUser) => void;
+}) {
   if (users.length === 0) return null;
   const shown = users.slice(0, 5);
   const extra = users.length - shown.length;
   const typing = users.filter((u) => u.typing);
 
   return (
-    <div
-      className="flex items-center gap-2"
-      title={`U dokumentu: ${users.map((u) => u.name).join(", ")}`}
-    >
+    <div className="flex items-center gap-2">
       <div className="flex -space-x-2">
-        {shown.map((u) => (
-          <span key={u.userId} className="relative inline-flex">
-            <Avatar className="size-7 ring-2 ring-background">
-              <AvatarImage src={u.avatarUrl ?? undefined} alt="" />
-              <AvatarFallback className="bg-gradient-to-br from-pb to-pb-orange text-[11px] font-semibold text-white">
-                {u.name.slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {u.typing && (
-              <span
-                className="absolute -bottom-0.5 -right-0.5 size-2.5 animate-pulse rounded-full bg-emerald-500 ring-2 ring-background"
-                aria-hidden="true"
-              />
-            )}
-          </span>
-        ))}
+        {shown.map((u) => {
+          const clickable = !!u.typing && !!onJump;
+          const avatar = (
+            <>
+              <Avatar className="size-7 ring-2 ring-background">
+                <AvatarImage src={u.avatarUrl ?? undefined} alt="" />
+                <AvatarFallback className="bg-gradient-to-br from-pb to-pb-orange text-[11px] font-semibold text-white">
+                  {u.name.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {u.typing && (
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 size-2.5 animate-pulse rounded-full bg-emerald-500 ring-2 ring-background"
+                  aria-hidden="true"
+                />
+              )}
+            </>
+          );
+          return clickable ? (
+            <button
+              key={u.userId}
+              type="button"
+              onClick={() => onJump?.(u)}
+              title={`${u.name} píše — přejít na místo`}
+              className="relative inline-flex rounded-full transition-transform hover:z-10 hover:scale-110"
+            >
+              {avatar}
+            </button>
+          ) : (
+            <span
+              key={u.userId}
+              className="relative inline-flex"
+              title={u.name}
+            >
+              {avatar}
+            </span>
+          );
+        })}
         {extra > 0 && (
           <span
             className={cn(

@@ -63,7 +63,7 @@ import {
   PromptExportsDialog,
 } from "@/components/comments/prompt-export";
 import type { MentionMember } from "@/components/comments/mention-textarea";
-import { usePresence } from "@/components/presence/use-presence";
+import { usePresence, type PresenceUser } from "@/components/presence/use-presence";
 import { PresenceBar } from "@/components/presence/presence-bar";
 import { PresenceTypingProvider } from "@/components/presence/typing-context";
 import { cn } from "@/lib/utils";
@@ -170,6 +170,11 @@ export function DocumentViewer({
   // jednorázově, jakmile se vlákna donačtou.
   const wantCommentRef = useRef<number | null>(null);
   const highlightFromUrlDoneRef = useRef(false);
+  // Skok „kde píše" na prvek z jiné stránky → zvýraznit po jejím načtení.
+  const pendingHighlightAnchorRef = useRef<{
+    dataReviewId: string | null;
+    domPath: string | null;
+  } | null>(null);
   // Aktivní view-token + kdy vznikl. Reuse napříč navigacemi téže verze, ať se
   // URL assetů nemění a prohlížeč je cacheuje (výkon, audit). Po ~50 min se
   // vydá nový (token má TTL ~1 h).
@@ -363,6 +368,31 @@ export function DocumentViewer({
     if (next === "browse") setBubble(null);
   }
 
+  // Klik na avatar píšícího (lišta přítomných) → skoč na prvek, kde právě píše
+  // (i přes stránky). U odpovědi zároveň otevře jeho vlákno v panelu.
+  function jumpToTyping(user: PresenceUser) {
+    const loc = user.typing;
+    if (!loc) return;
+    if (loc.threadId != null) {
+      setActiveThreadId(loc.threadId);
+      setPanelMode("thread");
+      setPanelOpen(true);
+    }
+    if (loc.pagePath === pagePathRef.current) {
+      postToOverlay({
+        type: "highlight.anchor",
+        dataReviewId: loc.dataReviewId,
+        domPath: loc.domPath,
+      });
+    } else {
+      pendingHighlightAnchorRef.current = {
+        dataReviewId: loc.dataReviewId,
+        domPath: loc.domPath,
+      };
+      void goToPage(loc.pagePath);
+    }
+  }
+
   // Při změně verze vyžádá čerstvý view-token a nastaví iframe na vstupní
   // stránku. Fetch v async IIFE — setState až po `await` (pravidlo react-hooks).
   useEffect(() => {
@@ -429,6 +459,14 @@ export function DocumentViewer({
               commentId: pendingHighlightRef.current,
             });
             pendingHighlightRef.current = null;
+          }
+          // Skok „kde píše" na prvek z jiné stránky.
+          if (pendingHighlightAnchorRef.current !== null) {
+            postToOverlay({
+              type: "highlight.anchor",
+              ...pendingHighlightAnchorRef.current,
+            });
+            pendingHighlightAnchorRef.current = null;
           }
         });
       } else if (d.type === "element.selected") {
@@ -669,7 +707,7 @@ export function DocumentViewer({
         )}
 
         {/* Kdo je právě u dokumentu + kdo píše (M7 Fáze 2) */}
-        <PresenceBar users={presentUsers} />
+        <PresenceBar users={presentUsers} onJump={jumpToTyping} />
 
         {/* Režim prohlížeče — komentovat smí COMMENTER+. Výrazný přepínač:
             aktivní „Komentování" svítí PB červenou. */}
