@@ -32,16 +32,20 @@ export function PresenceBar({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex -space-x-2">
+      <div className="flex items-center gap-1.5">
         {shown.map((u) => {
           const clickable = !!u.typing && !!onJump;
+          const color = userColor(u.userId);
           // Barevný kroužek = identita uživatele (stejná barva jako u prvku).
-          const ring = { boxShadow: `0 0 0 2px ${userColor(u.userId)}` };
+          const ring = { boxShadow: `0 0 0 2px ${color}` };
           const avatar = (
             <>
-              <Avatar className="size-7 ring-2 ring-background">
+              <Avatar className="size-7">
                 <AvatarImage src={u.avatarUrl ?? undefined} alt="" />
-                <AvatarFallback className="bg-gradient-to-br from-pb to-pb-orange text-[11px] font-semibold text-white">
+                <AvatarFallback
+                  className="text-[11px] font-semibold text-white"
+                  style={{ backgroundColor: color }}
+                >
                   {u.name.slice(0, 1).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
