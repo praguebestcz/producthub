@@ -77,6 +77,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "Zvoneček v pravém horním rohu ukazuje počet nepřečtených upozornění.",
       "Upozorní vás na odpověď ve vašem vláknu, na @zmínku i na změnu stavu vlákna, kterého se účastníte.",
       "Kliknutím na upozornění přejdete rovnou k danému komentáři; tlačítkem Označit vše přečtené počet vynulujete.",
+      "V Nastavení (menu u vašeho jména dole) si zvolíte rozsah: veškeré dění, nebo jen když jste zapojeni (@zmínka / odpověď ve vašem vláknu).",
     ],
   },
   {

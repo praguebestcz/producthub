@@ -15,6 +15,7 @@
 ## Revize
 
 * **2026-07-21**
+  * M7 - **volba notifikací per uživatel** (Fáze 1b): v Nastavení (`/nastaveni`) si každý zvolí rozsah upozornění - **vše** (default) / **jen když jsem zapojen** (@zmínka nebo odpověď/změna stavu v mém vláknu). Nový sloupec `User.notifyScope` (enum, default ALL; po db-security-expert review a souhlasu Hany). Endpoint `PATCH /api/me/notification-scope`. Preference jen zužuje příjemce, nemění filtr viditelnosti interních. - Hana Ortmannová
   * M7 Fáze 2 - přítomní mají **barvu per uživatel** (podle userId); u prvku na stránce se místo textového štítku ukazuje **avatar** píšícího (víc lidí u jednoho prvku = shluk avatarů). Podnět Hany - textové štítky u prvku splývaly. - Hana Ortmannová
   * M7 Fáze 2 - **„kdo píše" u konkrétního prvku**: signál psaní nese umístění (stránka + prvek/vlákno); živá značka se ukáže přímo u prvku na stránce (overlay), u vlákna v panelu i u avatara v liště. **Klik na avatar píšícího** naroluje a zvýrazní prvek, kde píše (i přes stránky). Stejný filtr viditelnosti (externí nevidí interní ani jeho psaní). - Hana Ortmannová
 * **2026-07-20**

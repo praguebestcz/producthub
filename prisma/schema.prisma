@@ -81,6 +81,14 @@ enum PromptExportStatus {
   DONE
 }
 
+// Rozsah notifikací uživatele (M7). ALL = veškeré dění v jeho dokumentech;
+// INVOLVED = jen když je zapojen (@zmínka nebo odpověď/změna stavu v jeho vláknu).
+// Preference jen ZUŽUJE množinu příjemců, nemění filtr viditelnosti interních.
+enum NotifyScope {
+  ALL
+  INVOLVED
+}
+
 // === Modely ===
 
 // Uživatel — účet vzniká při prvním přihlášení přes Google. Žádná hesla.
@@ -102,6 +110,8 @@ model User {
   // (staré session nesmí obživnout). Data (komentáře, členství, historie)
   // zůstávají — deaktivace NENÍ mazání.
   deactivatedAt     DateTime?
+  // Rozsah notifikací (M7) — self-service, mění si sám uživatel v /nastaveni.
+  notifyScope       NotifyScope @default(ALL)
   createdAt         DateTime @default(now())
 
   createdProjects      Project[]         @relation("ProjectCreator")

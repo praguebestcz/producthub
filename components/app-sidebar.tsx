@@ -11,6 +11,7 @@ import {
   LogOut,
   MessagesSquare,
   PanelLeftClose,
+  Settings,
   Shield,
 } from "lucide-react";
 import {
@@ -180,6 +181,10 @@ function UserFooterMenu({ user }: { user: SidebarUser }) {
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/nastaveni" />}>
+          <Settings aria-hidden="true" />
+          Nastavení
+        </DropdownMenuItem>
         <DropdownMenuItem variant="destructive" onClick={logout}>
           <LogOut aria-hidden="true" />
           Odhlásit se

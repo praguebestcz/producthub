@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 6,
+    date: "21. 7. 2026",
+    title: "Volba upozornění",
+    items: [
+      {
+        icon: "bell",
+        title: "Kdy vám chodí upozornění",
+        description:
+          "V Nastavení (menu u vašeho jména dole) si zvolíte, zda chcete upozornění na veškeré dění v dokumentech, nebo jen když jste zapojeni - někdo vás @zmíní nebo odpoví ve vašem vláknu.",
+      },
+    ],
+  },
+  {
     id: 5,
     date: "20. 7. 2026",
     title: "Přítomnost u dokumentu",

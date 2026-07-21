@@ -89,16 +89,18 @@ export async function createCommentNotifications(
       userId: true,
       role: true,
       isInternal: true,
-      user: { select: { deactivatedAt: true } },
+      user: { select: { deactivatedAt: true, notifyScope: true } },
     },
   });
   const memberIndex = new Map<number, RecipientMemberInfo>();
+  const scopeIndex = new Map<number, NotifyScope>();
   for (const m of members) {
     memberIndex.set(m.userId, {
       role: m.role,
       isInternal: m.isInternal,
       deactivated: m.user.deactivatedAt !== null,
     });
+    scopeIndex.set(m.userId, m.user.notifyScope);
   }
 
   let candidateUserIds: number[];
@@ -121,6 +123,7 @@ export async function createCommentNotifications(
     isInternalComment: opts.isInternalComment,
     actorId: opts.actorId,
     memberIndex,
+    scopeIndex,
   });
 
   if (recipients.length === 0) return;
