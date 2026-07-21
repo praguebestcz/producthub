@@ -12,22 +12,32 @@ export type PresentUser = {
   internal: boolean;
 };
 
+// Kde uživatel právě píše: stránka + prvek/vlákno. threadId = odpověď v
+// existujícím vláknu; dataReviewId/domPath = prvek nového komentáře.
+export type TypingInfo = {
+  pagePath: string;
+  threadId: number | null;
+  dataReviewId: string | null;
+  domPath: string | null;
+};
+
 export type RosterEntry = {
   userId: number;
   name: string;
   avatarUrl: string | null;
   internal: boolean;
-  typing: boolean;
+  // null = nepíše; jinak kde píše (pro živou značku u prvku / vlákna).
+  typing: TypingInfo | null;
 };
 
 // Seznam přítomných pro daného příjemce:
 //  - bez sebe sama (ukazujeme „ostatní přítomní"),
 //  - externí příjemce nevidí interní přítomné,
 //  - deduplikace podle userId (jeden uživatel, víc záložek = jednou),
-//  - příznak „píše" podle množiny právě píšících (a projde stejným filtrem).
+//  - „píše" (i s umístěním) projde stejným filtrem viditelnosti.
 export function computeRoster(
   present: PresentUser[],
-  typingUserIds: Set<number>,
+  typing: Map<number, TypingInfo>,
   recipient: { userId: number; canSeeInternal: boolean },
 ): RosterEntry[] {
   const seen = new Set<number>();
@@ -42,7 +52,7 @@ export function computeRoster(
       name: u.name,
       avatarUrl: u.avatarUrl,
       internal: u.internal,
-      typing: typingUserIds.has(u.userId),
+      typing: typing.get(u.userId) ?? null,
     });
   }
   return out;

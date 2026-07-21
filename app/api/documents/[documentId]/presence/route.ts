@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import {
   canSeeInternal,
   getSessionUser,
@@ -143,7 +144,16 @@ export async function GET(
   });
 }
 
-// POST /api/documents/[documentId]/presence - „píše / přestal psát".
+// Signál psaní: příznak + kde (stránka + prvek/vlákno). Limity jako u komentáře.
+const typingSchema = z.object({
+  typing: z.boolean(),
+  pagePath: z.string().max(500).optional(),
+  threadId: z.number().int().positive().nullish(),
+  dataReviewId: z.string().max(200).nullish(),
+  domPath: z.string().max(2000).nullish(),
+});
+
+// POST /api/documents/[documentId]/presence - „píše (kde) / přestal psát".
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ documentId: string }> },
@@ -157,9 +167,21 @@ export async function POST(
   if (!ctx) {
     return NextResponse.json({ error: "Dokument nenalezen" }, { status: 404 });
   }
-  const body = await req.json().catch(() => null);
-  const typing = body?.typing === true;
+  const parsed = typingSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Neplatný vstup" }, { status: 400 });
+  }
+  const { typing, pagePath, threadId, dataReviewId, domPath } = parsed.data;
   // Píše se jen za svého uživatele (userId ze session), hub ověří přítomnost.
-  setTyping(documentId, user.id, typing);
+  const info =
+    typing && pagePath
+      ? {
+          pagePath,
+          threadId: threadId ?? null,
+          dataReviewId: dataReviewId ?? null,
+          domPath: domPath ?? null,
+        }
+      : null;
+  setTyping(documentId, user.id, typing, info);
   return NextResponse.json({ ok: true });
 }

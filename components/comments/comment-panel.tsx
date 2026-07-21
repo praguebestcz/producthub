@@ -26,6 +26,7 @@ import {
   activeMentions,
   type MentionMember,
 } from "@/components/comments/mention-textarea";
+import { usePresenceTyping } from "@/components/presence/typing-context";
 import { cn } from "@/lib/utils";
 import {
   matchesStatusFilter,
@@ -183,6 +184,7 @@ export function CommentPanel({
   onCreatePromptForThread,
   generatingKey,
   members,
+  typingByThread,
 }: {
   open: boolean;
   mode: PanelMode;
@@ -215,6 +217,8 @@ export function CommentPanel({
   // Co se právě generuje: "bulk" (výběr) / id vlákna / null.
   generatingKey: number | "bulk" | null;
   members: MentionMember[];
+  // M7 Fáze 2 — kdo právě píše u kterého vlákna (threadId → jména).
+  typingByThread: Map<number, string[]>;
 }) {
   // Jen komentáře aktuální verze (u víceverzového dokumentu se verze nemíchají).
   const versionThreads = threads.filter(
@@ -349,6 +353,7 @@ export function CommentPanel({
               }
               generatingPrompt={generatingKey === activeThread.id}
               generateDisabled={generatingKey !== null}
+              typingNames={typingByThread.get(activeThread.id) ?? []}
             />
           ) : (
             <p className="px-1 py-6 text-center text-sm text-muted-foreground">
@@ -423,6 +428,7 @@ export function CommentPanel({
                 }
                 generatingPrompt={generatingKey === thread.id}
                 generateDisabled={generatingKey !== null}
+                typingNames={typingByThread.get(thread.id) ?? []}
               />
             ))}
           </>
@@ -715,6 +721,7 @@ function NewThreadForm({
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
+  const setTyping = usePresenceTyping();
   const [body, setBody] = useState("");
   const [internal, setInternal] = useState(false);
   const [mentions, setMentions] = useState<number[]>([]);
@@ -790,6 +797,14 @@ function NewThreadForm({
         members={members}
         placeholder="Napište komentář… (@ zmíní člena)"
         autoFocus
+        onTypingChange={(t) =>
+          setTyping(t, {
+            pagePath: selectedElement.pagePath,
+            threadId: null,
+            dataReviewId: selectedElement.dataReviewId,
+            domPath: selectedElement.domPath,
+          })
+        }
       />
       {/* GDPR minimalizace: komentář je volný text a může jít i do AI. */}
       <p className="text-[10px] leading-tight text-muted-foreground">
@@ -833,6 +848,7 @@ function ThreadCard({
   onCreatePrompt,
   generatingPrompt = false,
   generateDisabled = false,
+  typingNames = [],
 }: {
   documentId: number;
   thread: CommentThread;
@@ -844,6 +860,8 @@ function ThreadCard({
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
+  // M7 Fáze 2 — kdo právě píše v tomto vláknu (jména).
+  typingNames?: string[];
   // M8 — zaškrtávátko pro výběr do promptu (jen u nevyřešených, interní tým).
   selectable?: boolean;
   selected?: boolean;
@@ -938,6 +956,18 @@ function ThreadCard({
           </Badge>
         )}
       </div>
+
+      {typingNames.length > 0 && (
+        <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+          <span
+            className="size-1.5 animate-pulse rounded-full bg-emerald-500"
+            aria-hidden="true"
+          />
+          {typingNames.length === 1
+            ? `${typingNames[0].split(" ")[0]} píše…`
+            : `${typingNames.length} lidí píše…`}
+        </p>
+      )}
 
       <AuthorLine author={thread.author} createdAt={thread.createdAt} />
       <p className="text-sm whitespace-pre-wrap break-words">{thread.body}</p>
@@ -1075,6 +1105,7 @@ function ReplyForm({
   canSeeInternal: boolean;
   members: MentionMember[];
 }) {
+  const setTyping = usePresenceTyping();
   // Odpověď v INTERNÍM vlákně je vždy interní (server ji stejně vynutí).
   const forcedInternal = thread.visibility === "INTERNAL";
   const [body, setBody] = useState("");
@@ -1118,6 +1149,14 @@ function ReplyForm({
         members={members}
         placeholder="Napište odpověď… (@ zmíní člena)"
         autoFocus
+        onTypingChange={(t) =>
+          setTyping(t, {
+            pagePath: thread.pagePath,
+            threadId: thread.id,
+            dataReviewId: thread.dataReviewId,
+            domPath: thread.domPath,
+          })
+        }
       />
       <div className="flex items-center justify-between gap-2">
         {canSeeInternal ? (

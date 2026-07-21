@@ -9,9 +9,10 @@
  *   element.selected {pagePath, dataReviewId, domPath, rect, elementHtml, viewport}
  *   pin.clicked      {commentId}
  * Protokol parent → iframe (source: "producthub-parent"):
- *   mode       {commenting: boolean}
- *   pins.update{pins: [{commentId, dataReviewId, domPath, status}]}
- *   highlight  {commentId}
+ *   mode            {commenting: boolean}
+ *   pins.update     {pins: [{commentId, dataReviewId, domPath, status}]}
+ *   presence.markers{markers: [{dataReviewId, domPath, label}]}  — kdo píše u prvku
+ *   highlight       {commentId}
  */
 (function () {
   "use strict";
@@ -21,6 +22,7 @@
   // ---- stav overlaye -------------------------------------------------------
   var commenting = false; // režim komentování (crosshair, klik = výběr)
   var pins = []; // poslední pins.update od rodiče
+  var typingMarkers = []; // poslední presence.markers od rodiče („kdo píše u prvku")
   // Po kliknutí je element „vybraný": hover se ZASTAVÍ a výběr zůstane
   // orámovaný, dokud rodič nepošle selection.clear (uložení/zrušení formuláře).
   // Bez toho rámeček skákal po stránce cestou myši k panelu (zpětná vazba Hany).
@@ -78,6 +80,14 @@
     "  outline: 3px solid #c8102e !important; outline-offset: 2px; border-radius: 2px; }",
     "@keyframes ph-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,16,46,.0); }",
     "  50% { box-shadow: 0 0 0 6px rgba(200,16,46,.35); } }",
+    // Živá značka „kdo píše" u prvku (M7 Fáze 2) — zelený štítek nad prvkem.
+    ".ph-typing { position: absolute; z-index: 2147483646; pointer-events: none;",
+    "  display: inline-flex; align-items: center; max-width: 220px; padding: 2px 7px;",
+    "  border-radius: 999px; background: #059669; color: #fff; font: 600 11px/1.4 sans-serif;",
+    "  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;",
+    "  box-shadow: 0 1px 3px rgba(0,0,0,.25); animation: ph-typing 1.2s ease-in-out infinite; }",
+    "@keyframes ph-typing { 0%,100% { opacity: .8; } 50% { opacity: 1; } }",
+    ".ph-typing[data-hidden] { display: none; }",
   ].join("\n");
 
   var hoverBox = document.createElement("div");
@@ -96,11 +106,17 @@
   // Vrstva bez rozměrů — špendlíky jsou pozicované absolutně vůči dokumentu.
   pinLayer.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;";
 
+  // Vrstva živých značek „kdo píše" (M7 Fáze 2) — pozicované jako špendlíky.
+  var markerLayer = document.createElement("div");
+  markerLayer.setAttribute("data-ph-overlay", "");
+  markerLayer.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;";
+
   function mountOwnElements() {
     (document.head || document.documentElement).appendChild(styleEl);
     document.body.appendChild(hoverBox);
     document.body.appendChild(selBox);
     document.body.appendChild(pinLayer);
+    document.body.appendChild(markerLayer);
   }
 
   function placeBox(box, rect) {
@@ -343,6 +359,48 @@
       btn.style.top = rect.top - 10 + "px";
       btn.style.left = left + "px";
     }
+    repositionMarkers();
+  }
+
+  // ---- živé značky „kdo píše" (M7 Fáze 2) ---------------------------------
+
+  function renderMarkers() {
+    markerLayer.textContent = "";
+    for (var i = 0; i < typingMarkers.length; i++) {
+      var m = typingMarkers[i];
+      var el = document.createElement("div");
+      el.className = "ph-typing";
+      el.setAttribute("data-ph-overlay", "");
+      el.textContent = "✎ " + (m.label || "píše…");
+      markerLayer.appendChild(el);
+    }
+    repositionMarkers();
+  }
+
+  function repositionMarkers() {
+    var nodes = markerLayer.children;
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var m = typingMarkers[i];
+      if (!m) continue;
+      var el = resolveAnchor(m);
+      if (!el || !isElementVisible(el)) {
+        node.setAttribute("data-hidden", "");
+        continue;
+      }
+      var rect = documentRect(el);
+      if (rect.width === 0 && rect.height === 0) {
+        node.setAttribute("data-hidden", "");
+        continue;
+      }
+      node.removeAttribute("data-hidden");
+      // Štítek nad levý horní roh prvku; když by vylezl nad stránku, dovnitř.
+      var top = rect.top - 20;
+      if (top < 2) top = rect.top + 2;
+      var left = rect.left < 2 ? 2 : rect.left;
+      node.style.top = top + "px";
+      node.style.left = left + "px";
+    }
   }
 
   // Debounced reposition — JS prototypu mění DOM za běhu (modaly, dynamická
@@ -474,6 +532,9 @@
     } else if (d.type === "pins.update") {
       pins = Array.isArray(d.pins) ? d.pins : [];
       renderPins();
+    } else if (d.type === "presence.markers") {
+      typingMarkers = Array.isArray(d.markers) ? d.markers : [];
+      renderMarkers();
     } else if (d.type === "highlight") {
       highlight(Number(d.commentId));
     } else if (d.type === "selection.clear") {

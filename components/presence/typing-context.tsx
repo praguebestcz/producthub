@@ -2,13 +2,23 @@
 
 import { createContext, useContext } from "react";
 
-// Kanál pro signalizaci „píše / přestal" z libovolného vstupu komentáře nahoru
-// do prohlížeče (M7 Fáze 2), bez protahování props přes panel a bublinu.
-// Default = no-op (mimo prohlížeč dokumentu se nic neděje).
-const TypingSignalContext = createContext<(typing: boolean) => void>(() => {});
+// Kde uživatel právě píše komentář (M7 Fáze 2). threadId = odpověď v existujícím
+// vláknu; dataReviewId/domPath = prvek nového komentáře (ještě bez vlákna).
+export type TypingLocation = {
+  pagePath: string;
+  threadId: number | null;
+  dataReviewId: string | null;
+  domPath: string | null;
+};
 
-export const TypingSignalProvider = TypingSignalContext.Provider;
+// Signalizace „píše / přestal" i s umístěním. Poskytuje prohlížeč dokumentu;
+// konkrétní vstup (bublina / odpověď) doplní své umístění. Default = no-op.
+const PresenceTypingContext = createContext<
+  (typing: boolean, location: TypingLocation | null) => void
+>(() => {});
 
-export function useTypingSignal() {
-  return useContext(TypingSignalContext);
+export const PresenceTypingProvider = PresenceTypingContext.Provider;
+
+export function usePresenceTyping() {
+  return useContext(PresenceTypingContext);
 }

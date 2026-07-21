@@ -84,7 +84,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     title: "Přítomnost u dokumentu",
     points: [
       "V liště dokumentu vidíte avatary lidí, kteří ho mají zrovna otevřený.",
-      "Zelená tečka u avataru ukazuje, kdo právě píše komentář.",
+      "Když někdo píše komentář, ukáže se to zeleně: u avataru v liště, přímo u daného prvku na stránce i u vlákna v panelu.",
       "Externí recenzent (klient) nikdy nevidí interní tým PragueBest ani jeho aktivitu.",
     ],
   },

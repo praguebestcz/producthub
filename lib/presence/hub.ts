@@ -1,4 +1,4 @@
-import { computeRoster, type PresentUser } from "./roster";
+import { computeRoster, type PresentUser, type TypingInfo } from "./roster";
 
 // Paměťový hub přítomnosti (M7 Fáze 2). Drží otevřená SSE spojení per dokument
 // a množinu právě píšících. Rozesílá KAŽDÉMU spojení seznam PROFILTROVANÝ jeho
@@ -21,17 +21,19 @@ type Conn = {
 
 type DocState = {
   conns: Map<string, Conn>; // connId → Conn
-  typing: Set<number>; // userId, kteří právě píší
+  typing: Map<number, TypingInfo>; // userId → kde právě píše
 };
 
 // Singleton přežije hot-reload v devu (drží se na globalThis, vzor Prisma).
-const g = globalThis as unknown as { __phPresence?: Map<number, DocState> };
-const docs: Map<number, DocState> = (g.__phPresence ??= new Map());
+// Verze v klíči: při změně tvaru DocState se stará (nekompatibilní) instance
+// z hot-reloadu ignoruje. V produkci se startuje načisto, tam nevadí.
+const g = globalThis as unknown as { __phPresenceV2?: Map<number, DocState> };
+const docs: Map<number, DocState> = (g.__phPresenceV2 ??= new Map());
 
 function stateFor(documentId: number): DocState {
   let s = docs.get(documentId);
   if (!s) {
-    s = { conns: new Map(), typing: new Set() };
+    s = { conns: new Map(), typing: new Map() };
     docs.set(documentId, s);
   }
   return s;
@@ -83,16 +85,17 @@ export function leave(documentId: number, connId: string): void {
   else broadcast(documentId);
 }
 
-// Nastav „píše / přestal psát" pro uživatele (jen když je opravdu přítomen).
+// Nastav „píše (kde) / přestal psát" pro uživatele (jen když je opravdu přítomen).
 export function setTyping(
   documentId: number,
   userId: number,
   typing: boolean,
+  info: TypingInfo | null,
 ): void {
   const s = docs.get(documentId);
   if (!s) return;
   if (![...s.conns.values()].some((c) => c.userId === userId)) return;
-  if (typing) s.typing.add(userId);
+  if (typing && info) s.typing.set(userId, info);
   else s.typing.delete(userId);
   broadcast(documentId);
 }

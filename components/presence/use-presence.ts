@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { TypingInfo } from "@/lib/presence/roster";
+import type { TypingLocation } from "@/components/presence/typing-context";
 
 // Přítomný uživatel u dokumentu (už profiltrovaný serverem podle oprávnění).
 export type PresenceUser = {
@@ -8,25 +10,26 @@ export type PresenceUser = {
   name: string;
   avatarUrl: string | null;
   internal: boolean;
-  typing: boolean;
+  // null = nepíše; jinak kde píše (stránka + prvek/vlákno).
+  typing: TypingInfo | null;
 };
 
 // Po jak dlouhé nečinnosti se „píše" samo vypne (kdyby klient neposlal stop).
 const TYPING_IDLE_MS = 4000;
 
-// Napojení na přítomnost dokumentu přes SSE + signalizace psaní.
-// Vrací seznam OSTATNÍCH přítomných (sebe server nevrací) a funkce pro „píše".
+// Napojení na přítomnost dokumentu přes SSE + signalizace psaní i s umístěním.
+// Vrací seznam OSTATNÍCH přítomných (sebe server nevrací) a setTyping.
 export function usePresence(documentId: number) {
   const [users, setUsers] = useState<PresenceUser[]>([]);
   const typingRef = useRef(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const postTyping = useCallback(
-    (typing: boolean) => {
+  const post = useCallback(
+    (typing: boolean, location: TypingLocation | null) => {
       void fetch(`/api/documents/${documentId}/presence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ typing }),
+        body: JSON.stringify({ typing, ...(location ?? {}) }),
       }).catch(() => {});
     },
     [documentId],
@@ -54,36 +57,40 @@ export function usePresence(documentId: number) {
     };
   }, [documentId]);
 
-  // „Právě píšu" - pošle true (jednou) a naplánuje auto-stop po nečinnosti.
-  const signalTyping = useCallback(() => {
-    if (!typingRef.current) {
-      typingRef.current = true;
-      postTyping(true);
-    }
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => {
-      typingRef.current = false;
-      postTyping(false);
-    }, TYPING_IDLE_MS);
-  }, [postTyping]);
+  // „Píšu tady / přestal jsem". Při true pošle umístění (jednou) a naplánuje
+  // auto-stop po nečinnosti; každý stisk klávesy timer resetuje.
+  const setTyping = useCallback(
+    (typing: boolean, location: TypingLocation | null) => {
+      if (typing && location) {
+        if (!typingRef.current) {
+          typingRef.current = true;
+          post(true, location);
+        }
+        if (idleTimer.current) clearTimeout(idleTimer.current);
+        idleTimer.current = setTimeout(() => {
+          typingRef.current = false;
+          post(false, null);
+        }, TYPING_IDLE_MS);
+      } else {
+        if (idleTimer.current) {
+          clearTimeout(idleTimer.current);
+          idleTimer.current = null;
+        }
+        if (typingRef.current) {
+          typingRef.current = false;
+          post(false, null);
+        }
+      }
+    },
+    [post],
+  );
 
-  const stopTyping = useCallback(() => {
-    if (idleTimer.current) {
-      clearTimeout(idleTimer.current);
-      idleTimer.current = null;
-    }
-    if (typingRef.current) {
-      typingRef.current = false;
-      postTyping(false);
-    }
-  }, [postTyping]);
-
-  // Úklid při odchodu z dokumentu.
+  // Úklid časovače při odchodu z dokumentu.
   useEffect(() => {
     return () => {
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, []);
 
-  return { users, signalTyping, stopTyping };
+  return { users, setTyping };
 }
