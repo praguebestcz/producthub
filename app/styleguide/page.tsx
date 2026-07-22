@@ -30,6 +30,16 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Bell,
+  History,
+  Lock,
+  MessageSquarePlus,
+  MousePointer2,
+} from "lucide-react";
+import { PresenceBar } from "@/components/presence/presence-bar";
+import { userColor } from "@/lib/presence/colors";
 import { DialogDemo, AlertDialogDemo, ToastDemo } from "./demos";
 
 // Živý styleguide — přehled tokenů a shadcn komponent na jednom místě.
@@ -37,6 +47,9 @@ import { DialogDemo, AlertDialogDemo, ToastDemo } from "./demos";
 
 const COLORS: { name: string; varName: string }[] = [
   { name: "primary (PB)", varName: "--primary" },
+  { name: "pb", varName: "--color-pb" },
+  { name: "pb-bright", varName: "--color-pb-bright" },
+  { name: "pb-soft", varName: "--color-pb-soft" },
   { name: "pb-orange", varName: "--color-pb-orange" },
   { name: "background", varName: "--background" },
   { name: "card", varName: "--card" },
@@ -268,6 +281,146 @@ export default async function StyleguidePage() {
             <Skeleton className="h-4 w-2/3" />
           </CardContent>
         </Card>
+      </Section>
+
+      <Separator className="mt-10" />
+
+      <h2 className="mt-8 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Doménové prvky ProductHubu (komentáře a přítomnost)
+      </h2>
+
+      <Section title="Bannery režimu prohlížeče">
+        <div className="max-w-2xl space-y-2">
+          <div className="flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
+            <MessageSquarePlus size={16} aria-hidden="true" />
+            <span>Režim komentování - klikněte na prvek a napište komentář.</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background shadow-sm">
+            <MousePointer2 size={16} aria-hidden="true" />
+            <span>Režim procházení - kliky fungují normálně (odkazy, modaly).</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm">
+            <History size={16} aria-hidden="true" />
+            <span>Starší verze - jen ke čtení (info, modrá).</span>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Komentování = PB červená (pozor, kliky vybírají), procházení = tmavá
+          (neutrální), starší verze = modrá (info).
+        </p>
+      </Section>
+
+      <Section title="Přítomnost a barvy uživatelů">
+        <Card>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Lišta přítomných (kroužek = barva uživatele, zelená tečka = právě
+                píše):
+              </p>
+              <PresenceBar
+                users={[
+                  {
+                    userId: 2,
+                    name: "Jana Nová",
+                    avatarUrl: null,
+                    internal: true,
+                    typing: null,
+                  },
+                  {
+                    userId: 3,
+                    name: "Petr Klient",
+                    avatarUrl: null,
+                    internal: false,
+                    typing: {
+                      pagePath: "index.html",
+                      threadId: null,
+                      dataReviewId: null,
+                      domPath: null,
+                    },
+                  },
+                  {
+                    userId: 5,
+                    name: "Eva Externí",
+                    avatarUrl: null,
+                    internal: false,
+                    typing: null,
+                  },
+                ]}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Barvy uživatelů (stabilní podle userId, stejné u prvku i v liště):
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((id) => (
+                  <Avatar
+                    key={id}
+                    className="size-7"
+                    style={{ boxShadow: `0 0 0 2px ${userColor(id)}` }}
+                  >
+                    <AvatarFallback
+                      className="text-[11px] font-semibold text-white"
+                      style={{ backgroundColor: userColor(id) }}
+                    >
+                      {id}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Section>
+
+      <Section title="Zvoneček, špendlík, indikace psaní">
+        <div className="flex flex-wrap items-end gap-10">
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="relative inline-flex">
+              <Button variant="ghost" size="icon" aria-label="Upozornění">
+                <Bell />
+              </Button>
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-pb px-1 text-[10px] font-bold leading-none text-white">
+                3
+              </span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Zvoneček (nepřečtené)
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            {/* Špendlík je živě uvnitř sandboxu prohlížeče; tady napodobenina. */}
+            <span className="relative flex size-7 rotate-[-45deg] items-center justify-center rounded-[50%_50%_50%_0] border border-pb bg-pb shadow">
+              <span className="flex size-5 rotate-45 items-center justify-center rounded-full bg-white text-[11px] font-bold text-pb">
+                2
+              </span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Špendlík komentáře
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-medium text-white">
+              <span className="size-1.5 animate-pulse rounded-full bg-white" />
+              píše…
+            </span>
+            <span className="text-xs text-muted-foreground">Indikace psaní</span>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Stavy komentářů (badge)">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">Otevřený</Badge>
+          <Badge variant="secondary">Vyřešený</Badge>
+          <Badge variant="destructive" className="gap-1">
+            <Lock size={10} aria-hidden="true" /> Interní
+          </Badge>
+          <Badge variant="outline" className="text-muted-foreground">
+            prvek už neexistuje
+          </Badge>
+        </div>
       </Section>
 
       <Separator className="mt-10" />

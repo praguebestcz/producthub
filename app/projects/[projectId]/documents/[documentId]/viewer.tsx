@@ -881,7 +881,7 @@ export function DocumentViewer({
           (zpětná vazba Hany). Komentování = červený (pozor, kliky vybírají),
           Procházení = neutrální tmavý (kliky fungují normálně). */}
       {isReadOnlyVersion && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-amber-950 shadow-sm">
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm">
           <History size={16} aria-hidden="true" />
           <span>
             Prohlížíte starší verzi - jen ke čtení. Komentovat a odpovídat lze
