@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 9,
+    date: "22. 7. 2026",
+    title: "Úprava a mazání komentáře",
+    items: [
+      {
+        icon: "message",
+        title: "Upravit / smazat vlastní komentář",
+        description:
+          "Svůj komentář nebo odpověď teď můžete upravit i smazat (v nejnovější verzi). Vlákno s odpověďmi se nemaže, aby se neztratila cizí diskuse - jde upravit text.",
+      },
+    ],
+  },
+  {
     id: 8,
     date: "22. 7. 2026",
     title: "Komentáře přežijí novou verzi",

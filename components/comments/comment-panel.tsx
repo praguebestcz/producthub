@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   MentionTextarea,
@@ -831,6 +832,155 @@ function NewThreadForm({
   );
 }
 
+// Dvoukrokové inline potvrzení mazání (bez modalu — komentáře jsou drobné).
+function DeleteInline({
+  onDelete,
+  busy,
+}: {
+  onDelete: () => void;
+  busy: boolean;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  if (confirm) {
+    return (
+      <span className="flex items-center gap-1 text-[11px]">
+        <span className="text-muted-foreground">Smazat?</span>
+        <button
+          type="button"
+          disabled={busy}
+          className="font-medium text-destructive hover:underline"
+          onClick={onDelete}
+        >
+          Ano
+        </button>
+        <button
+          type="button"
+          className="text-muted-foreground hover:underline"
+          onClick={() => setConfirm(false)}
+        >
+          Ne
+        </button>
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="text-[11px] text-muted-foreground transition-colors hover:text-destructive"
+      onClick={() => setConfirm(true)}
+    >
+      Smazat
+    </button>
+  );
+}
+
+// Tělo komentáře/odpovědi + akce Upravit/Smazat u VLASTNÍHO (jen v nejnovější
+// verzi — `canEdit` = canComment). Úprava je inline; zmínky se úpravou textu
+// zachovají (server je re-syncuje jen když se pošlou).
+function CommentText({
+  id,
+  body,
+  isOwn,
+  canEdit,
+  onChanged,
+}: {
+  id: number;
+  body: string;
+  isOwn: boolean;
+  canEdit: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(body);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const text = value.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setEditing(false);
+      await onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Úprava se nepovedla.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function del() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success("Komentář smazán.");
+      await onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Smazání se nepovedlo.");
+      setBusy(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+        <Textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          rows={3}
+          maxLength={10_000}
+          autoFocus
+        />
+        <div className="flex gap-1.5">
+          <Button size="sm" disabled={busy || !value.trim()} onClick={save}>
+            Uložit
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setEditing(false);
+              setValue(body);
+            }}
+          >
+            Zrušit
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-sm whitespace-pre-wrap break-words">{body}</p>
+      {canEdit && isOwn && (
+        <div
+          className="mt-0.5 flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => {
+              setValue(body);
+              setEditing(true);
+            }}
+          >
+            Upravit
+          </button>
+          <DeleteInline onDelete={del} busy={busy} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ThreadCard({
   documentId,
   thread,
@@ -970,7 +1120,13 @@ function ThreadCard({
       )}
 
       <AuthorLine author={thread.author} createdAt={thread.createdAt} />
-      <p className="text-sm whitespace-pre-wrap break-words">{thread.body}</p>
+      <CommentText
+        id={thread.id}
+        body={thread.body}
+        isOwn={thread.author.id === currentUserId}
+        canEdit={canComment}
+        onChanged={onChanged}
+      />
       <ElementInfo
         dataReviewId={thread.dataReviewId}
         label={elementLabel}
@@ -997,9 +1153,13 @@ function ThreadCard({
                   Interní
                 </Badge>
               )}
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {reply.body}
-              </p>
+              <CommentText
+                id={reply.id}
+                body={reply.body}
+                isOwn={reply.author.id === currentUserId}
+                canEdit={canComment}
+                onChanged={onChanged}
+              />
               <div onClick={(e) => e.stopPropagation()}>
                 <ReactionBar
                   commentId={reply.id}
