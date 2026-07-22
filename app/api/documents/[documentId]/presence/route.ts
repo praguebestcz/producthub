@@ -8,7 +8,8 @@ import {
   SESSION_COOKIE,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { join, leave, setTyping } from "@/lib/presence/hub";
+import { join, leave, setTyping, userConnCount } from "@/lib/presence/hub";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Přítomnost u dokumentu (M7 Fáze 2). GET = SSE stream „kdo je tu / kdo píše",
 // POST = signalizace psaní. Paměťový hub (1 instance na Railway).
@@ -18,6 +19,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const HEARTBEAT_MS = 20_000;
+// Strop souběžných SSE spojení jednoho uživatele k dokumentu (víc záložek OK,
+// ale ne neomezeně) + rate-limit na otevírání spojení (proti reconnect stormu).
+const MAX_CONNS_PER_USER = 8;
 
 // Dokument + členství (READER+). Nečlen i neexistující dokument = null (404).
 async function loadDoc(documentId: number, userId: number) {
@@ -47,7 +51,24 @@ export async function GET(
     return NextResponse.json({ error: "Dokument nenalezen" }, { status: 404 });
   }
 
-  const connId = req.nextUrl.searchParams.get("c") || crypto.randomUUID();
+  // Rate-limit na otevírání spojení (proti reconnect stormu) + strop souběžných
+  // spojení (proti zahlcení SSE / růstu paměti hubu). Security review M7.
+  const rl = rateLimit(`presence:${user.id}`, 30, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Příliš mnoho spojení, chvíli počkejte." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+  if (userConnCount(documentId, user.id) >= MAX_CONNS_PER_USER) {
+    return NextResponse.json(
+      { error: "Příliš mnoho otevřených spojení k dokumentu." },
+      { status: 429 },
+    );
+  }
+
+  // connId generuje SERVER (ne z query) — vyloučí kolizi/přepis cizího spojení.
+  const connId = crypto.randomUUID();
   // Token zachytíme teď - heartbeat ho re-ověří (v intervalu už není cookies()).
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   let currentInternal = canSeeInternal(ctx.member);
@@ -104,27 +125,38 @@ export async function GET(
           cleanup();
           return;
         }
-        const u = await getUserFromToken(token);
-        if (!u) {
-          cleanup();
-          return;
-        }
-        const m = await requireProjectRole(u.id, ctx.document.projectId, "READER");
-        if (!m) {
-          cleanup();
-          return;
-        }
-        const nowInternal = canSeeInternal(m);
-        if (nowInternal !== currentInternal) {
-          currentInternal = nowInternal;
-          join(documentId, {
-            connId,
-            userId: user.id,
-            name: user.name,
-            avatarUrl: user.avatarUrl,
-            internal: currentInternal,
-            send,
-          });
+        // Re-ověření session/členství. Krátký výpadek DB NESMÍ shodit async
+        // callback do unhandled rejection — chybu spolkneme a zkusíme příště
+        // (deaktivaci/odebrání odchytí další tik).
+        try {
+          const u = await getUserFromToken(token);
+          if (!u) {
+            cleanup();
+            return;
+          }
+          const m = await requireProjectRole(
+            u.id,
+            ctx.document.projectId,
+            "READER",
+          );
+          if (!m) {
+            cleanup();
+            return;
+          }
+          const nowInternal = canSeeInternal(m);
+          if (nowInternal !== currentInternal) {
+            currentInternal = nowInternal;
+            join(documentId, {
+              connId,
+              userId: user.id,
+              name: user.name,
+              avatarUrl: user.avatarUrl,
+              internal: currentInternal,
+              send,
+            });
+          }
+        } catch {
+          // DB krátce nedostupná — spojení nech běžet, re-check příště.
         }
       }, HEARTBEAT_MS);
 
@@ -166,6 +198,14 @@ export async function POST(
   const ctx = await loadDoc(documentId, user.id);
   if (!ctx) {
     return NextResponse.json({ error: "Dokument nenalezen" }, { status: 404 });
+  }
+  // Rate-limit „píše" (každý signál dělá broadcast všem) — proti amplifikaci.
+  const rl = rateLimit(`typing:${user.id}`, 20, 10_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Příliš mnoho signálů" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
   }
   const parsed = typingSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

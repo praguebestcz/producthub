@@ -101,7 +101,28 @@ export function signalCommentsChanged(documentId: number): void {
   }
 }
 
+// Kolik spojení má uživatel u dokumentu (obrana proti zahlcení SSE spojeními).
+export function userConnCount(documentId: number, userId: number): number {
+  const s = docs.get(documentId);
+  if (!s) return 0;
+  let n = 0;
+  for (const c of s.conns.values()) if (c.userId === userId) n++;
+  return n;
+}
+
+// Stejné umístění psaní? (dedup — nebroadcastovat beze změny.)
+function sameTyping(a: TypingInfo | undefined, b: TypingInfo): boolean {
+  return (
+    !!a &&
+    a.pagePath === b.pagePath &&
+    a.threadId === b.threadId &&
+    a.dataReviewId === b.dataReviewId &&
+    a.domPath === b.domPath
+  );
+}
+
 // Nastav „píše (kde) / přestal psát" pro uživatele (jen když je opravdu přítomen).
+// Broadcast jen při SKUTEČNÉ změně stavu (dedup — obrana proti spamu POSTů).
 export function setTyping(
   documentId: number,
   userId: number,
@@ -111,7 +132,13 @@ export function setTyping(
   const s = docs.get(documentId);
   if (!s) return;
   if (![...s.conns.values()].some((c) => c.userId === userId)) return;
-  if (typing && info) s.typing.set(userId, info);
-  else s.typing.delete(userId);
+  const prev = s.typing.get(userId);
+  if (typing && info) {
+    if (sameTyping(prev, info)) return; // beze změny → nerozesílat
+    s.typing.set(userId, info);
+  } else {
+    if (!prev) return; // už nepíše → beze změny
+    s.typing.delete(userId);
+  }
   broadcast(documentId);
 }
