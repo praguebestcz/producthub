@@ -51,22 +51,29 @@ export default async function Home() {
   // Jeden dotaz přes všechny projekty uživatele; viditelnost interních se
   // vyhodnotí per členství (každý má v projektu jinou roli/interní příznak).
   const projectIds = memberships.map((m) => m.projectId);
+  // Jen NEJNOVĚJŠÍ verze každého dokumentu — M9 kopíruje nevyřešené komentáře do
+  // nové verze, počítání napříč verzemi by je zdvojilo (starší = read-only historie).
+  const latestVersions = await prisma.documentVersion.findMany({
+    where: { document: { projectId: { in: projectIds } } },
+    orderBy: [{ documentId: "asc" }, { versionNumber: "desc" }],
+    distinct: ["documentId"],
+    select: { id: true, document: { select: { projectId: true } } },
+  });
+  const latestIdToProject = new Map(
+    latestVersions.map((v) => [v.id, v.document.projectId]),
+  );
   const openComments = await prisma.comment.findMany({
     where: {
       parentId: null,
       status: { not: "RESOLVED" },
-      documentVersion: { document: { projectId: { in: projectIds } } },
+      documentVersionId: { in: latestVersions.map((v) => v.id) },
     },
-    select: {
-      visibility: true,
-      documentVersion: {
-        select: { document: { select: { projectId: true } } },
-      },
-    },
+    select: { visibility: true, documentVersionId: true },
   });
   const openCounts = new Map<number, { pub: number; int: number }>();
   for (const c of openComments) {
-    const pid = c.documentVersion.document.projectId;
+    const pid = latestIdToProject.get(c.documentVersionId);
+    if (pid === undefined) continue;
     const e = openCounts.get(pid) ?? { pub: 0, int: 0 };
     if (c.visibility === "INTERNAL") e.int += 1;
     else e.pub += 1;

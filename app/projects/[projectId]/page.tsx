@@ -55,19 +55,29 @@ export default async function ProjectPage({
 
   // Počet nevyřešených komentářů na dokument — odznak na kartě říká, kde čeká
   // práce. Respektuje viditelnost interních komentářů (neinterní člen je
-  // nepočítá). Kořeny vláken (parentId null), napříč verzemi dokumentu.
+  // nepočítá). Jen NEJNOVĚJŠÍ verze každého dokumentu: M9 přenáší nevyřešené
+  // komentáře do nové verze jako KOPIE, takže počítat napříč verzemi by je
+  // zdvojilo (starší verze jsou historie/read-only).
+  const latestVersions = await prisma.documentVersion.findMany({
+    where: { document: { projectId } },
+    orderBy: [{ documentId: "asc" }, { versionNumber: "desc" }],
+    distinct: ["documentId"],
+    select: { id: true, documentId: true },
+  });
+  const latestIdToDoc = new Map(latestVersions.map((v) => [v.id, v.documentId]));
   const openComments = await prisma.comment.findMany({
     where: {
       parentId: null,
       status: { not: "RESOLVED" },
-      documentVersion: { document: { projectId } },
+      documentVersionId: { in: latestVersions.map((v) => v.id) },
       ...visibleCommentsWhere(member),
     },
-    select: { documentVersion: { select: { documentId: true } } },
+    select: { documentVersionId: true },
   });
   const openByDoc = new Map<number, number>();
   for (const c of openComments) {
-    const id = c.documentVersion.documentId;
+    const id = latestIdToDoc.get(c.documentVersionId);
+    if (id === undefined) continue;
     openByDoc.set(id, (openByDoc.get(id) ?? 0) + 1);
   }
 
