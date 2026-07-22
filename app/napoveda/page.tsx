@@ -41,7 +41,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     points: [
       "V režimu Procházení funguje specifikace normálně — klikáte na odkazy, tlačítka i modaly.",
       "Mezi stránkami se pohybujete drobečkovou navigací nad dokumentem.",
-      "Nahoře přepínáte verze dokumentu; komentáře se vždy vážou ke zvolené verzi.",
+      "Nahoře přepínáte verze dokumentu. Při nahrání nové verze se nevyřešené komentáře volitelně přenesou na odpovídající prvky; starší verze jsou jen ke čtení.",
     ],
   },
   {

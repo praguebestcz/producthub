@@ -30,6 +30,17 @@ async function insertAssets(
   }
 }
 
+// ID nejnovější verze dokumentu (nejvyšší versionNumber), nebo null.
+// M9: komentovat/měnit stav lze jen v nejnovější verzi (starší jsou read-only).
+export async function latestVersionId(documentId: number): Promise<number | null> {
+  const v = await prisma.documentVersion.findFirst({
+    where: { documentId },
+    orderBy: { versionNumber: "desc" },
+    select: { id: true },
+  });
+  return v?.id ?? null;
+}
+
 // Nový dokument v projektu s první verzí.
 export async function createDocument(opts: {
   projectId: number;

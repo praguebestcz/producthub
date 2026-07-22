@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { commentStatusSchema } from "@/lib/validation";
 import { canViewComment } from "@/lib/comments/visibility";
 import { createCommentNotifications } from "@/lib/comments/notifications";
+import { latestVersionId } from "@/lib/documents/store";
 import { signalCommentsChanged } from "@/lib/presence/hub";
 
 // Změna stavu vlákna (Vyřešit / Znovu otevřít) — COMMENTER+ (design doc
@@ -28,6 +29,7 @@ export async function PATCH(
       id: true,
       projectId: true,
       documentId: true,
+      documentVersionId: true,
       parentId: true,
       visibility: true,
       status: true,
@@ -68,6 +70,14 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Znovu otevřít lze jen vyřešené vlákno" },
       { status: 400 },
+    );
+  }
+
+  // Read-only starší verze (M9): měnit stav lze jen v nejnovější verzi.
+  if (comment.documentVersionId !== (await latestVersionId(comment.documentId))) {
+    return NextResponse.json(
+      { error: "Měnit stav lze jen u nejnovější verze dokumentu." },
+      { status: 409 },
     );
   }
 

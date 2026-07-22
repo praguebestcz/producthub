@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 8,
+    date: "22. 7. 2026",
+    title: "Komentáře přežijí novou verzi",
+    items: [
+      {
+        icon: "message",
+        title: "Přenos komentářů mezi verzemi",
+        description:
+          "Při nahrání nové verze specifikace se nevyřešené komentáře přenesou na odpovídající prvky (v dialogu Nová verze to jde vypnout). Prvek, který v nové verzi zmizel, se označí. Starší verze jsou nově jen ke čtení.",
+      },
+    ],
+  },
+  {
     id: 7,
     date: "21. 7. 2026",
     title: "Živé komentáře",

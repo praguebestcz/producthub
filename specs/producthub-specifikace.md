@@ -14,6 +14,9 @@
 
 ## Revize
 
+* **2026-07-22**
+  * M9 (v1) - **přenos komentářů mezi verzemi**: při nahrání nové verze se volitelně (přepínač v dialogu, default zap) přenesou NEVYŘEŠENÁ vlákna + odpovědi do nové verze (kopie; stará verze si své nechá). Starší verze jsou **read-only** (komentář/odpověď/změna stavu jen v nejnovější; server 409). Osiřelý = stránka v nové verzi chybí (odznak). Připnutí na prvek řeší overlay za běhu. Detailní spec: outputs/m9-prenos-komentaru-spec.md - Hana Ortmannová
+  * M7 **security hardening** po db-security-expert review (rate-limity SSE/typing, strop spojení, heartbeat try/catch, server-side connId). - Hana Ortmannová
 * **2026-07-21**
   * M7 Fáze 2 - **živé doručení komentářů**: nový komentář / odpověď / změna stavu se u ostatních u dokumentu objeví bez obnovení. Server po zápisu pošle SSE signál, klient přenačte; signál nenese data komentářů, každý klient si je natáhne s vlastním filtrem viditelnosti. - Hana Ortmannová
   * M7 - **volba notifikací per uživatel** (Fáze 1b): v Nastavení (`/nastaveni`) si každý zvolí rozsah upozornění - **vše** (default) / **jen když jsem zapojen** (@zmínka nebo odpověď/změna stavu v mém vláknu). Nový sloupec `User.notifyScope` (enum, default ALL; po db-security-expert review a souhlasu Hany). Endpoint `PATCH /api/me/notification-scope`. Preference jen zužuje příjemce, nemění filtr viditelnosti interních. - Hana Ortmannová
@@ -162,7 +165,7 @@ Aplikace je nasazená na produkci a milníky M0-M5 jsou hotové a otestované
 | M6 | Komentáře nad elementy + vlákna | 🟠 implementováno - čeká na ruční test Hany |
 | M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček, přítomnost, živé komentáře i volba notifikací hotové; zvoneček naživo zbývá |
 | M8 | Požadavky + Claude prompt | 🟠 plánováno |
-| M9 | Přenos komentářů mezi verzemi + dokončení | 🟠 plánováno |
+| M9 | Přenos komentářů mezi verzemi | 🟠 v1 hotovo (přenos nevyřešených, read-only starší verze, osiřelost dle chybějící stránky); Stupeň 2 + znovu připnout = v1.1 |
 
 DB schéma pro komentáře (`Comment`, `Mention`), požadavky (`Requirement`, `RequirementComment`) i notifikace (`Notification`) existuje od M1 - milníky M6-M8 NEVYŽADUJÍ migraci.
 

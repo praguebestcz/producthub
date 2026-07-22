@@ -183,6 +183,12 @@ export function DocumentViewer({
 
   const currentVersion = versions.find((v) => v.id === versionId);
   const entryPath = currentVersion?.entryPath ?? "index.html";
+  // Read-only starší verze (M9): komentovat/měnit stav lze jen v NEJNOVĚJŠÍ verzi.
+  const latestVersion = versions.length
+    ? versions.reduce((a, b) => (b.versionNumber > a.versionNumber ? b : a))
+    : undefined;
+  const isReadOnlyVersion = !!latestVersion && versionId !== latestVersion.id;
+  const canCommentNow = canComment && !isReadOnlyVersion;
 
   // Zpráva DO overlaye v iframe. targetOrigin "*" — iframe je opaque origin
   // (sandbox bez allow-same-origin), konkrétní origin nelze cílit.
@@ -270,6 +276,9 @@ export function DocumentViewer({
     setActiveThreadId(null);
     setPanelOpen(false);
     setSelectedIds(new Set()); // výběr pro prompt platí v rámci verze
+    // Přepnutí verze resetuje na procházení (starší verze jsou read-only).
+    setMode("browse");
+    modeRef.current = "browse";
     setVersionId(Number(v));
   }
 
@@ -679,6 +688,7 @@ export function DocumentViewer({
               postUrl={`/api/documents/${documentId}/versions`}
               title="Nová verze"
               showName={false}
+              showTransfer={true}
               successMessage="Nová verze nahrána."
               trigger={
                 <Button variant="outline" size="sm">
@@ -741,7 +751,7 @@ export function DocumentViewer({
 
         {/* Režim prohlížeče — komentovat smí COMMENTER+. Výrazný přepínač:
             aktivní „Komentování" svítí PB červenou. */}
-        {canComment && (
+        {canCommentNow && (
           <div className="ml-auto flex items-center gap-1.5 rounded-xl border-2 border-pb/25 bg-pb-soft p-1">
             <span className="pl-1.5 text-xs font-semibold text-pb">Režim:</span>
             <button
@@ -779,7 +789,7 @@ export function DocumentViewer({
         <Button
           variant={panelOpen && panelMode === "list" ? "secondary" : "outline"}
           size="sm"
-          className={canComment ? "" : "ml-auto"}
+          className={canCommentNow ? "" : "ml-auto"}
           onClick={() => {
             if (panelOpen && panelMode === "list") {
               setPanelOpen(false);
@@ -869,7 +879,13 @@ export function DocumentViewer({
       {/* Banner režimu — na první pohled jasné, v jakém režimu uživatel je
           (zpětná vazba Hany). Komentování = červený (pozor, kliky vybírají),
           Procházení = neutrální tmavý (kliky fungují normálně). */}
-      {canComment &&
+      {isReadOnlyVersion && (
+        <div className="mt-3 rounded-lg bg-muted px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm">
+          Prohlížíte starší verzi - jen ke čtení. Komentovat a odpovídat lze jen
+          v nejnovější verzi dokumentu.
+        </div>
+      )}
+      {canCommentNow &&
         (mode === "comment" ? (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
             <MessageSquarePlus size={16} aria-hidden="true" />
@@ -910,7 +926,7 @@ export function DocumentViewer({
           // Banner (u kohokoli, kdo smí komentovat) ubere kus výšky.
           // Červený rámeček navíc jen v režimu komentování (pozor, vybíráš prvky).
           canComment ? "h-[calc(100vh-20rem)]" : "h-[calc(100vh-17rem)]",
-          canComment && mode === "comment" && "ring-2 ring-pb/40",
+          canCommentNow && mode === "comment" && "ring-2 ring-pb/40",
         )}
       >
         {loading && (
@@ -930,7 +946,7 @@ export function DocumentViewer({
         )}
 
         {/* Bublina nového komentáře u prvku */}
-        {bubble && canComment && (
+        {bubble && canCommentNow && (
           <CommentBubble
             documentId={documentId}
             versionId={versionId}
@@ -977,7 +993,7 @@ export function DocumentViewer({
           }}
           onChanged={loadComments}
           currentUserId={currentUserId}
-          canComment={canComment}
+          canComment={canCommentNow}
           canSeeInternal={canSeeInternal}
           isCommenting={mode === "comment"}
           onStartCommenting={() => switchMode("comment")}

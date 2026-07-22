@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Dialog pro nahrání dokumentu: import z URL (hlavní cesta) nebo soubor/ZIP.
@@ -26,6 +27,8 @@ export function UploadDocumentDialog({
   title = "Nový dokument",
   // U nové verze existujícího dokumentu se název nezadává (patří k dokumentu).
   showName = true,
+  // Přepínač „přenést komentáře z předchozí verze" — jen u nové verze (M9).
+  showTransfer = false,
   successMessage = "Dokument nahrán.",
   onDone,
 }: {
@@ -33,6 +36,7 @@ export function UploadDocumentDialog({
   trigger: React.ReactElement;
   title?: string;
   showName?: boolean;
+  showTransfer?: boolean;
   successMessage?: string;
   onDone?: (created: { documentId?: number; versionId: number }) => void;
 }) {
@@ -41,6 +45,7 @@ export function UploadDocumentDialog({
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
+  const [transfer, setTransfer] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function send(body: BodyInit, headers?: HeadersInit) {
@@ -65,9 +70,14 @@ export function UploadDocumentDialog({
 
   function submitUrl(e: React.FormEvent) {
     e.preventDefault();
-    send(JSON.stringify({ url, name: name || undefined }), {
-      "Content-Type": "application/json",
-    });
+    send(
+      JSON.stringify({
+        url,
+        name: name || undefined,
+        ...(showTransfer ? { transfer } : {}),
+      }),
+      { "Content-Type": "application/json" },
+    );
   }
 
   function submitFile(e: React.FormEvent) {
@@ -80,6 +90,7 @@ export function UploadDocumentDialog({
     const form = new FormData();
     form.set("file", file);
     if (name) form.set("name", name);
+    if (showTransfer) form.set("transfer", String(transfer));
     send(form);
   }
 
@@ -105,6 +116,25 @@ export function UploadDocumentDialog({
               maxLength={200}
             />
           </div>
+        )}
+
+        {showTransfer && (
+          <label className="flex items-start gap-2 rounded-lg border p-2.5">
+            <Checkbox
+              checked={transfer}
+              onCheckedChange={(v) => setTransfer(v === true)}
+              className="mt-0.5"
+            />
+            <span className="text-sm">
+              <span className="font-medium">
+                Přenést nevyřešené komentáře z předchozí verze
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Nevyřešená vlákna se zkopírují do nové verze a připnou na
+                odpovídající prvky. Vyřešená zůstanou u staré verze.
+              </span>
+            </span>
+          </label>
         )}
 
         <Tabs defaultValue="url" className="mt-2">

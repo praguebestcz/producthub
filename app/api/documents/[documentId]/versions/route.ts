@@ -9,6 +9,7 @@ import {
   urlImportSchema,
 } from "@/lib/documents/build-input";
 import { createVersion } from "@/lib/documents/store";
+import { transferUnresolvedComments } from "@/lib/documents/comment-transfer";
 
 // Nahrání nové verze existujícího dokumentu — AUTHOR projektu.
 // Stejné vstupy jako u nového dokumentu (soubor / ZIP / URL).
@@ -39,8 +40,12 @@ export async function POST(
   const contentType = req.headers.get("content-type") ?? "";
   try {
     let prepared;
+    // Přenos komentářů z předchozí verze (M9). Default zapnuto; vypne se jen
+    // explicitním transfer=false / "false".
+    let transfer = true;
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
+      transfer = form.get("transfer") !== "false";
       const file = form.get("file");
       if (!(file instanceof File)) {
         return NextResponse.json({ error: "Chybí soubor" }, { status: 400 });
@@ -54,7 +59,15 @@ export async function POST(
           { status: 429 },
         );
       }
-      const body = urlImportSchema.safeParse(await req.json().catch(() => null));
+      const raw = await req.json().catch(() => null);
+      if (
+        raw &&
+        typeof raw === "object" &&
+        (raw as Record<string, unknown>).transfer === false
+      ) {
+        transfer = false;
+      }
+      const body = urlImportSchema.safeParse(raw);
       if (!body.success) {
         return NextResponse.json(
           { error: body.error.issues[0]?.message ?? "Neplatný vstup" },
@@ -71,7 +84,28 @@ export async function POST(
       sourceUrl: prepared.sourceUrl,
       result: prepared.result,
     });
-    return NextResponse.json(created, { status: 201 });
+
+    // Přenos běží PO vzniku verze v samostatné transakci — chyba nezablokuje
+    // upload (verze vznikne, jen bez komentářů, s příznakem).
+    let transferred = 0;
+    let transferError = false;
+    if (transfer) {
+      try {
+        transferred = await transferUnresolvedComments({
+          documentId,
+          newVersionId: created.versionId,
+          newVersionNumber: created.versionNumber,
+          pagePaths: new Set(prepared.result.files.map((f) => f.path)),
+        });
+      } catch (e) {
+        console.error("Přenos komentářů selhal:", e);
+        transferError = true;
+      }
+    }
+    return NextResponse.json(
+      { ...created, transferred, transferError },
+      { status: 201 },
+    );
   } catch (e) {
     if (e instanceof ImportError) {
       return NextResponse.json({ error: e.message }, { status: 400 });

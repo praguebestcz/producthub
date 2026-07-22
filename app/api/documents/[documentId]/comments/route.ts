@@ -10,6 +10,7 @@ import {
 } from "@/lib/comments/visibility";
 import { invalidMentionIds } from "@/lib/comments/mentions";
 import { createCommentNotifications } from "@/lib/comments/notifications";
+import { latestVersionId } from "@/lib/documents/store";
 import { signalCommentsChanged } from "@/lib/presence/hub";
 import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -259,6 +260,15 @@ export async function POST(
       viewportWidth: input.viewportWidth,
       viewportHeight: input.viewportHeight,
     };
+  }
+
+  // Read-only starší verze (M9): komentovat/odpovídat lze jen v NEJNOVĚJŠÍ verzi.
+  const latest = await latestVersionId(documentId);
+  if (data.documentVersionId !== latest) {
+    return NextResponse.json(
+      { error: "Komentovat lze jen nejnovější verzi dokumentu." },
+      { status: 409 },
+    );
   }
 
   // Atomicky: komentář + zmínky + notifikace (M7, zvoneček). Interní komentář
