@@ -33,6 +33,9 @@ yarn-error.log*
 # lokální stavový soubor (kde jsme skončili) — jen pro Claudovu orientaci, NEcommitovat
 STAV.md
 
+# brainstorm mockupy (vizuální companion) — lokální, NEcommitovat
+.superpowers/
+
 # lokální dočasné/testovací soubory — NEcommitovat
 _*.mjs
 _*.html

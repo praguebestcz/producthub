@@ -110,6 +110,15 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     ],
   },
   {
+    icon: Map,
+    title: "Přehled na úvodní stránce",
+    points: [
+      "Nahoře je souhrn: otevřené komentáře, čekající zadání (jen interní tým), upozornění pro vás a počet projektů.",
+      "Pod souhrnem Poslední aktivita napříč projekty - nové komentáře, odpovědi, @zmínky a vyřešená vlákna; klik přejde rovnou ke komentáři.",
+      "Souhrn i aktivita respektují viditelnost (klient interní nevidí).",
+    ],
+  },
+  {
     icon: Sparkles,
     title: "Prompt z komentářů pro Claude Code (interní tým)",
     points: [
