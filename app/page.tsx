@@ -1,32 +1,16 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  Building2,
-  FolderOpen,
-  MailOpen,
-  MessageSquare,
-  Users,
-  FileText,
-} from "lucide-react";
+import { FolderOpen, MailOpen } from "lucide-react";
 import { getSessionUser, canSeeInternal } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ROLE_LABELS } from "@/lib/roles";
-import { plural } from "@/lib/czech";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { NewProjectDialog } from "@/components/new-project-dialog";
-
-type ProjectCard = {
-  id: number;
-  name: string;
-  description: string | null;
-  role: "AUTHOR" | "COMMENTER" | "READER";
-  documents: number;
-  members: number;
-  open: number;
-};
+import {
+  ClientGroups,
+  type ClientGroup,
+  type ProjectCardData,
+} from "@/components/projects/client-groups";
 
 // Seznam projektů uživatele, seskupený podle klienta. Přehled (souhrn +
 // poslední aktivita) je samostatná stránka /dashboard.
@@ -82,7 +66,7 @@ export default async function Home() {
   }
 
   // Seskupení podle klienta: klienti abecedně, „Nezařazené" nakonec.
-  const groups = new Map<string, ProjectCard[]>();
+  const groups = new Map<string, ProjectCardData[]>();
   for (const m of memberships) {
     const key = m.project.client?.name ?? "";
     if (!groups.has(key)) groups.set(key, []);
@@ -97,11 +81,13 @@ export default async function Home() {
       open: counts.pub + (canSeeInternal(m) ? counts.int : 0),
     });
   }
-  const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
-    if (a === "") return 1; // Nezařazené nakonec
-    if (b === "") return -1;
-    return a.localeCompare(b, "cs");
-  });
+  const clientGroups: ClientGroup[] = [...groups.entries()]
+    .sort(([a], [b]) => {
+      if (a === "") return 1; // Nezařazené nakonec
+      if (b === "") return -1;
+      return a.localeCompare(b, "cs");
+    })
+    .map(([name, projects]) => ({ key: name || "__none", name, projects }));
 
   // Klienti pro výběr v dialogu Nový projekt (jen tým s canCreateProjects).
   const clients = user.canCreateProjects
@@ -158,69 +144,7 @@ export default async function Home() {
           </CardContent>
         </Card>
       ) : (
-        <div className="mt-8 grid gap-10">
-          {sortedGroups.map(([clientName, projects]) => (
-            <section key={clientName || "__none"}>
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                <Building2 size={15} aria-hidden="true" />
-                {clientName || "Nezařazené"}
-                <span className="font-normal">({projects.length})</span>
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {projects.map((p) => (
-                  <Link key={p.id} href={`/projects/${p.id}`}>
-                    <Card className="h-full transition-all hover:border-pb/40 hover:shadow-md">
-                      <CardContent className="flex h-full flex-col">
-                        <div className="flex items-start justify-between gap-3">
-                          <h3 className="font-semibold leading-snug">
-                            {p.name}
-                          </h3>
-                          <Badge
-                            variant={p.role === "AUTHOR" ? "default" : "secondary"}
-                          >
-                            {ROLE_LABELS[p.role]}
-                          </Badge>
-                        </div>
-                        {p.description && (
-                          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                            {p.description}
-                          </p>
-                        )}
-                        <div className="mt-auto flex items-center gap-4 pt-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <FileText size={13} aria-hidden="true" />
-                            {p.documents}{" "}
-                            {plural(p.documents, "dokument", "dokumenty", "dokumentů")}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users size={13} aria-hidden="true" />
-                            {p.members}{" "}
-                            {plural(p.members, "člen", "členové", "členů")}
-                          </span>
-                          {p.open > 0 && (
-                            <span
-                              className="flex items-center gap-1 font-medium text-pb"
-                              title="Nevyřešené komentáře"
-                            >
-                              <MessageSquare size={13} aria-hidden="true" />
-                              {p.open}{" "}
-                              {plural(
-                                p.open,
-                                "nevyřešený",
-                                "nevyřešené",
-                                "nevyřešených",
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        <ClientGroups groups={clientGroups} />
       )}
     </AppShell>
   );

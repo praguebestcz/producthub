@@ -106,6 +106,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     title: "Kde je vidět práce",
     points: [
       "Na kartách projektů i dokumentů je odznak s počtem nevyřešených komentářů.",
+      "V seznamu projektů jsou projekty seskupené podle klienta; skupinu lze sbalit/rozbalit (nastavení se pamatuje). I sbalená skupina ukazuje počet projektů a odznak nevyřešených.",
       "Panel komentářů ukazuje komentáře z celé specifikace pohromadě (bez přepínání po stránkách).",
     ],
   },

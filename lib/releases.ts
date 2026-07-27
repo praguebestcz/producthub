@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 11,
+    date: "27. 7. 2026",
+    title: "Sbalitelné skupiny klientů",
+    items: [
+      {
+        icon: "flag",
+        title: "Přehlednější seznam projektů",
+        description:
+          "V seznamu projektů jde každou skupinu klienta sbalit a rozbalit; nastavení si aplikace zapamatuje. Při více klientech jsou skupiny po načtení sbalené, při jediném klientovi rozbalené. I ve sbaleném stavu je na hlavičce vidět počet projektů a odznak nevyřešených.",
+      },
+    ],
+  },
+  {
     id: 10,
     date: "27. 7. 2026",
     title: "Přehled (samostatná stránka)",
