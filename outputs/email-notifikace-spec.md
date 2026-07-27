@@ -11,10 +11,10 @@
 
 | Kdo | Otázka |
 |-----|--------|
-| Hana | Odesílací služba: SMTP (přes stávající poštu PB) nebo transakční služba (Resend/Postmark)? Návrh: SMTP přes `nodemailer` (provider-agnostic, PB má SMTP). Klíče/údaje nastavuje Hana. |
-| Hana | Výchozí hodnota `emailNotify` pro stávající i nové uživatele. Návrh: **UNREAD (jen nepřečtené)** - užitečné a nespamuje. Alternativa: OFF (nikdo nedostane e-mail, dokud si nezapne). |
-| Hana/Dev | Úloha na pozadí pro režim „jen nepřečtené": interní interval v běžícím serveru (bez další konfigurace) nebo chráněný cron endpoint spouštěný Railway cronem? Návrh: interní interval (1 instance, always-on). |
-| Dev | Prodleva „chytře": po kolika minutách nepřečtení se pošle e-mail? Návrh: **5 minut**. |
+| ~~Hana~~ ✅ | Odesílací služba: **`nodemailer` přes SMTP, stejně jako vratky** (rozhodnuto Hanou 2026-07-27). Proměnné `SMTP_HOST/PORT/USER/PASS/SMTP_SECURE` + `EMAIL_FROM`, lokálně `.env`, produkce Railway. Převzata i pojistka vratek: mimo produkci se posílá jen na `TEST_EMAILS`. Bez multi-klient/DKIM (ProductHub = jedna PB adresa). Klíče nastavuje Hana. |
+| ~~Hana~~ ✅ | Výchozí hodnota `emailNotify` = **OFF (opt-in)** (rozhodnuto Hanou 2026-07-27) - žádné překvapivé e-maily kolegům při nasazení; funkci oznámíme v „Co je nového" a každý si ji zapne. |
+| ~~Hana/Dev~~ ✅ | Úloha na pozadí = **interní interval** v běžícím serveru (1 instance, always-on), bez další konfigurace (rozhodnuto 2026-07-27, Hana ponechala na Claudovi). |
+| ~~Dev~~ ✅ | Prodleva „chytře" = **5 minut** nepřečtení (2026-07-27). |
 
 ## Kontext & cíl
 
@@ -66,7 +66,7 @@ Dnes chodí upozornění jen jako **zvoneček v aplikaci** (M7). Kdo nemá appku
 
 ## Datový model (změny)
 * Nový enum `EmailNotify { OFF, IMMEDIATE, UNREAD }`.
-* `User.emailNotify EmailNotify @default(<viz TODO>)`.
+* `User.emailNotify EmailNotify @default(OFF)`.
 * `Notification.emailedAt DateTime?` + index `@@index([emailedAt])` (úloha na pozadí filtruje podle něj).
 * Změna schématu → **před migrací projde `db-security-expert` review** + výslovné „ano" Hany k DB (pravidlo user-global).
 
@@ -95,6 +95,21 @@ Dnes chodí upozornění jen jako **zvoneček v aplikaci** (M7). Kdo nemá appku
 * Interní komentář nikdy nedorazí e-mailem uživateli, který nevidí interní.
 * Bez nastavené SMTP konfigurace aplikace funguje, jen se e-maily neposílají (a zaloguje se to).
 * Žádný e-mail se stejnou notifikací nepřijde dvakrát.
+
+## Závazné podmínky ze security review (db-security-expert, 2026-07-27)
+
+Verdikt: **SCHVÁLENO S VÝHRADAMI.** Samotná změna schématu je nedestruktivní (enum, `emailNotify` default OFF, nullable `emailedAt`). Do implementace jsou závazné:
+
+* **Backfill v migraci (🔴):** `UPDATE "Notification" SET "emailedAt" = "createdAt" WHERE "emailedAt" IS NULL;` — jinak by při přepnutí na UNREAD dorazila záplava historických e-mailů. Sweep navíc bere jen notifikace mladší než ~24 h (spodní mez).
+* **Atomický claim (🟠):** před odesláním `updateMany({ where: { id in ids, emailedAt: null }, data: { emailedAt: now } })`; posílá se jen skutečně zaklaimované. Bez čtení-pak-zápisu kolem `await` (dvojí odeslání při souběhu sweep × IMMEDIATE).
+* **Ochrana proti zacyklení (🟠):** notifikace starší než ~24 h se už nezkouší (horní mez) / malý počet pokusů. IMMEDIATE selhání sweep nedorovnává (bere jen UNREAD) — zdokumentováno v Edge casech.
+* **Sdílený re-check před odesláním (🟠):** filtr z `GET /api/notifications` (členství + `canSeeInternal` + `deactivatedAt` + existence komentáře) vytáhnout do **sdílené funkce** volané výpisem zvonečku i odesílačem; načítat **čerstvě z DB** v čase odeslání. Když re-check neprojde → `emailedAt = now()` (vyřízeno, neodesílat). E-mail je **5. kanál** úniku interních komentářů — přidat do „vynucení viditelnosti" jako testované místo.
+* **Text komentáře nikdy do předmětu (🟠):** snippet jen v těle a až **po** re-checku (ať se nedostane do logu/šablony u zahozeného e-mailu).
+* **Partikulární index (🟢):** raw SQL `CREATE INDEX ... ON "Notification" ("createdAt") WHERE "emailedAt" IS NULL AND "readAt" IS NULL;` (ne plný `@@index`).
+* **Throttling SMTP (🟢):** strop souběžnosti odesílání; u UNREAD seskupit víc notifikací příjemce do jednoho e-mailu.
+* **Logování (🟢):** do `event-log` nikdy nepsat `body`/snippet; chyby odeslání loguj s `notificationId` + adresou, bez obsahu komentáře.
+* **IMMEDIATE async (🟢):** fire-and-forget si načte data vlastním dotazem (ne z request scope), s `try/catch` (neodchycený rejection nesmí shodit proces).
+* **Endpoint `PATCH /api/me/email-notify` (🟢):** bez výhrad — `userId` výhradně ze session (vzor `notification-scope`), žádný IDOR.
 
 ## Edge casy
 * SMTP dočasně nedostupné → zaloguje se, `emailedAt` se nenastaví, sweep to zkusí příště (u Okamžitě se nesmí zacyklit - definovat max. počet pokusů nebo nechat dorovnat sweepem).
