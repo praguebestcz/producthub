@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  LAST_SEEN_KEY,
+  LATEST_RELEASE_ID,
+  NEWS_SEEN_EVENT,
+} from "@/lib/releases";
 import {
   Bot,
   Building2,
@@ -55,6 +61,28 @@ export type SidebarUser = {
 export function AppSidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
   const { toggleSidebar } = useSidebar();
+
+  // Odznak „novinky" u Nápovědy: jsou nové novinky, které uživatel ještě neviděl?
+  // Čte se z localStorage (bez DB), po mountu (jinak hydration mismatch). Aktualizuje
+  // se po „Rozumím" / otevření Nápovědy (událost) i při změně v jiné záložce (storage).
+  const [hasNews, setHasNews] = useState(false);
+  useEffect(() => {
+    const read = () => {
+      try {
+        const seen = Number(window.localStorage.getItem(LAST_SEEN_KEY)) || 0;
+        setHasNews(seen < LATEST_RELEASE_ID);
+      } catch {
+        setHasNews(false);
+      }
+    };
+    read();
+    window.addEventListener(NEWS_SEEN_EVENT, read);
+    window.addEventListener("storage", read);
+    return () => {
+      window.removeEventListener(NEWS_SEEN_EVENT, read);
+      window.removeEventListener("storage", read);
+    };
+  }, []);
 
   // Styleguide v menu záměrně není (rozhodnutí Hany) — je dostupný na /styleguide.
   // Klienti jen pro tým s právem zakládat projekty (názvy klientů = obchodní info).
@@ -111,18 +139,31 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
           <SidebarGroupLabel>Navigace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {nav.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    tooltip={item.title}
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {nav.map((item) => {
+                const showNews = item.href === "/napoveda" && hasNews;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      tooltip={
+                        showNews ? `${item.title} — nové novinky` : item.title
+                      }
+                      className="relative"
+                      render={<Link href={item.href} />}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                      {showNews && (
+                        <span
+                          aria-hidden="true"
+                          title="Nové novinky"
+                          className="absolute right-2 top-1/2 size-2 -translate-y-1/2 rounded-full bg-pb group-data-[collapsible=icon]:right-1 group-data-[collapsible=icon]:top-1.5 group-data-[collapsible=icon]:translate-y-0"
+                        />
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

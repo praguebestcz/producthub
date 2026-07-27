@@ -19,6 +19,7 @@ import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShowWhatsNewButton } from "@/components/show-whats-new-button";
+import { MarkNewsSeen } from "./mark-news-seen";
 import { RELEASES, type ReleaseIcon } from "@/lib/releases";
 
 // Ikony novinek (stejné klíče jako v lib/releases.ts).
@@ -198,6 +199,7 @@ export default async function NapovedaPage() {
 
   return (
     <AppShell user={user}>
+      <MarkNewsSeen />
       <PageHeader
         title="Nápověda"
         description="Návod k použití a přehled novinek v aplikaci."

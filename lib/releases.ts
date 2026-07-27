@@ -5,7 +5,16 @@
 // novinku nedostávají. Viz outputs/co-je-noveho-a-napoveda-spec.md.
 
 // Klíč, pod kterým si prohlížeč pamatuje poslední viděné vydání (bez DB).
+// Řídí odznak „novinky" u Nápovědy: když je uložené ID < nejnovější, jsou novinky.
 export const LAST_SEEN_KEY = "ph-last-seen-release";
+
+// Klíč: pro které nejnovější vydání se okno „Co je nového" už automaticky ukázalo.
+// Díky tomu vyskočí jen JEDNOU (nezobrazuje se znovu při přechodu mezi stránkami
+// ani po refreshi). Odděleno od LAST_SEEN, aby po zavření křížkem zůstal odznak.
+export const WHATSNEW_SHOWN_KEY = "ph-whatsnew-shown";
+
+// Událost: uživatel „viděl novinky" (Rozumím / otevřel Nápovědu) → skryje odznak.
+export const NEWS_SEEN_EVENT = "ph:news-seen";
 
 // Ikony novinek/kroků — klíč se v komponentě mapuje na konkrétní lucide ikonu
 // (data soubor nesmí importovat React komponenty).
@@ -34,6 +43,19 @@ export type Release = {
 
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
+  {
+    id: 17,
+    date: "27. 7. 2026",
+    title: "Novinky už nevyskakují pořád",
+    items: [
+      {
+        icon: "sparkles",
+        title: "Okno „Co je nového" jen jednou",
+        description:
+          "Okno s novinkami po nasazení vyskočí jen jednou (ne při každém přechodu mezi stránkami). Že jsou novinky, pak poznáte podle tečky u „Nápovědy" v levém menu - otevřením Nápovědy tečka zmizí.",
+      },
+    ],
+  },
   {
     id: 16,
     date: "27. 7. 2026",

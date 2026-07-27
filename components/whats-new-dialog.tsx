@@ -25,8 +25,10 @@ import { Button } from "@/components/ui/button";
 import {
   LAST_SEEN_KEY,
   LATEST_RELEASE_ID,
+  NEWS_SEEN_EVENT,
   RELEASES,
   WELCOME_STEPS,
+  WHATSNEW_SHOWN_KEY,
   type Release,
   type ReleaseIcon,
 } from "@/lib/releases";
@@ -63,25 +65,47 @@ export function WhatsNewDialog() {
   // Rozhodnutí při načtení — čte localStorage (jen v prohlížeči, po mountu, aby
   // nedošlo k hydration mismatch: okno je zprvu zavřené a otevře se až tady).
   useEffect(() => {
-    let raw: string | null = null;
+    let seenRaw: string | null;
+    let shownRaw: string | null;
     try {
-      raw = window.localStorage.getItem(LAST_SEEN_KEY);
+      seenRaw = window.localStorage.getItem(LAST_SEEN_KEY);
+      shownRaw = window.localStorage.getItem(WHATSNEW_SHOWN_KEY);
     } catch {
       return; // localStorage nedostupný (soukromý režim apod.) — nic neukazuj
     }
+
+    // Zapamatuj, že se okno pro tuhle nejnovější verzi UŽ ukázalo → víckrát
+    // automaticky nevyskočí (ani po přechodu mezi stránkami / refreshi).
+    const markShown = () => {
+      try {
+        window.localStorage.setItem(
+          WHATSNEW_SHOWN_KEY,
+          String(LATEST_RELEASE_ID),
+        );
+      } catch {
+        // ignoruj — bez uložení se ukáže příště znovu (lepší než nic)
+      }
+    };
+
     let next: PanelState | null = null;
-    if (raw === null) {
-      // Nový uživatel → uvítání.
+    if (seenRaw === null && shownRaw === null) {
+      // Úplně nový uživatel → uvítání (jen jednou).
       next = { open: true, mode: "welcome", releases: [] };
+      markShown();
     } else {
-      const seen = Number(raw);
+      const seen = Number(seenRaw);
       const lastSeen = Number.isFinite(seen) ? seen : 0;
-      if (lastSeen < LATEST_RELEASE_ID) {
+      const shown = Number(shownRaw);
+      const lastShown = Number.isFinite(shown) ? shown : 0;
+      // Vyskočí jen JEDNOU pro danou nejnovější verzi a jen když uživatel
+      // novinky ještě neoznačil za viděné.
+      if (lastShown < LATEST_RELEASE_ID && lastSeen < LATEST_RELEASE_ID) {
         next = {
           open: true,
           mode: "whatsnew",
           releases: RELEASES.filter((r) => r.id > lastSeen),
         };
+        markShown();
       }
     }
     if (next) {
@@ -103,13 +127,16 @@ export function WhatsNewDialog() {
     setPanel((p) => ({ ...p, open: false }));
   }
 
-  // „Rozumím" = označit vše za viděné (uloží nejvyšší ID, ať se starší novinky
-  // znovu neotvírají). Zavření křížkem / Esc jen odloží (neukládá).
+  // „Rozumím" = označit novinky za viděné (skryje i odznak u Nápovědy). Zavření
+  // křížkem / Esc novinky NEoznačí → odznak u Nápovědy zůstane jako připomínka,
+  // ale okno už automaticky nevyskočí (o to se stará WHATSNEW_SHOWN_KEY výše).
   function acknowledge() {
     try {
       window.localStorage.setItem(LAST_SEEN_KEY, String(LATEST_RELEASE_ID));
+      window.localStorage.setItem(WHATSNEW_SHOWN_KEY, String(LATEST_RELEASE_ID));
+      window.dispatchEvent(new Event(NEWS_SEEN_EVENT));
     } catch {
-      // localStorage nedostupný — okno se prostě příště ukáže znovu.
+      // localStorage nedostupný — nevadí.
     }
     close();
   }
