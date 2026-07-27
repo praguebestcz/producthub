@@ -27,5 +27,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # Lokální falešná schránka pro testování e-mailů (nic se neodešle ven).
+  # SMTP na 1025 (aplikace posílá sem), web UI na http://localhost:8025.
+  # ACCEPT_ANY + ALLOW_INSECURE: přijme jakékoli přihlašovací údaje bez TLS
+  # (jen pro lokální vývoj — Mailpit není určený na produkci).
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: producthub-mailpit
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
 volumes:
   producthub_pgdata:
