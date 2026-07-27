@@ -50,9 +50,9 @@ export const RELEASES: Release[] = [
     items: [
       {
         icon: "sparkles",
-        title: "Okno „Co je nového" jen jednou",
+        title: "Okno s novinkami jen jednou",
         description:
-          "Okno s novinkami po nasazení vyskočí jen jednou (ne při každém přechodu mezi stránkami). Že jsou novinky, pak poznáte podle tečky u „Nápovědy" v levém menu - otevřením Nápovědy tečka zmizí.",
+          "Okno s novinkami po nasazení vyskočí jen jednou (ne při každém přechodu mezi stránkami). Že jsou novinky, pak poznáte podle tečky u položky Nápověda v levém menu - otevřením Nápovědy tečka zmizí.",
       },
     ],
   },
