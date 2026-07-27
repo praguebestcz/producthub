@@ -79,6 +79,10 @@
     ".ph-pin[data-hidden] { display: none; }",
     ".ph-highlight { animation: ph-pulse 0.65s ease-in-out 0s 3 !important;",
     "  outline: 3px solid #c8102e !important; outline-offset: 2px; border-radius: 2px; }",
+    // Trvalé zvýraznění po prokliku z e-mailu/zvonečku — zůstane, dokud uživatel
+    // neklikne jinam / neotevře jiné vlákno (aby při načítání stránky nezmizelo).
+    ".ph-highlight-static { outline: 3px solid #c8102e !important; outline-offset: 2px;",
+    "  border-radius: 2px; box-shadow: 0 0 0 6px rgba(200,16,46,.18) !important; }",
     "@keyframes ph-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,16,46,.0); }",
     "  50% { box-shadow: 0 0 0 6px rgba(200,16,46,.35); } }",
     // Živá značka „kdo píše" u prvku (M7 Fáze 2) — avatar(y) píšících nad prvkem,
@@ -524,20 +528,38 @@
   var highlightTimer = null;
   var highlightedEl = null;
 
-  // Naroluj k prvku a krátce ho zvýrazni (sdílené pro highlight i skok „kde píše").
-  function highlightEl(el) {
-    if (highlightedEl) highlightedEl.classList.remove("ph-highlight");
+  // Zruší jakékoli aktuální zvýraznění (pulz i trvalé).
+  function clearHighlight() {
+    if (highlightTimer) {
+      clearTimeout(highlightTimer);
+      highlightTimer = null;
+    }
+    if (highlightedEl) {
+      highlightedEl.classList.remove("ph-highlight");
+      highlightedEl.classList.remove("ph-highlight-static");
+      highlightedEl = null;
+    }
+  }
+
+  // Naroluj k prvku a zvýrazni ho. persist=true → po pulzu zůstane statické
+  // zvýraznění (proklik z e-mailu/zvonečku), aby nezmizelo během načítání stránky.
+  function highlightEl(el, persist) {
+    clearHighlight();
     highlightedEl = el;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("ph-highlight");
-    if (highlightTimer) clearTimeout(highlightTimer);
     highlightTimer = setTimeout(function () {
       el.classList.remove("ph-highlight");
-      highlightedEl = null;
+      if (persist) {
+        el.classList.add("ph-highlight-static");
+      } else {
+        highlightedEl = null;
+      }
+      highlightTimer = null;
     }, 2600);
   }
 
-  function highlight(commentId) {
+  function highlight(commentId, persist) {
     var pin = null;
     for (var i = 0; i < pins.length; i++) {
       if (pins[i].commentId === commentId) pin = pins[i];
@@ -549,7 +571,7 @@
       post("highlight.result", { commentId: commentId, found: false });
       return;
     }
-    highlightEl(el);
+    highlightEl(el, persist);
     post("highlight.result", { commentId: commentId, found: true });
   }
 
@@ -581,12 +603,15 @@
       typingMarkers = Array.isArray(d.markers) ? d.markers : [];
       renderMarkers();
     } else if (d.type === "highlight") {
-      highlight(Number(d.commentId));
+      highlight(Number(d.commentId), !!d.persist);
     } else if (d.type === "highlight.anchor") {
       highlightAnchor({ dataReviewId: d.dataReviewId, domPath: d.domPath });
     } else if (d.type === "selection.clear") {
       // Formulář komentáře se zavřel (uložení/zrušení) → výběr zmizí.
       clearSelection();
+    } else if (d.type === "highlight.clear") {
+      // Rodič zavřel/přepnul vlákno → zruš trvalé zvýraznění prvku.
+      clearHighlight();
     }
   });
 

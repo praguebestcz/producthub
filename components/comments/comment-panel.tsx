@@ -28,6 +28,7 @@ import {
   type MentionMember,
 } from "@/components/comments/mention-textarea";
 import { usePresenceTyping } from "@/components/presence/typing-context";
+import { userColor } from "@/lib/presence/colors";
 import { cn } from "@/lib/utils";
 import {
   matchesStatusFilter,
@@ -567,11 +568,17 @@ function ElementInfo({
 }
 
 function AuthorLine({ author, createdAt }: { author: CommentUser; createdAt: string }) {
+  // Barva uživatele stejná jako v liště přítomnosti (kroužek kolem avataru) —
+  // ať jde poznat autor napříč záhlavím dokumentu i komentáři. Skutečný avatar,
+  // pokud ho uživatel má, jinak iniciála na barevném podkladu.
+  const color = userColor(author.id);
   return (
     <div className="flex items-center gap-2">
-      <Avatar size="sm">
+      <Avatar size="sm" style={{ boxShadow: `0 0 0 2px ${color}` }}>
         {author.avatarUrl && <AvatarImage src={author.avatarUrl} alt="" />}
-        <AvatarFallback>{author.name.slice(0, 1)}</AvatarFallback>
+        <AvatarFallback style={{ backgroundColor: color, color: "#fff" }}>
+          {author.name.slice(0, 1).toUpperCase()}
+        </AvatarFallback>
       </Avatar>
       <span className="truncate text-sm font-medium">{author.name}</span>
       <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">

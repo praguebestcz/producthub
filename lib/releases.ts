@@ -35,6 +35,25 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 14,
+    date: "27. 7. 2026",
+    title: "Proklik zvýrazní prvek + jednotné barvy",
+    items: [
+      {
+        icon: "message",
+        title: "Proklik označí prvek v dokumentu",
+        description:
+          "Po prokliku z e-mailu nebo zvonečku se teď kromě komentáře zvýrazní i jeho HTML prvek přímo ve specifikaci - zůstane označený, dokud nekliknete jinam.",
+      },
+      {
+        icon: "users",
+        title: "Barva uživatele ladí všude",
+        description:
+          "Barva kolem avataru u komentáře odpovídá barvě v liště přítomnosti - poznáte tak autora napříč dokumentem. Pokud má uživatel vlastní avatar, zobrazí se.",
+      },
+    ],
+  },
+  {
     id: 13,
     date: "27. 7. 2026",
     title: "E-mailová upozornění",

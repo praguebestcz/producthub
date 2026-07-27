@@ -170,6 +170,10 @@ export function DocumentViewer({
   // jednorázově, jakmile se vlákna donačtou.
   const wantCommentRef = useRef<number | null>(null);
   const highlightFromUrlDoneRef = useRef(false);
+  // Proklik z e-mailu/zvonečku probíhá → prvek zvýraznit TRVALE (persist) a
+  // nepípat „prvek nenalezen" hláškou (na čerstvě načtené stránce se prvek/pins
+  // teprve dorovnávají, proto se highlight ještě zopakuje).
+  const urlJumpRef = useRef(false);
   // Skok „kde píše" na prvek z jiné stránky → zvýraznit po jejím načtení.
   const pendingHighlightAnchorRef = useRef<{
     dataReviewId: string | null;
@@ -473,6 +477,8 @@ export function DocumentViewer({
             postToOverlay({
               type: "highlight",
               commentId: pendingHighlightRef.current,
+              // Proklik z e-mailu/zvonečku (jiná stránka) → trvalé zvýraznění.
+              persist: urlJumpRef.current,
             });
             pendingHighlightRef.current = null;
           }
@@ -535,8 +541,12 @@ export function DocumentViewer({
         setPanelMode("thread");
         setPanelOpen(true);
       } else if (d.type === "highlight.result") {
-        // Prvek se na stránce nenašel (dynamický modal / skrytý) → hláška.
-        if (d.found === false) {
+        // Nalezeno → proklik hotový (další „nenalezeno" už smí pípnout).
+        if (d.found === true) urlJumpRef.current = false;
+        // Prvek se na stránce nenašel (dynamický modal / skrytý) → hláška. Při
+        // prokliku z e-mailu/zvonečku ji potlačíme (prvek se ještě dorovnává,
+        // highlight se zopakuje).
+        else if (!urlJumpRef.current) {
           toast.info(
             "Prvek se objeví až po otevření příslušného okna. V panelu je jeho náhled.",
           );
@@ -584,11 +594,23 @@ export function DocumentViewer({
     const thread = threads.find((t) => t.id === wantCommentRef.current);
     if (!thread) return;
     highlightFromUrlDoneRef.current = true;
+    urlJumpRef.current = true;
     setActiveThreadId(thread.id);
     setPanelMode("thread");
     setPanelOpen(true);
     if (thread.pagePath === pagePathRef.current) {
-      postToOverlay({ type: "highlight", commentId: thread.id });
+      // Trvalé zvýraznění + zopakování: na čerstvě otevřené stránce se prvek a
+      // špendlíky teprve dorovnávají, jednorázový puls by proběhl během načítání.
+      const cid = thread.id;
+      postToOverlay({ type: "highlight", commentId: cid, persist: true });
+      window.setTimeout(
+        () =>
+          postToOverlay({ type: "highlight", commentId: cid, persist: true }),
+        500,
+      );
+      window.setTimeout(() => {
+        urlJumpRef.current = false;
+      }, 1500);
     } else {
       pendingHighlightRef.current = thread.id;
       void goToPage(thread.pagePath);
