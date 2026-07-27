@@ -9,10 +9,13 @@ import {
   MapPin,
   MessageSquare,
   MessageSquarePlus,
+  MoreVertical,
   MousePointer2,
+  Pencil,
   RotateCcw,
   SmilePlus,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +25,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   MentionTextarea,
   activeMentions,
@@ -567,23 +586,177 @@ function ElementInfo({
   );
 }
 
-function AuthorLine({ author, createdAt }: { author: CommentUser; createdAt: string }) {
-  // Barva uživatele stejná jako v liště přítomnosti (kroužek kolem avataru) —
-  // ať jde poznat autor napříč záhlavím dokumentu i komentáři. Skutečný avatar,
-  // pokud ho uživatel má, jinak iniciála na barevném podkladu.
+// Jeden komentář nebo odpověď: řádek autora (avatar s barvou uživatele + jméno +
+// čas + kebab menu ⋮ u vlastního) a tělo (nebo inline editor). Akce Upravit /
+// Smazat jsou v kebab menu (vzor Google komentářů) - dřív to byly nenápadné
+// textové odkazy, které šlo přehlédnout. Smazání potvrzuje dialog. Editovat/mazat
+// smí jen VLASTNÍ a jen v nejnovější verzi (`canEdit`); server to hlídá znovu.
+function CommentBlock({
+  id,
+  author,
+  createdAt,
+  body,
+  isOwn,
+  canEdit,
+  onChanged,
+  internal,
+}: {
+  id: number;
+  author: CommentUser;
+  createdAt: string;
+  body: string;
+  isOwn: boolean;
+  canEdit: boolean;
+  onChanged: () => Promise<void>;
+  internal?: boolean; // odpověď pod interním vláknem → badge Interní
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(body);
+  const [busy, setBusy] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   const color = userColor(author.id);
+
+  async function save() {
+    const text = value.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setEditing(false);
+      await onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Úprava se nepovedla.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function del() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success("Komentář smazán.");
+      setConfirmDel(false);
+      await onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Smazání se nepovedlo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <Avatar size="sm" style={{ boxShadow: `0 0 0 2px ${color}` }}>
-        {author.avatarUrl && <AvatarImage src={author.avatarUrl} alt="" />}
-        <AvatarFallback style={{ backgroundColor: color, color: "#fff" }}>
-          {author.name.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      <span className="truncate text-sm font-medium">{author.name}</span>
-      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-        {formatTime(createdAt)}
-      </span>
+    <div onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-2">
+        <Avatar size="sm" style={{ boxShadow: `0 0 0 2px ${color}` }}>
+          {author.avatarUrl && <AvatarImage src={author.avatarUrl} alt="" />}
+          <AvatarFallback style={{ backgroundColor: color, color: "#fff" }}>
+            {author.name.slice(0, 1).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <span className="truncate text-sm font-medium">{author.name}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+          {formatTime(createdAt)}
+        </span>
+        {canEdit && isOwn && !editing && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Možnosti komentáře"
+                  className="-my-1 size-7 shrink-0 text-muted-foreground"
+                />
+              }
+            >
+              <MoreVertical />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-36">
+              <DropdownMenuItem
+                onClick={() => {
+                  setValue(body);
+                  setEditing(true);
+                }}
+              >
+                <Pencil aria-hidden="true" />
+                Upravit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setConfirmDel(true)}
+              >
+                <Trash2 aria-hidden="true" />
+                Smazat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+
+      {internal && (
+        <Badge variant="destructive" className="mt-1 gap-1 text-[11px]">
+          <Lock size={10} aria-hidden="true" />
+          Interní
+        </Badge>
+      )}
+
+      {editing ? (
+        <div className="mt-1 space-y-1.5">
+          <Textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            rows={3}
+            maxLength={10_000}
+            autoFocus
+          />
+          <div className="flex gap-1.5">
+            <Button size="sm" disabled={busy || !value.trim()} onClick={save}>
+              Uložit
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditing(false);
+                setValue(body);
+              }}
+            >
+              Zrušit
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm whitespace-pre-wrap break-words">{body}</p>
+      )}
+
+      <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat komentář?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Komentář se natrvalo odstraní. Tuto akci nelze vzít zpět. Vlákno,
+              na které už někdo odpověděl, smazat nejde - jde upravit text.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušit</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={del}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -839,155 +1012,6 @@ function NewThreadForm({
   );
 }
 
-// Dvoukrokové inline potvrzení mazání (bez modalu — komentáře jsou drobné).
-function DeleteInline({
-  onDelete,
-  busy,
-}: {
-  onDelete: () => void;
-  busy: boolean;
-}) {
-  const [confirm, setConfirm] = useState(false);
-  if (confirm) {
-    return (
-      <span className="flex items-center gap-1 text-[11px]">
-        <span className="text-muted-foreground">Smazat?</span>
-        <button
-          type="button"
-          disabled={busy}
-          className="font-medium text-destructive hover:underline"
-          onClick={onDelete}
-        >
-          Ano
-        </button>
-        <button
-          type="button"
-          className="text-muted-foreground hover:underline"
-          onClick={() => setConfirm(false)}
-        >
-          Ne
-        </button>
-      </span>
-    );
-  }
-  return (
-    <button
-      type="button"
-      className="text-[11px] text-muted-foreground transition-colors hover:text-destructive"
-      onClick={() => setConfirm(true)}
-    >
-      Smazat
-    </button>
-  );
-}
-
-// Tělo komentáře/odpovědi + akce Upravit/Smazat u VLASTNÍHO (jen v nejnovější
-// verzi — `canEdit` = canComment). Úprava je inline; zmínky se úpravou textu
-// zachovají (server je re-syncuje jen když se pošlou).
-function CommentText({
-  id,
-  body,
-  isOwn,
-  canEdit,
-  onChanged,
-}: {
-  id: number;
-  body: string;
-  isOwn: boolean;
-  canEdit: boolean;
-  onChanged: () => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(body);
-  const [busy, setBusy] = useState(false);
-
-  async function save() {
-    const text = value.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/comments/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      setEditing(false);
-      await onChanged();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Úprava se nepovedla.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function del() {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success("Komentář smazán.");
-      await onChanged();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Smazání se nepovedlo.");
-      setBusy(false);
-    }
-  }
-
-  if (editing) {
-    return (
-      <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
-        <Textarea
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          rows={3}
-          maxLength={10_000}
-          autoFocus
-        />
-        <div className="flex gap-1.5">
-          <Button size="sm" disabled={busy || !value.trim()} onClick={save}>
-            Uložit
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setEditing(false);
-              setValue(body);
-            }}
-          >
-            Zrušit
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <p className="text-sm whitespace-pre-wrap break-words">{body}</p>
-      {canEdit && isOwn && (
-        <div
-          className="mt-0.5 flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-            onClick={() => {
-              setValue(body);
-              setEditing(true);
-            }}
-          >
-            Upravit
-          </button>
-          <DeleteInline onDelete={del} busy={busy} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ThreadCard({
   documentId,
   thread,
@@ -1126,9 +1150,10 @@ function ThreadCard({
         </p>
       )}
 
-      <AuthorLine author={thread.author} createdAt={thread.createdAt} />
-      <CommentText
+      <CommentBlock
         id={thread.id}
+        author={thread.author}
+        createdAt={thread.createdAt}
         body={thread.body}
         isOwn={thread.author.id === currentUserId}
         canEdit={canComment}
@@ -1153,19 +1178,15 @@ function ThreadCard({
         <div className="space-y-2 border-l-2 pl-2.5">
           {thread.replies.map((reply) => (
             <div key={reply.id} className="space-y-1">
-              <AuthorLine author={reply.author} createdAt={reply.createdAt} />
-              {reply.visibility === "INTERNAL" && (
-                <Badge variant="destructive" className="gap-1 text-[11px]">
-                  <Lock size={10} aria-hidden="true" />
-                  Interní
-                </Badge>
-              )}
-              <CommentText
+              <CommentBlock
                 id={reply.id}
+                author={reply.author}
+                createdAt={reply.createdAt}
                 body={reply.body}
                 isOwn={reply.author.id === currentUserId}
                 canEdit={canComment}
                 onChanged={onChanged}
+                internal={reply.visibility === "INTERNAL"}
               />
               <div onClick={(e) => e.stopPropagation()}>
                 <ReactionBar

@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 16,
+    date: "27. 7. 2026",
+    title: "Přehlednější úpravy a mazání komentáře",
+    items: [
+      {
+        icon: "message",
+        title: "Upravit a smazat v menu ⋮",
+        description:
+          "Úprava a mazání vlastního komentáře jsou nově v kebab menu (tři tečky ⋮ vpravo u komentáře, vzor Google komentářů) - dřív to byly malé nenápadné odkazy. Smazání potvrdíte dialogem.",
+      },
+    ],
+  },
+  {
     id: 15,
     date: "27. 7. 2026",
     title: "Špendlíky jako v Google komentářích",

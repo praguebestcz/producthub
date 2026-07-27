@@ -40,7 +40,12 @@ import {
 } from "lucide-react";
 import { PresenceBar } from "@/components/presence/presence-bar";
 import { userColor } from "@/lib/presence/colors";
-import { DialogDemo, AlertDialogDemo, ToastDemo } from "./demos";
+import {
+  DialogDemo,
+  AlertDialogDemo,
+  ToastDemo,
+  CommentActionsDemo,
+} from "./demos";
 
 // Živý styleguide — přehled tokenů a shadcn komponent na jednom místě.
 // Referenční stránka pro všechny další obrazovky (viz docs/styling.md).
@@ -390,14 +395,19 @@ export default async function StyleguidePage() {
             </span>
           </div>
           <div className="flex flex-col items-center gap-1.5">
-            {/* Špendlík je živě uvnitř sandboxu prohlížeče; tady napodobenina. */}
-            <span className="relative flex size-7 rotate-[-45deg] items-center justify-center rounded-[50%_50%_50%_0] border border-pb bg-pb shadow">
-              <span className="flex size-5 rotate-45 items-center justify-center rounded-full bg-white text-[11px] font-bold text-pb">
-                2
+            {/* Špendlík je živě uvnitř sandboxu prohlížeče; tady napodobenina.
+                Ukazuje avatar autora + počet zpráv ve vláknu (jen když > 1). */}
+            <span
+              className="relative inline-flex size-8 items-center justify-center rounded-full border-2 border-white text-sm font-semibold text-white shadow"
+              style={{ backgroundColor: userColor(3) }}
+            >
+              H
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-pb px-1 text-[10px] font-bold leading-none text-white ring-2 ring-background">
+                3
               </span>
             </span>
             <span className="text-xs text-muted-foreground">
-              Špendlík komentáře
+              Špendlík (avatar + počet zpráv)
             </span>
           </div>
           <div className="flex flex-col items-center gap-1.5">
@@ -408,6 +418,14 @@ export default async function StyleguidePage() {
             <span className="text-xs text-muted-foreground">Indikace psaní</span>
           </div>
         </div>
+      </Section>
+
+      <Section title="Akce u vlastního komentáře (kebab menu)">
+        <p className="mb-3 text-sm text-muted-foreground">
+          Upravit a Smazat u vlastního komentáře jsou v kebab menu ⋮ (vzor
+          Google komentářů) - dřív to byly nenápadné textové odkazy.
+        </p>
+        <CommentActionsDemo />
       </Section>
 
       <Section title="Stavy komentářů (badge)">

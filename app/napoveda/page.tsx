@@ -60,7 +60,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "V panelu vpravo odpovídáte na vlákna a označujete je jako Vyřešené (nebo je znovu otevřete).",
       "Filtr nahoře přepíná Nevyřešené / Vyřešené / Vše. Výchozí je Nevyřešené.",
       "Špendlíky na stránce se řídí stejným filtrem — vyřešené se běžně nezobrazují.",
-      "Svůj komentář nebo odpověď můžete Upravit nebo Smazat (jen v nejnovější verzi). Vlákno s odpověďmi nejde smazat, aby se neztratila cizí diskuse - jde upravit text.",
+      "Svůj komentář nebo odpověď upravíte nebo smažete přes kebab menu (tři tečky ⋮ vpravo u komentáře) - jen v nejnovější verzi. Vlákno s odpověďmi nejde smazat, aby se neztratila cizí diskuse - jde upravit text.",
     ],
   },
   {
