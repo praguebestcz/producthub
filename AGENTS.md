@@ -33,6 +33,7 @@ požadavek a systém vygeneruje hotový prompt pro Claude Code.
 - Před předáním push/deploy příkazu Haně: `git log origin/production..main --oneline` (ukázat, co se nasadí)
 - Produkční proměnné a redirect URI: viz STAV.md sekce M4
 - **`ANTHROPIC_API_KEY`** (M8 - generování promptu se změnami přes AI): lokálně v `.env`, na produkci Railway proměnná. Nastavuje **výhradně Hana** (tajemství). Bez klíče funkce vrací srozumitelnou hlášku, aplikace nespadne.
+- **SMTP proměnné** (e-mailové notifikace): `SMTP_HOST/PORT/SECURE/USER/PASS`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, `TEST_EMAILS` (viz `.env.example`). Lokálně v `.env`, na produkci Railway proměnné. Nastavuje **výhradně Hana** (tajemství). Bez nich se e-maily tiše neposílají (aplikace i zvoneček fungují). Mimo produkci se posílá jen na `TEST_EMAILS` (pojistka jako u vratek).
 - **Novinky pro uživatele:** když se nasazuje VIDITELNÁ změna (nová funkce / změna UI), přidej záznam do `lib/releases.ts` (nové vydání s vyšším `id`) — uživatel ho po přihlášení uvidí v okně „Co je nového". Drobné opravy bez dopadu na uživatele novinku nedostávají. (Stejný princip jako „spec je živý dokument".)
 
 ## Bezpečnostní pravidla (závazná, viz user-global CLAUDE.md Hany)

@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 13,
+    date: "27. 7. 2026",
+    title: "E-mailová upozornění",
+    items: [
+      {
+        icon: "bell",
+        title: "Upozornění i do e-mailu",
+        description:
+          "V Nastavení si zapnete e-maily: Okamžitě (hned po události), nebo Jen nepřečtené (chytře - e-mail dorazí jen na to, co jste si v aplikaci nestihli přečíst, žádný spam). Výchozí je Vypnuto. E-maily platí stejný rozsah jako zvoneček (vše / jen zapojen).",
+      },
+    ],
+  },
+  {
     id: 12,
     date: "27. 7. 2026",
     title: "Živý zvoneček",

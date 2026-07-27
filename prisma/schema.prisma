@@ -89,6 +89,15 @@ enum NotifyScope {
   INVOLVED
 }
 
+// Režim e-mailových notifikací (self-service v /nastaveni). OFF = žádné e-maily
+// (jen zvoneček); IMMEDIATE = e-mail hned po vzniku upozornění; UNREAD = e-mail
+// jen na to, co uživatel v aplikaci nepřečetl do prodlevy (úloha na pozadí).
+enum EmailNotify {
+  OFF
+  IMMEDIATE
+  UNREAD
+}
+
 // === Modely ===
 
 // Uživatel — účet vzniká při prvním přihlášení přes Google. Žádná hesla.
@@ -112,6 +121,9 @@ model User {
   deactivatedAt     DateTime?
   // Rozsah notifikací (M7) — self-service, mění si sám uživatel v /nastaveni.
   notifyScope       NotifyScope @default(ALL)
+  // Režim e-mailových notifikací — self-service v /nastaveni. Výchozí OFF (opt-in:
+  // žádné překvapivé e-maily kolegům, každý si zapne sám).
+  emailNotify       EmailNotify @default(OFF)
   createdAt         DateTime @default(now())
 
   createdProjects      Project[]         @relation("ProjectCreator")
@@ -430,6 +442,12 @@ model Notification {
 
   createdAt DateTime  @default(now())
   readAt    DateTime?
+  // Kdy byla notifikace odeslána/vyřízena e-mailem (M-email). NULL = ještě
+  // neodeslaná. Brání dvojímu odeslání (atomický claim) a slouží úloze na pozadí
+  // (režim UNREAD). Pozn.: pro sweep vzniká v migraci PARTIKULÁRNÍ index
+  // (jen řádky `emailedAt IS NULL AND readAt IS NULL`) raw SQL — menší a rostoucí
+  // tabulku nezatěžuje; proto tu není `@@index` (Prisma partikulární index neumí).
+  emailedAt DateTime?
 
   @@index([userId, readAt])
   @@index([userId, createdAt])

@@ -79,6 +79,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "Upozorní vás na odpověď ve vašem vláknu, na @zmínku i na změnu stavu vlákna, kterého se účastníte.",
       "Kliknutím na upozornění přejdete rovnou k danému komentáři; tlačítkem Označit vše přečtené počet vynulujete.",
       "V Nastavení (menu u vašeho jména dole) si zvolíte rozsah: veškeré dění, nebo jen když jste zapojeni (@zmínka / odpověď ve vašem vláknu).",
+      "Tamtéž si zapnete e-mailová upozornění: Vypnuto / Okamžitě / Jen nepřečtené (chytře - e-mail dorazí jen na to, co jste si v aplikaci nestihli přečíst). Výchozí je Vypnuto. E-maily platí stejný rozsah jako zvoneček.",
     ],
   },
   {

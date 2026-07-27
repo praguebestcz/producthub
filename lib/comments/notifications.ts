@@ -70,7 +70,8 @@ export function computeRecipients(opts: {
 // společně se zápisem komentáře/změny stavu (spec M7 — atomicky).
 //  - scope "ALL_MEMBERS": nový kořenový komentář → všem členům projektu
 //  - scope "PARTICIPANTS": odpověď / změna stavu → účastníkům vlákna
-// Vrací ID příjemců — volající je po COMMITu upozorní živě (SSE hub zvonečku).
+// Vrací vzniklé notifikace ({ id, userId }) — volající po COMMITu (a) upozorní
+// živě zvoneček (SSE) přes userId a (b) rozešle „okamžité" e-maily přes id.
 export async function createCommentNotifications(
   tx: Prisma.TransactionClient,
   opts: {
@@ -83,7 +84,7 @@ export async function createCommentNotifications(
     mentionedUserIds: number[];
     scope: "ALL_MEMBERS" | "PARTICIPANTS";
   },
-): Promise<number[]> {
+): Promise<{ id: number; userId: number }[]> {
   const members = await tx.projectMember.findMany({
     where: { projectId: opts.projectId },
     select: {
@@ -128,7 +129,8 @@ export async function createCommentNotifications(
   });
 
   if (recipients.length === 0) return [];
-  await tx.notification.createMany({
+  // createManyAndReturn: potřebujeme ID vzniklých notifikací pro „okamžité" e-maily.
+  return tx.notification.createManyAndReturn({
     data: recipients.map((r) => ({
       userId: r.userId,
       type: r.type,
@@ -136,6 +138,6 @@ export async function createCommentNotifications(
       commentId: opts.commentId,
       actorId: opts.actorId,
     })),
+    select: { id: true, userId: true },
   });
-  return recipients.map((r) => r.userId);
 }

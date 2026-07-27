@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { canSeeInternal, getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isNotificationDeliverable } from "@/lib/notifications/eligibility";
 
 // GET /api/notifications — zvoneček přihlášeného uživatele.
 // Vrací posledních 20 položek + celkový počet nepřečtených (badge).
@@ -49,14 +50,13 @@ export async function GET() {
   });
 
   const items = raw
-    .filter((n) => {
-      const m = membershipIndex.get(n.projectId);
-      if (!m) return false; // už není členem projektu
-      if (n.comment?.visibility === "INTERNAL" && !canSeeInternal(m)) {
-        return false; // interní komentář, ale už nevidí interní
-      }
-      return true;
-    })
+    .filter((n) =>
+      isNotificationDeliverable({
+        member: membershipIndex.get(n.projectId),
+        commentVisibility: n.comment?.visibility ?? null,
+        commentMissing: false, // zvoneček: komentář vždy existuje (kaskáda)
+      }),
+    )
     .map((n) => ({
       id: n.id,
       type: n.type,
