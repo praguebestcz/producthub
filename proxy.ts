@@ -20,12 +20,15 @@ import { prisma } from "@/lib/prisma";
 //  - /api/auth/* (Google OAuth tok + logout)
 //  - /view/* (zobrazení dokumentu — má vlastní autorizaci přes view token, M5)
 //  - /soukromi (zásady zpracování osobních údajů — čitelné i bez přihlášení)
+//  - /api/dev/* JEN v devu (rychlé přihlášení testovacích účtů; na produkci ho
+//    proxy dál chrání a samotná routa navíc vrací 404 — dvojitá pojistka)
 function isPublicPath(path: string): boolean {
   return (
     path === "/login" ||
     path === "/soukromi" ||
     path.startsWith("/api/auth/") ||
-    path.startsWith("/view/")
+    path.startsWith("/view/") ||
+    (process.env.NODE_ENV !== "production" && path.startsWith("/api/dev/"))
   );
 }
 
