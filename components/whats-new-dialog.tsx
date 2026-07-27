@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import {
   LAST_SEEN_KEY,
   LATEST_RELEASE_ID,
-  NEWS_SEEN_EVENT,
   RELEASES,
   WELCOME_STEPS,
   WHATSNEW_SHOWN_KEY,
@@ -127,14 +126,13 @@ export function WhatsNewDialog() {
     setPanel((p) => ({ ...p, open: false }));
   }
 
-  // „Rozumím" = označit novinky za viděné (skryje i odznak u Nápovědy). Zavření
-  // křížkem / Esc novinky NEoznačí → odznak u Nápovědy zůstane jako připomínka,
-  // ale okno už automaticky nevyskočí (o to se stará WHATSNEW_SHOWN_KEY výše).
+  // „Rozumím" jen zavře okno (a pojistně potvrdí, že se pro tuhle verzi ukázalo,
+  // ať znovu nevyskočí). Odznak u Nápovědy schválně NEschovává - okno je jen
+  // jednorázové oznámení a odznak zůstane jako připomínka, dokud uživatel
+  // neotevře Nápovědu (tam je celý přehled novinek).
   function acknowledge() {
     try {
-      window.localStorage.setItem(LAST_SEEN_KEY, String(LATEST_RELEASE_ID));
       window.localStorage.setItem(WHATSNEW_SHOWN_KEY, String(LATEST_RELEASE_ID));
-      window.dispatchEvent(new Event(NEWS_SEEN_EVENT));
     } catch {
       // localStorage nedostupný — nevadí.
     }
