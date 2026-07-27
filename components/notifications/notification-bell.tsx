@@ -25,8 +25,9 @@ type Item = {
   snippet: string;
 };
 
-// Jak často se přenačte počet nepřečtených (Fáze 1). Fáze 2 (SSE) doručí živě.
-const POLL_MS = 60_000;
+// Živě doručuje SSE (/api/notifications/stream). Pomalý poll je jen pojistka
+// pro případ, že spojení spadne a hned se neobnoví.
+const FALLBACK_POLL_MS = 120_000;
 
 // Zvoneček v horní liště — upozornění na odpovědi, zmínky a změny stavu vláken.
 export function NotificationBell() {
@@ -48,13 +49,23 @@ export function NotificationBell() {
     }
   }, []);
 
-  // První načtení + pravidelný poll na počet nepřečtených. Data se stahují
-  // asynchronně (setState až v then), rozjezd kaskády nehrozí.
+  // Živé doručení přes SSE + první načtení + pomalý poll jako pojistka. Data se
+  // stahují asynchronně (setState až v then), rozjezd kaskády nehrozí.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    const t = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(t);
+
+    // SSE stream: server po vzniku notifikace pošle signál „notifications"
+    // (bez dat) → přenačteme zvoneček s vlastní session. EventSource se po
+    // výpadku spojení sám znovu připojí.
+    const es = new EventSource("/api/notifications/stream");
+    es.addEventListener("notifications", () => void load());
+
+    const t = setInterval(() => void load(), FALLBACK_POLL_MS);
+    return () => {
+      es.close();
+      clearInterval(t);
+    };
   }, [load]);
 
   // Zavření kliknutím mimo panel nebo klávesou Esc.

@@ -12,6 +12,7 @@ import { invalidMentionIds } from "@/lib/comments/mentions";
 import { createCommentNotifications } from "@/lib/comments/notifications";
 import { latestVersionId } from "@/lib/documents/store";
 import { signalCommentsChanged } from "@/lib/presence/hub";
+import { notifyUsers } from "@/lib/notifications/hub";
 import { BodyTooLargeError, readJsonLimited } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -274,6 +275,7 @@ export async function POST(
   // Atomicky: komentář + zmínky + notifikace (M7, zvoneček). Interní komentář
   // generuje notifikaci jen internímu příjemci (filtr v createCommentNotifications).
   const isReply = input.parentId !== undefined;
+  let recipientIds: number[] = [];
   const created = await prisma.$transaction(async (tx) => {
     const comment = await tx.comment.create({ data, select: { id: true } });
     if (input.mentions.length > 0) {
@@ -285,7 +287,7 @@ export async function POST(
         skipDuplicates: true,
       });
     }
-    await createCommentNotifications(tx, {
+    recipientIds = await createCommentNotifications(tx, {
       projectId: ctx.document.projectId,
       commentId: comment.id,
       // Kořen vlákna: u odpovědi je to rodič, u nového vlákna sám komentář.
@@ -300,8 +302,10 @@ export async function POST(
     return comment;
   });
 
-  // Živě oznámit ostatním u dokumentu, ať si komentáře přenačtou (M7 Fáze 2).
+  // Živě oznámit ostatním u dokumentu, ať si komentáře přenačtou (M7 Fáze 2)
+  // a příjemcům notifikací rozsvítit zvoneček (až po COMMITu, ať čtou zapsaná data).
   signalCommentsChanged(documentId);
+  notifyUsers(recipientIds);
 
   return NextResponse.json({ id: created.id }, { status: 201 });
 }

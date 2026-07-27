@@ -35,6 +35,19 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 12,
+    date: "27. 7. 2026",
+    title: "Živý zvoneček",
+    items: [
+      {
+        icon: "bell",
+        title: "Upozornění naskočí okamžitě",
+        description:
+          "Zvoneček se aktualizuje živě - nová odpověď, @zmínka nebo změna stavu vlákna se objeví hned, bez obnovení stránky a bez čekání. Když se nic neděje, nic to nezatěžuje.",
+      },
+    ],
+  },
+  {
     id: 11,
     date: "27. 7. 2026",
     title: "Sbalitelné skupiny klientů",

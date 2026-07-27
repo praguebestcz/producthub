@@ -6,6 +6,7 @@ import { canViewComment } from "@/lib/comments/visibility";
 import { createCommentNotifications } from "@/lib/comments/notifications";
 import { latestVersionId } from "@/lib/documents/store";
 import { signalCommentsChanged } from "@/lib/presence/hub";
+import { notifyUsers } from "@/lib/notifications/hub";
 
 // Změna stavu vlákna (Vyřešit / Znovu otevřít) — COMMENTER+ (design doc
 // neomezuje na autora). Stav má jen kořenový komentář.
@@ -82,6 +83,7 @@ export async function PATCH(
   }
 
   // Atomicky: změna stavu + notifikace účastníkům vlákna (M7, zvoneček).
+  let recipientIds: number[] = [];
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.comment.update({
       where: { id: commentId },
@@ -91,7 +93,7 @@ export async function PATCH(
           : { status, resolvedById: null, resolvedAt: null },
       select: { id: true, status: true, resolvedAt: true },
     });
-    await createCommentNotifications(tx, {
+    recipientIds = await createCommentNotifications(tx, {
       projectId: comment.projectId,
       commentId: comment.id, // kořen vlákna
       rootId: comment.id,
@@ -104,8 +106,9 @@ export async function PATCH(
     return u;
   });
 
-  // Živě oznámit ostatním u dokumentu (M7 Fáze 2).
+  // Živě oznámit ostatním u dokumentu (M7 Fáze 2) + rozsvítit zvoneček příjemcům.
   signalCommentsChanged(comment.documentId);
+  notifyUsers(recipientIds);
 
   return NextResponse.json(updated);
 }
