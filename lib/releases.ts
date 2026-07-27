@@ -35,6 +35,25 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 15,
+    date: "27. 7. 2026",
+    title: "Špendlíky jako v Google komentářích",
+    items: [
+      {
+        icon: "message",
+        title: "Špendlík ukazuje počet zpráv, ne pořadí",
+        description:
+          "Špendlík u prvku ukazuje avatar autora a - jen u vlákna s odpověďmi - počet zpráv ve vláknu (místo dřívějšího pořadového čísla, které nic neříkalo).",
+      },
+      {
+        icon: "hash",
+        title: "Přehled komentářů nic nezvýrazňuje",
+        description:
+          "Když otevřete přehled všech komentářů, žádný prvek už nezůstane zvýrazněný - zvýraznění patří jen ke konkrétnímu otevřenému vláknu.",
+      },
+    ],
+  },
+  {
     id: 14,
     date: "27. 7. 2026",
     title: "Proklik zvýrazní prvek + jednotné barvy",

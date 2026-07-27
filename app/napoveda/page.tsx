@@ -49,7 +49,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     title: "Komentování prvků",
     points: [
       "Přepněte na režim Komentování. Kliknutím vyberete konkrétní prvek ve specifikaci.",
-      "U prvku se otevře bublina — napíšete komentář a uložíte. Vznikne špendlík s číslem.",
+      "U prvku se otevře bublina — napíšete komentář a uložíte. Vznikne špendlík s avatarem autora; u vlákna s odpověďmi ukáže i počet zpráv.",
       "Jeden prvek má jedno vlákno; další příspěvky k němu jsou odpovědi.",
     ],
   },

@@ -229,6 +229,9 @@ export function DocumentViewer({
             // Avatar autora ve špendlíku (Figma pattern) — kdo komentář napsal.
             authorName: t.author.name,
             avatarUrl: t.author.avatarUrl ?? null,
+            // Počet zpráv ve vláknu (komentář + odpovědi) — jako u Google
+            // komentářů; overlay ho ukáže jen když je > 1.
+            count: 1 + t.replies.length,
           })),
       });
     },
@@ -619,6 +622,15 @@ export function DocumentViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threads]);
 
+  // Trvalé zvýraznění prvku patří ke KONKRÉTNÍMU aktivnímu vláknu. Když žádné
+  // není aktivní (přehled všech komentářů / zavřený panel), zvýraznění zrušíme
+  // — jinak by po prokliku z e-mailu/zvonečku zůstalo viset i v přehledu.
+  useEffect(() => {
+    if (activeThreadId === null) {
+      postToOverlay({ type: "highlight.clear" });
+    }
+  }, [activeThreadId, postToOverlay]);
+
   // M8 — počet uložených zadání (odznak na tlačítku „Zadání"). Jen interní tým.
   useEffect(() => {
     if (!canCreatePrompt) return;
@@ -817,6 +829,9 @@ export function DocumentViewer({
             if (panelOpen && panelMode === "list") {
               setPanelOpen(false);
             } else {
+              // Přehled všech komentářů = žádné konkrétní vlákno není aktivní →
+              // zrušíme i trvalé zvýraznění prvku (jinak by zůstalo z prokliku).
+              setActiveThreadId(null);
               setPanelMode("list");
               setPanelOpen(true);
             }

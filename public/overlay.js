@@ -274,7 +274,13 @@
       btn.setAttribute("data-ph-overlay", "");
       btn.setAttribute("data-comment-id", String(pin.commentId));
       btn.setAttribute("data-status", pin.status || "OPEN");
-      btn.setAttribute("aria-label", "Komentář " + (i + 1));
+      var count = typeof pin.count === "number" ? pin.count : 1;
+      btn.setAttribute(
+        "aria-label",
+        count > 1
+          ? "Vlákno od " + (pin.authorName || "?") + ", " + count + " zpráv"
+          : "Komentář od " + (pin.authorName || "?"),
+      );
       // Náhled komentáře na najetí myší (nativní tooltip).
       if (pin.preview) btn.title = pin.preview;
       // Vnitřek: iniciála autora (vždy) + avatar přes ni (když je a načte se).
@@ -297,10 +303,14 @@
         inner.appendChild(img);
       }
       btn.appendChild(inner);
-      var num = document.createElement("span");
-      num.className = "ph-pin-num";
-      num.textContent = String(i + 1);
-      btn.appendChild(num);
+      // Počet zpráv ve vláknu (jako Google komentáře) — jen když je jich víc
+      // než jedna. Samotný komentář bez odpovědí = jen avatar, žádné číslo.
+      if (count > 1) {
+        var num = document.createElement("span");
+        num.className = "ph-pin-num";
+        num.textContent = String(count);
+        btn.appendChild(num);
+      }
       // Klik na špendlík funguje v OBOU režimech (capture click ho propustí).
       btn.addEventListener("click", function (e) {
         e.preventDefault();
