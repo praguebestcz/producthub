@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronsUpDown,
   FolderOpen,
+  LayoutDashboard,
   LifeBuoy,
   LogOut,
   MessagesSquare,
@@ -58,6 +59,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
   // Styleguide v menu záměrně není (rozhodnutí Hany) — je dostupný na /styleguide.
   // Klienti jen pro tým s právem zakládat projekty (názvy klientů = obchodní info).
   const nav = [
+    { title: "Přehled", href: "/dashboard", icon: LayoutDashboard },
     { title: "Projekty", href: "/", icon: FolderOpen },
     ...(user.canCreateProjects
       ? [{ title: "Klienti", href: "/clients", icon: Building2 }]

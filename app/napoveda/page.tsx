@@ -111,11 +111,11 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
   },
   {
     icon: Map,
-    title: "Přehled na úvodní stránce",
+    title: "Přehled",
     points: [
-      "Nahoře je souhrn: otevřené komentáře, čekající zadání (jen interní tým), upozornění pro vás a počet projektů.",
+      "V levém menu je Přehled - samostatná stránka. Souhrn: otevřené komentáře, čekající zadání (jen interní tým), upozornění pro vás a počet projektů.",
       "Pod souhrnem Poslední aktivita napříč projekty - nové komentáře, odpovědi, @zmínky a vyřešená vlákna; klik přejde rovnou ke komentáři.",
-      "Souhrn i aktivita respektují viditelnost (klient interní nevidí).",
+      "Souhrn i aktivita respektují viditelnost (klient interní nevidí). Seznam projektů najdete samostatně v menu Projekty.",
     ],
   },
   {

@@ -1,29 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Bell,
   Building2,
-  ClipboardList,
   FolderOpen,
   MailOpen,
   MessageSquare,
   Users,
   FileText,
-  type LucideIcon,
 } from "lucide-react";
 import { getSessionUser, canSeeInternal } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
 import { plural } from "@/lib/czech";
-import { recentActivity, activityVerb } from "@/lib/dashboard/activity";
-import { formatRelativeCs } from "@/lib/notifications/labels";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NewProjectDialog } from "@/components/new-project-dialog";
-import { cn } from "@/lib/utils";
 
 type ProjectCard = {
   id: number;
@@ -35,46 +28,8 @@ type ProjectCard = {
   open: number;
 };
 
-// Dlaždice souhrnu v horním pruhu dashboardu.
-function SummaryTile({
-  icon: Icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  accent?: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3">
-        <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg",
-            accent ? "bg-pb-soft text-pb" : "bg-muted text-muted-foreground",
-          )}
-        >
-          <Icon size={20} aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <div
-            className={cn(
-              "text-2xl font-bold leading-none",
-              accent && "text-pb",
-            )}
-          >
-            {value}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">{label}</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Dashboard — souhrn + poslední aktivita + projekty uživatele (dle klienta).
+// Seznam projektů uživatele, seskupený podle klienta. Přehled (souhrn +
+// poslední aktivita) je samostatná stránka /dashboard.
 export default async function Home() {
   const user = await getSessionUser();
   // Proxy nepřihlášené přesměruje už dřív; tohle je pojistka (obrana do hloubky).
@@ -125,38 +80,6 @@ export default async function Home() {
     else e.pub += 1;
     openCounts.set(pid, e);
   }
-
-  // --- Dashboard: souhrn + poslední aktivita (nad seznamem projektů) ---
-  const latestVersionIds = latestVersions.map((v) => v.id);
-  const openTotal = memberships.reduce((sum, m) => {
-    const c = openCounts.get(m.projectId) ?? { pub: 0, int: 0 };
-    return sum + c.pub + (canSeeInternal(m) ? c.int : 0);
-  }, 0);
-  const internalProjectIds = memberships
-    .filter((m) => canSeeInternal(m))
-    .map((m) => m.projectId);
-  const isInternalSomewhere = internalProjectIds.length > 0;
-  // Čekající zadání — jen z projektů, kde jsem interní (klient koncept nevidí).
-  const pendingTasks = isInternalSomewhere
-    ? await prisma.promptExport.count({
-        where: {
-          status: { not: "DONE" },
-          document: { projectId: { in: internalProjectIds } },
-        },
-      })
-    : 0;
-  const unreadNotifications = await prisma.notification.count({
-    where: { userId: user.id, readAt: null },
-  });
-  const activity = await recentActivity(
-    user.id,
-    memberships.map((m) => ({
-      projectId: m.projectId,
-      role: m.role,
-      isInternal: m.isInternal,
-    })),
-    latestVersionIds,
-  );
 
   // Seskupení podle klienta: klienti abecedně, „Nezařazené" nakonec.
   const groups = new Map<string, ProjectCard[]>();
@@ -235,92 +158,8 @@ export default async function Home() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Souhrn — dlaždice napříč projekty */}
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryTile
-              icon={MessageSquare}
-              label="Otevřené komentáře"
-              value={openTotal}
-              accent
-            />
-            {isInternalSomewhere && (
-              <SummaryTile
-                icon={ClipboardList}
-                label="Čekající zadání"
-                value={pendingTasks}
-              />
-            )}
-            <SummaryTile
-              icon={Bell}
-              label="Pro mě"
-              value={unreadNotifications}
-              accent
-            />
-            <SummaryTile
-              icon={FolderOpen}
-              label="Projekty"
-              value={memberships.length}
-            />
-          </div>
-
-          {/* Poslední aktivita napříč projekty */}
-          <section className="mt-8">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Poslední aktivita
-            </h2>
-            {activity.length === 0 ? (
-              <Card>
-                <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                  Zatím žádná aktivita.
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="overflow-hidden">
-                <ul className="divide-y">
-                  {activity.map((a) => (
-                    <li key={a.key}>
-                      <Link
-                        href={`/projects/${a.projectId}/documents/${a.documentId}?comment=${a.rootCommentId}`}
-                        className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
-                      >
-                        <Avatar className="mt-0.5 size-8 shrink-0">
-                          <AvatarImage src={a.actorAvatarUrl ?? undefined} alt="" />
-                          <AvatarFallback className="bg-gradient-to-br from-pb to-pb-orange text-xs font-semibold text-white">
-                            {a.actorName.slice(0, 1).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm leading-snug">
-                            <span className="font-medium">{a.actorName}</span>{" "}
-                            <span className="text-muted-foreground">
-                              {activityVerb(a.kind)}
-                            </span>
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {a.projectName} › {a.documentName} ·{" "}
-                            {formatRelativeCs(a.at.toISOString())}
-                          </p>
-                          {a.snippet && (
-                            <p className="mt-0.5 truncate text-xs italic text-muted-foreground">
-                              {a.snippet}
-                            </p>
-                          )}
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-          </section>
-
-          {/* Projekty */}
-          <h2 className="mt-10 mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Projekty
-          </h2>
-          <div className="grid gap-10">
-            {sortedGroups.map(([clientName, projects]) => (
+        <div className="mt-8 grid gap-10">
+          {sortedGroups.map(([clientName, projects]) => (
             <section key={clientName || "__none"}>
               <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 <Building2 size={15} aria-hidden="true" />
@@ -381,8 +220,7 @@ export default async function Home() {
               </div>
             </section>
           ))}
-          </div>
-        </>
+        </div>
       )}
     </AppShell>
   );

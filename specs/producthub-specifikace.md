@@ -14,6 +14,8 @@
 
 ## Revize
 
+* **2026-07-27**
+  * **Přehled (dashboard)** jako samostatná stránka `/dashboard` (položka menu „Přehled"): pruh souhrnu (otevřené komentáře, čekající zadání jen internímu týmu, upozornění pro mě, počet projektů) + feed poslední aktivity napříč projekty (nové komentáře / odpovědi / @zmínky / vyřešená vlákna), respektuje viditelnost interních a jen nejnovější verze (M9). Seznam projektů zůstává samostatně na `/`. Detailní spec: outputs/dashboard-spec.md - Hana Ortmannová
 * **2026-07-22**
   * M9 (v1) - **přenos komentářů mezi verzemi**: při nahrání nové verze se volitelně (přepínač v dialogu, default zap) přenesou NEVYŘEŠENÁ vlákna + odpovědi do nové verze (kopie; stará verze si své nechá). Starší verze jsou **read-only** (komentář/odpověď/změna stavu jen v nejnovější; server 409). Osiřelý = stránka v nové verzi chybí (odznak). Připnutí na prvek řeší overlay za běhu. Detailní spec: outputs/m9-prenos-komentaru-spec.md - Hana Ortmannová
   * M7 **security hardening** po db-security-expert review (rate-limity SSE/typing, strop spojení, heartbeat try/catch, server-side connId). - Hana Ortmannová
@@ -72,7 +74,7 @@
 | Kdo | Otázka |
 |-----|--------|
 | Dev | M7: SSE spojení se ověřuje jen při otevření - deaktivace uživatele neukončí už otevřený stream. Re-check při heartbeatu, nebo zdokumentovat jako přijaté riziko? |
-| PB | Kdy zařadit backlog (aplikační logy, přehledový dashboard, čítače na kartě projektu)? Návrh: logy společně s M9, dashboard po M7. |
+| PB | Kdy zařadit backlog (aplikační logy, čítače na kartě projektu)? Návrh: logy společně s M9, dashboard po M7. |
 | PB | v2: rozsah a priorita GitHub integrace (Issues ze schválených požadavků). |
 
 ## Hlavní cíle
@@ -131,6 +133,7 @@ Reálné specifikace PragueBest NEJSOU statické stránky - jsou to klikací HTM
 * Realtime: živé komentáře, přítomnost, indikace psaní; notifikace v aplikaci (M7)
 * Požadavky + generování Claude promptu (M8)
 * Přenos komentářů mezi verzemi + dokončení (M9)
+* Přehled (samostatná stránka „Přehled" / `/dashboard`): souhrn + feed poslední aktivity napříč projekty (detail v `outputs/dashboard-spec.md`)
 
 **Mimo scope (NENÍ součástí v1):**
 

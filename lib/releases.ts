@@ -37,13 +37,13 @@ export const RELEASES: Release[] = [
   {
     id: 10,
     date: "27. 7. 2026",
-    title: "Přehled na úvodní stránce",
+    title: "Přehled (samostatná stránka)",
     items: [
       {
         icon: "map",
         title: "Souhrn a poslední aktivita",
         description:
-          "Úvodní stránka má nahoře souhrn (otevřené komentáře, čekající zadání, upozornění pro vás, projekty) a feed poslední aktivity napříč projekty - nové komentáře, odpovědi, zmínky a vyřešená vlákna, s proklikem rovnou ke komentáři.",
+          "V levém menu přibyl Přehled: souhrn (otevřené komentáře, čekající zadání, upozornění pro vás, projekty) a feed poslední aktivity napříč projekty - nové komentáře, odpovědi, zmínky a vyřešená vlákna, s proklikem rovnou ke komentáři. Seznam projektů zůstává samostatně.",
       },
     ],
   },

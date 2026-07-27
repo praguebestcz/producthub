@@ -1,15 +1,16 @@
 # Přehledový dashboard - Specifikace
 
-**ProductHub (interní aplikace PragueBest) - souhrn + poslední aktivita na úvodní stránce**
+**ProductHub (interní aplikace PragueBest) - souhrn + poslední aktivita jako samostatná stránka „Přehled"**
 
 ## Revize
 
 * **2026-07-27**
   * První návrh (brainstorming s Hanou). Zvolen směr **C** (souhrn + poslední aktivita), všechny 4 dlaždice, feed dle návrhu. - Claude
+  * Přehled oddělen od seznamu projektů: samostatná stránka `/dashboard` (menu „Přehled"), seznam projektů zůstává na `/` samostatně (přání Hany). - Claude
 
 ## Kontext & cíl
 
-Úvodní stránka `/` dnes ukazuje seznam projektů seskupený podle klienta + odznak nevyřešených na kartě. Dashboard přidá **NAD** seznam (1) pruh souhrnu a (2) feed poslední aktivity - rychlý přehled „co se děje" napříč projekty, pro autora i klienta. Obsah respektuje roli a viditelnost interních komentářů.
+Úvodní stránka `/` ukazuje seznam projektů seskupený podle klienta + odznak nevyřešených na kartě. Přehled je **samostatná stránka** `/dashboard` (položka menu „Přehled") - (1) pruh souhrnu a (2) feed poslední aktivity - rychlý přehled „co se děje" napříč projekty, pro autora i klienta. Seznam projektů zůstává samostatně na `/`. Obsah respektuje roli a viditelnost interních komentářů.
 
 ## Rozsah
 
@@ -41,4 +42,4 @@
 * Prázdné stavy: bez aktivity „Zatím žádná aktivita"; bez projektů zůstává stávající prázdný stav.
 
 ## Umístění
-Rozšíření stávající stránky `app/page.tsx` (server component) - pruh + feed nad seznamem projektů. Feed jako samostatná server-side funkce (jeden účel, testovatelné počítání odděleně od renderu).
+Samostatná stránka `app/dashboard/page.tsx` (server component) - pruh souhrnu + feed. Položka menu „Přehled" (`/dashboard`). Seznam projektů zůstává na `app/page.tsx` (`/`) samostatně. Feed jako samostatná server-side funkce `lib/dashboard/activity.ts` (jeden účel, testovatelné počítání odděleně od renderu).
