@@ -137,7 +137,7 @@ export function DocumentViewer({
   // M9 v1.1 — vlákno, kterému uživatel hledá nový prvek („Znovu připnout").
   // Dokud je nastavené, klik ve specifikaci nezakládá komentář, ale přepne kotvu.
   const [repinFor, setRepinFor] = useState<number | null>(null);
-  // Panel je vyjíždějící drawer — skrytý, dokud ho něco neotevře.
+  // Panel je sloupec vedle dokumentu — zavřený má nulovou šířku.
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("list");
   // Filtr stavu — výchozí „nevyřešené" (vyřešené se běžně nezobrazují, ani
@@ -975,7 +975,7 @@ export function DocumentViewer({
           </div>
         )}
 
-        {/* Tlačítko otevře přehled všech komentářů (drawer, režim seznam) */}
+        {/* Tlačítko otevře přehled všech komentářů (panel v režimu seznam) */}
         <Button
           variant={panelOpen && panelMode === "list" ? "secondary" : "outline"}
           size="sm"
@@ -1018,63 +1018,13 @@ export function DocumentViewer({
         )}
       </div>
 
-      {/* Drobečková navigace mezi stránkami specifikace — nad dokumentem */}
-      {pagePath && (
-        <nav className="mt-3 flex items-center gap-1 rounded-lg border bg-muted/40 px-2 py-1.5 text-xs">
-          {/* Šipka Zpět jen když je kam — na rozcestníku (první stránka) se
-              nezobrazuje (zpětná vazba Hany). */}
-          {pageTrail.length >= 2 && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Zpět"
-              onClick={() => {
-                const prev = pageTrail[pageTrail.length - 2];
-                if (prev) goToPage(prev);
-              }}
-            >
-              <ChevronLeft />
-            </Button>
-          )}
-          {pageTrail.map((p, i) => {
-            const isLast = i === pageTrail.length - 1;
-            const label = p === entryPath ? "Rozcestník" : p;
-            return (
-              <span key={p} className="flex items-center gap-1">
-                {i > 0 && (
-                  <ChevronRight
-                    size={12}
-                    className="text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                )}
-                {isLast ? (
-                  <span className="flex items-center gap-1 font-medium">
-                    {p === entryPath && <Home size={12} aria-hidden="true" />}
-                    {label}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => goToPage(p)}
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    {p === entryPath && <Home size={12} aria-hidden="true" />}
-                    {label}
-                  </button>
-                )}
-              </span>
-            );
-          })}
-        </nav>
-      )}
 
       {/* Banner režimu — na první pohled jasné, v jakém režimu uživatel je
           (zpětná vazba Hany). Komentování = červený (pozor, kliky vybírají),
           Procházení = neutrální tmavý (kliky fungují normálně). */}
       {isReadOnlyVersion && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm">
-          <History size={16} aria-hidden="true" />
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+          <History size={14} aria-hidden="true" />
           <span>
             Prohlížíte starší verzi - jen ke čtení. Komentovat a odpovídat lze
             jen v nejnovější verzi dokumentu.
@@ -1084,8 +1034,8 @@ export function DocumentViewer({
       {/* M9 v1.1 — připínání osiřelého vlákna má vlastní banner (jiný úkol než
           běžné komentování: uživatel hledá náhradní prvek). */}
       {repinFor !== null ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white shadow-sm">
-          <Pin size={16} aria-hidden="true" />
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+          <Pin size={14} aria-hidden="true" />
           <span>
             Znovu připnutí - klikněte na prvek, ke kterému komentář patří.
           </span>
@@ -1100,8 +1050,8 @@ export function DocumentViewer({
       ) : (
       canCommentNow &&
         (mode === "comment" ? (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
-            <MessageSquarePlus size={16} aria-hidden="true" />
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+            <MessageSquarePlus size={14} aria-hidden="true" />
             <span>
               Režim komentování - klikněte na prvek ve specifikaci a napište k
               němu komentář.
@@ -1115,8 +1065,8 @@ export function DocumentViewer({
             </button>
           </div>
         ) : (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background shadow-sm">
-            <MousePointer2 size={16} aria-hidden="true" />
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm">
+            <MousePointer2 size={14} aria-hidden="true" />
             <span>
               Režim procházení - kliky fungují normálně (odkazy, tlačítka,
               modaly). Pro komentování přepněte režim.
@@ -1132,17 +1082,73 @@ export function DocumentViewer({
         ))
       )}
 
-      {/* Prohlížeč přes celou šířku; bublina a panel jsou překryvné vrstvy */}
+      {/* Prohlížeč + panel jako DVA sloupce: otevřený panel dokument zúží,
+          nepřekryje ho (jinak se pravá část specifikace i s špendlíky schová).
+          Bublina zůstává překryvem NAD dokumentem, proto vlastní `relative`. */}
       <div
-        ref={containerRef}
         className={cn(
-          "relative mt-3 overflow-hidden rounded-xl border bg-white transition-all",
+          "mt-3 flex overflow-hidden rounded-xl border bg-white transition-all",
           // Banner (u kohokoli, kdo smí komentovat) ubere kus výšky.
-          // Červený rámeček navíc jen v režimu komentování (pozor, vybíráš prvky).
-          canComment ? "h-[calc(100vh-20rem)]" : "h-[calc(100vh-17rem)]",
+          // Barevný rámeček podle rozdělané práce (vybíráš prvky).
+          canComment ? "h-[calc(100vh-18rem)]" : "h-[calc(100vh-15rem)]",
           canCommentNow && mode === "comment" && "ring-2 ring-pb/40",
+          repinFor !== null && "ring-2 ring-amber-500/50",
         )}
       >
+        {/* Sloupec dokumentu: navigace stránkami + iframe + bublina */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {pagePath && (
+          <nav className="flex items-center gap-1 border-b bg-muted/40 px-2 py-1.5 text-xs">
+            {/* Šipka Zpět jen když je kam — na rozcestníku (první stránka) se
+                nezobrazuje (zpětná vazba Hany). */}
+            {pageTrail.length >= 2 && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Zpět"
+                onClick={() => {
+                  const prev = pageTrail[pageTrail.length - 2];
+                  if (prev) goToPage(prev);
+                }}
+              >
+                <ChevronLeft />
+              </Button>
+            )}
+            {pageTrail.map((p, i) => {
+              const isLast = i === pageTrail.length - 1;
+              const label = p === entryPath ? "Rozcestník" : p;
+              return (
+                <span key={p} className="flex items-center gap-1">
+                  {i > 0 && (
+                    <ChevronRight
+                      size={12}
+                      className="text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {isLast ? (
+                    <span className="flex items-center gap-1 font-medium">
+                      {p === entryPath && <Home size={12} aria-hidden="true" />}
+                      {label}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => goToPage(p)}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      {p === entryPath && <Home size={12} aria-hidden="true" />}
+                      {label}
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+          </nav>
+        )}
+        {/* Plocha dokumentu — kotva pro bublinu (souřadnice z iframe se počítají
+            k ní, proto NESMÍ obsahovat navigaci nad dokumentem). */}
+        <div ref={containerRef} className="relative min-h-0 flex-1">
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -1181,8 +1187,10 @@ export function DocumentViewer({
             members={members}
           />
         )}
+        </div>
+        </div>
 
-        {/* Vyjíždějící panel s diskusí / seznamem */}
+        {/* Panel s diskusí / seznamem — sloupec vedle dokumentu */}
         <CommentPanel
           open={panelOpen}
           mode={panelMode}

@@ -44,6 +44,25 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 19,
+    date: "30. 7. 2026",
+    title: "Přehlednější prohlížeč specifikace",
+    items: [
+      {
+        icon: "eye",
+        title: "Panel komentářů už nepřekrývá specifikaci",
+        description:
+          "Otevřený panel dokument zúží místo toho, aby ho překryl - pravá část specifikace i se svými špendlíky zůstane vidět. Navigace mezi stránkami se přesunula dovnitř rámu dokumentu, takže nad ním visí o jeden pruh méně a na obsah zbývá víc místa.",
+      },
+      {
+        icon: "map",
+        title: "Špendlíky se už nepřekrývají",
+        description:
+          "Když jsou dva komentované prvky blízko pod sebou, špendlíky se dřív slepily do jedné kaše. Teď se navzájem uhnou. V panelu navíc u vlákna svítí ikona špendlíku místo čísla, které nemělo k čemu odkazovat.",
+      },
+    ],
+  },
+  {
     id: 18,
     date: "30. 7. 2026",
     title: "Komentář, kterému po nové verzi zmizel prvek, jde zachránit",

@@ -42,7 +42,8 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     title: "Prohlížení specifikace",
     points: [
       "V režimu Procházení funguje specifikace normálně — klikáte na odkazy, tlačítka i modaly.",
-      "Mezi stránkami se pohybujete drobečkovou navigací nad dokumentem.",
+      "Mezi stránkami se pohybujete drobečkovou navigací v horní liště rámu dokumentu.",
+      "Když otevřete panel komentářů, dokument se zúží (nezmizí pod panelem) - špendlíky tak zůstanou vidět.",
       "Nahoře přepínáte verze dokumentu. Při nahrání nové verze se nevyřešené komentáře volitelně přenesou na odpovídající prvky; starší verze jsou jen ke čtení.",
     ],
   },
@@ -51,7 +52,7 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
     title: "Komentování prvků",
     points: [
       "Přepněte na režim Komentování. Kliknutím vyberete konkrétní prvek ve specifikaci.",
-      "U prvku se otevře bublina — napíšete komentář a uložíte. Vznikne špendlík s avatarem autora; u vlákna s odpověďmi ukáže i počet zpráv.",
+      "U prvku se otevře bublina — napíšete komentář a uložíte. Vznikne špendlík s avatarem autora; u vlákna s odpověďmi ukáže i počet zpráv. Špendlíky blízkých prvků se navzájem uhnou, aby se nepřekrývaly.",
       "Jeden prvek má jedno vlákno; další příspěvky k němu jsou odpovědi.",
     ],
   },

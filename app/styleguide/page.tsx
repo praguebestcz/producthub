@@ -35,6 +35,7 @@ import {
   Bell,
   History,
   Lock,
+  MapPin,
   MessageSquarePlus,
   MousePointer2,
   Pin,
@@ -431,6 +432,17 @@ export default async function StyleguidePage() {
             </span>
             <span className="text-xs text-muted-foreground">
               Špendlík (avatar + počet zpráv)
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            {/* V panelu u vlákna: má na této stránce špendlík. Číslo tu bylo
+                dřív, ale špendlík v dokumentu nese avatar - nemělo k čemu
+                odkazovat. */}
+            <span className="flex size-5 items-center justify-center rounded-full bg-pb-soft text-pb">
+              <MapPin size={12} aria-hidden="true" />
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Připnuto na této stránce (panel)
             </span>
           </div>
           <div className="flex flex-col items-center gap-1.5">

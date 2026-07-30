@@ -176,9 +176,10 @@ export type BubblePosition = {
   right: number;
 };
 
-// Postranní panel = vyjíždějící drawer. Režim „thread" (jedno vlákno po kliku
-// na špendlík) nebo „list" (seznam všech na tlačítko Komentáře). Skrytý, dokud
-// ho něco neotevře (přání Hany — panel není pořád na očích).
+// Postranní panel = sloupec vedle dokumentu (otevřením se dokument zúží, panel
+// ho NEpřekrývá). Režim „thread" (jedno vlákno po kliku na špendlík) nebo
+// „list" (seznam všech na tlačítko Komentáře). Zavřený má nulovou šířku —
+// panel není pořád na očích (přání Hany).
 export function CommentPanel({
   open,
   mode,
@@ -253,9 +254,6 @@ export function CommentPanel({
   const versionThreads = threads.filter(
     (t) => t.documentVersionId === versionId,
   );
-  const pageThreads = versionThreads.filter(
-    (t) => t.pagePath === currentPagePath,
-  );
   // Panel vždy ukazuje CELOU specifikaci (všechny stránky verze) — přání Hany,
   // komentuje se celá spec, ne jen část. Komentáře z jiných stránek mají v kartě
   // badge se stránkou; klik na ně přepne prohlížeč na tu stránku.
@@ -280,21 +278,27 @@ export function CommentPanel({
   }, [open, onClose]);
 
   // Číslo špendlíku vlákna (dle pořadí na jeho stránce) — pro hlavičku karty.
-  function pinNumberOf(thread: CommentThread): number | null {
-    if (thread.pagePath !== currentPagePath) return null;
-    return pageThreads.indexOf(thread) + 1;
+  // Má vlákno špendlík na právě zobrazené stránce? (Vlákno z jiné stránky ho
+  // nemá — místo něj se ukáže odznak s cestou.) Číslo špendlíku se už nepoužívá:
+  // špendlík v dokumentu nese avatar autora, číslo by nemělo k čemu odkazovat.
+  function hasPinHere(thread: CommentThread): boolean {
+    return thread.pagePath === currentPagePath;
   }
 
   return (
+    // Panel je sloupec VEDLE dokumentu (ne překryv) — jinak by pravá část
+    // specifikace i se svými špendlíky zmizela pod ním.
     <div
       className={cn(
-        "absolute inset-y-0 right-0 z-20 flex w-[26rem] max-w-[calc(100%-1rem)] flex-col border-l bg-background shadow-2xl transition-transform duration-200",
-        open ? "translate-x-0" : "pointer-events-none translate-x-full",
+        "flex shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200",
+        open
+          ? "w-[min(26rem,60%)] border-l"
+          : "pointer-events-none w-0 border-l-0",
       )}
       aria-hidden={!open}
       inert={!open}
     >
-      {/* Hlavička draweru */}
+      {/* Hlavička panelu */}
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
         <span className="flex items-center gap-1.5 text-sm font-medium">
           <MessageSquare size={15} aria-hidden="true" />
@@ -367,7 +371,7 @@ export function CommentPanel({
             <ThreadCard
               documentId={documentId}
               thread={activeThread}
-              pinNumber={pinNumberOf(activeThread)}
+              hasPin={hasPinHere(activeThread)}
               isActive
               onActivate={() => onActivateThread(activeThread)}
               onChanged={onChanged}
@@ -441,7 +445,7 @@ export function CommentPanel({
                 key={thread.id}
                 documentId={documentId}
                 thread={thread}
-                pinNumber={pinNumberOf(thread)}
+                hasPin={hasPinHere(thread)}
                 isActive={thread.id === activeThreadId}
                 onActivate={() => onActivateThread(thread)}
                 onChanged={onChanged}
@@ -1027,7 +1031,7 @@ function NewThreadForm({
 function ThreadCard({
   documentId,
   thread,
-  pinNumber,
+  hasPin,
   isActive,
   onActivate,
   onChanged,
@@ -1047,7 +1051,8 @@ function ThreadCard({
 }: {
   documentId: number;
   thread: CommentThread;
-  pinNumber: number | null;
+  // Vlákno má špendlík na právě zobrazené stránce.
+  hasPin: boolean;
   isActive: boolean;
   onActivate: () => void;
   onChanged: () => Promise<void>;
@@ -1126,9 +1131,15 @@ function ThreadCard({
             />
           </span>
         )}
-        {pinNumber !== null && (
-          <span className="flex size-5 items-center justify-center rounded-full bg-pb text-[11px] font-bold text-white">
-            {pinNumber}
+        {/* Špendlík na této stránce. Dřív tu bylo pořadové číslo, ale špendlík
+            v dokumentu nese avatar autora — číslo nemělo k čemu odkazovat. */}
+        {hasPin && (
+          <span
+            title="Připnuto na této stránce"
+            className="flex size-5 items-center justify-center rounded-full bg-pb-soft text-pb"
+          >
+            <MapPin size={12} aria-hidden="true" />
+            <span className="sr-only">Připnuto na této stránce</span>
           </span>
         )}
         <Badge
@@ -1143,7 +1154,7 @@ function ThreadCard({
             Interní
           </Badge>
         )}
-        {thread.pagePath && pinNumber === null && (
+        {thread.pagePath && !hasPin && (
           <Badge variant="outline" className="max-w-36 font-mono text-[11px]">
             <span className="truncate">{thread.pagePath}</span>
           </Badge>

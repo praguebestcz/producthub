@@ -346,8 +346,13 @@
     return false;
   }
 
+  // Vzdálenost, na které se dva špendlíky ještě považují za překrývající se.
+  var PIN_GAP = 28;
+
   function repositionAll() {
     var buttons = pinLayer.children;
+    // Už rozmístěné špendlíky — nový se jim uhne, ať se nepřekrývají.
+    var placed = [];
     for (var i = 0; i < buttons.length; i++) {
       var btn = buttons[i];
       var pin = pins[i];
@@ -376,7 +381,30 @@
       var left = rect.left + rect.width - 10;
       if (left > docWidth - 28) left = docWidth - 28;
       if (left < 2) left = 2;
-      btn.style.top = rect.top - 10 + "px";
+      var top = rect.top - 10;
+      // Prvky přes celou šířku mají špendlíky ve stejném svislém sloupci; když
+      // jsou dva prvky blízko pod sebou, špendlíky by se slepily. Uhni novým
+      // doleva, a když už není kam, o řádek níž.
+      for (var guard = 0; guard < 10; guard++) {
+        var collides = false;
+        for (var j = 0; j < placed.length; j++) {
+          if (
+            Math.abs(placed[j].top - top) < PIN_GAP &&
+            Math.abs(placed[j].left - left) < PIN_GAP
+          ) {
+            collides = true;
+            break;
+          }
+        }
+        if (!collides) break;
+        left -= PIN_GAP;
+        if (left < 2) {
+          left = docWidth - 28;
+          top += PIN_GAP;
+        }
+      }
+      placed.push({ top: top, left: left });
+      btn.style.top = top + "px";
       btn.style.left = left + "px";
     }
     repositionMarkers();
