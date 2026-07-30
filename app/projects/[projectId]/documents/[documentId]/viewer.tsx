@@ -14,6 +14,7 @@ import {
   MessageSquarePlus,
   MousePointer2,
   Pencil,
+  Pin,
   Plus,
   Trash2,
   Upload,
@@ -133,6 +134,9 @@ export function DocumentViewer({
     element: SelectedElement;
     position: BubblePosition;
   } | null>(null);
+  // M9 v1.1 — vlákno, kterému uživatel hledá nový prvek („Znovu připnout").
+  // Dokud je nastavené, klik ve specifikaci nezakládá komentář, ale přepne kotvu.
+  const [repinFor, setRepinFor] = useState<number | null>(null);
   // Panel je vyjíždějící drawer — skrytý, dokud ho něco neotevře.
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("list");
@@ -163,6 +167,10 @@ export function DocumentViewer({
   const pagePathRef = useRef("");
   const modeRef = useRef(mode);
   const threadsRef = useRef<CommentThread[]>([]);
+  const versionIdRef = useRef(versionId);
+  const isReadOnlyVersionRef = useRef(false);
+  // M9 v1.1 — vlákno, které uživatel právě znovu připíná (čeká na výběr prvku).
+  const repinForRef = useRef<number | null>(null);
   // Vlákno, které se má zvýraznit, až se donačte cílová stránka (klik na
   // komentář z JINÉ stránky → nejdřív navigace, pak highlight).
   const pendingHighlightRef = useRef<number | null>(null);
@@ -194,6 +202,14 @@ export function DocumentViewer({
     : undefined;
   const isReadOnlyVersion = !!latestVersion && versionId !== latestVersion.id;
   const canCommentNow = canComment && !isReadOnlyVersion;
+
+  // Handler zpráv z iframe se registruje jednou — aktuální verzi a její
+  // read-only stav proto čte přes refs.
+  useEffect(() => {
+    versionIdRef.current = versionId;
+    isReadOnlyVersionRef.current = isReadOnlyVersion;
+  }, [versionId, isReadOnlyVersion]);
+
 
   // Zpráva DO overlaye v iframe. targetOrigin "*" — iframe je opaque origin
   // (sandbox bez allow-same-origin), konkrétní origin nelze cílit.
@@ -243,6 +259,21 @@ export function DocumentViewer({
     sendPins(threadsRef.current, pagePathRef.current);
   }, [statusFilter, versionId, sendPins]);
 
+  // Esc ruší připínání (stejně jako zavírá bublinu a panel).
+  useEffect(() => {
+    if (repinFor === null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      repinForRef.current = null;
+      setRepinFor(null);
+      setMode("browse");
+      modeRef.current = "browse";
+      postToOverlay({ type: "mode", commenting: false });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [repinFor, postToOverlay]);
+
   // Načte vlákna VŠECH stránek (panel filtruje lokálně) a srovná špendlíky.
   const loadComments = useCallback(async () => {
     try {
@@ -284,6 +315,9 @@ export function DocumentViewer({
     setActiveThreadId(null);
     setPanelOpen(false);
     setSelectedIds(new Set()); // výběr pro prompt platí v rámci verze
+    // Rozdělané připínání patří ke konkrétní verzi → při přepnutí padá.
+    repinForRef.current = null;
+    setRepinFor(null);
     // Přepnutí verze resetuje na procházení (starší verze jsou read-only).
     setMode("browse");
     modeRef.current = "browse";
@@ -391,6 +425,69 @@ export function DocumentViewer({
     if (next === "browse") setBubble(null);
   }
 
+  // M9 v1.1 — „Znovu připnout": spustí výběr prvku pro osiřelé vlákno.
+  function startRepin(threadId: number) {
+    repinForRef.current = threadId;
+    setRepinFor(threadId);
+    setBubble(null);
+    setPanelOpen(false);
+    // Výběr prvku funguje jen v režimu komentování (overlay tam chytá kliky).
+    switchMode("comment");
+  }
+
+  function cancelRepin() {
+    repinForRef.current = null;
+    setRepinFor(null);
+    switchMode("browse");
+  }
+
+  // Uloží novou kotvu vlákna. Volá se z handleru zpráv, proto useCallback.
+  const repinThread = useCallback(
+    async (
+      threadId: number,
+      el: {
+        pagePath: string;
+        dataReviewId: string | null;
+        domPath: string;
+        elementHtml: string;
+        viewport: { width: number; height: number };
+      },
+    ) => {
+      try {
+        const res = await fetch(`/api/comments/${threadId}/anchor`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pagePath: el.pagePath,
+            dataReviewId: el.dataReviewId ?? undefined,
+            domPath: el.domPath || undefined,
+            elementHtml: el.elementHtml || undefined,
+            viewportWidth: el.viewport.width || undefined,
+            viewportHeight: el.viewport.height || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        repinForRef.current = null;
+        setRepinFor(null);
+        switchMode("browse");
+        await loadComments();
+        setActiveThreadId(threadId);
+        setPanelMode("thread");
+        setPanelOpen(true);
+        postToOverlay({ type: "highlight", commentId: threadId });
+        toast.success("Komentář je připnutý k novému prvku.");
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Připnutí se nepovedlo.",
+        );
+      }
+    },
+    // switchMode i postToOverlay jsou stabilní v rámci renderu komponenty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadComments, postToOverlay],
+  );
+
   // Klik na avatar píšícího (lišta přítomných) → skoč na prvek, kde právě píše
   // (i přes stránky). U odpovědi zároveň otevře jeho vlákno v panelu.
   function jumpToTyping(user: PresenceUser) {
@@ -494,11 +591,69 @@ export function DocumentViewer({
             pendingHighlightAnchorRef.current = null;
           }
         });
+      } else if (d.type === "anchors.status") {
+        // M9 v1.1 (Stupeň 2): prohlížeč po ustálení stránky hlásí, které kotvy
+        // našel. Server z toho konzervativně přepne odznak „prvek už
+        // neexistuje". Starší verze jsou read-only → nehlásíme.
+        if (isReadOnlyVersionRef.current) return;
+        const page = typeof d.pagePath === "string" ? d.pagePath : "";
+        const missing = Array.isArray(d.missing) ? d.missing : [];
+        const present = Array.isArray(d.present) ? d.present : [];
+        if (!page || (missing.length === 0 && present.length === 0)) return;
+        void (async () => {
+          try {
+            const res = await fetch(`/api/documents/${documentId}/anchors`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                versionId: versionIdRef.current,
+                pagePath: page,
+                missing,
+                present,
+              }),
+            });
+            const data = await res.json();
+            if (res.ok && data.changed > 0) await loadComments();
+          } catch {
+            // Osiřelost je jen pomocný příznak — tiché selhání nesmí rušit
+            // prohlížení specifikace.
+          }
+        })();
       } else if (d.type === "element.selected") {
         const dataReviewId =
           typeof d.dataReviewId === "string" ? d.dataReviewId : null;
         const domPath = typeof d.domPath === "string" ? d.domPath : "";
         const page = typeof d.pagePath === "string" ? d.pagePath : "";
+        // Režim „znovu připnout": vybraný prvek se nastaví osiřelému vláknu
+        // místo toho, aby se zakládal nový komentář.
+        const repinId = repinForRef.current;
+        if (repinId !== null) {
+          const anchor = threadAnchor({ dataReviewId, domPath });
+          const clash = threadsRef.current.find(
+            (t) =>
+              t.id !== repinId &&
+              t.documentVersionId === versionIdRef.current &&
+              t.pagePath === page &&
+              threadAnchor(t) === anchor,
+          );
+          if (clash) {
+            toast.info("Na tomto prvku už vlákno je - vyberte jiný prvek.");
+            return;
+          }
+          void repinThread(repinId, {
+            pagePath: page,
+            dataReviewId,
+            domPath,
+            elementHtml: typeof d.elementHtml === "string" ? d.elementHtml : "",
+            viewport:
+              d.viewport &&
+              typeof d.viewport.width === "number" &&
+              typeof d.viewport.height === "number"
+                ? d.viewport
+                : { width: 0, height: 0 },
+          });
+          return;
+        }
         // Jeden prvek = jedno vlákno: pokud na stejném prvku vlákno existuje,
         // NEotvírej bublinu, otevři jeho vlákno v panelu (další = odpovědi).
         const anchor = threadAnchor({ dataReviewId, domPath });
@@ -558,7 +713,7 @@ export function DocumentViewer({
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [loadComments, postToOverlay]);
+  }, [loadComments, postToOverlay, documentId, repinThread]);
 
   // Zavření bubliny (uložení / zrušení / změna režimu) → overlay zruší
   // rámeček vybraného prvku a hover zase jezdí.
@@ -926,7 +1081,24 @@ export function DocumentViewer({
           </span>
         </div>
       )}
-      {canCommentNow &&
+      {/* M9 v1.1 — připínání osiřelého vlákna má vlastní banner (jiný úkol než
+          běžné komentování: uživatel hledá náhradní prvek). */}
+      {repinFor !== null ? (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white shadow-sm">
+          <Pin size={16} aria-hidden="true" />
+          <span>
+            Znovu připnutí - klikněte na prvek, ke kterému komentář patří.
+          </span>
+          <button
+            type="button"
+            onClick={cancelRepin}
+            className="ml-auto rounded-md bg-white/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-white/30"
+          >
+            Zrušit (Esc)
+          </button>
+        </div>
+      ) : (
+      canCommentNow &&
         (mode === "comment" ? (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-pb px-3 py-2 text-sm font-medium text-white shadow-sm">
             <MessageSquarePlus size={16} aria-hidden="true" />
@@ -957,7 +1129,8 @@ export function DocumentViewer({
               Přejít na komentování
             </button>
           </div>
-        ))}
+        ))
+      )}
 
       {/* Prohlížeč přes celou šířku; bublina a panel jsou překryvné vrstvy */}
       <div
@@ -1034,6 +1207,8 @@ export function DocumentViewer({
           }}
           onChanged={loadComments}
           currentUserId={currentUserId}
+          isAuthor={isAuthor}
+          onRepin={canCommentNow ? startRepin : undefined}
           canComment={canCommentNow}
           canSeeInternal={canSeeInternal}
           isCommenting={mode === "comment"}

@@ -44,6 +44,25 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 18,
+    date: "30. 7. 2026",
+    title: "Komentář, kterému po nové verzi zmizel prvek, jde zachránit",
+    items: [
+      {
+        icon: "map",
+        title: "Odznak prvek už neexistuje je teď spolehlivý",
+        description:
+          "Jestli přenesený komentář opravdu ztratil svůj prvek, ověří až načtená stránka - odznak proto naskočí pár sekund po otevření a jen u komentářů přenesených z předchozí verze. Když se prvek objeví později (třeba po otevření modalu), odznak sám zmizí.",
+      },
+      {
+        icon: "message",
+        title: "Znovu připnout",
+        description:
+          "U vlákna s odznakem přibylo tlačítko Znovu připnout: kliknete na něj, vyberete ve specifikaci nový prvek a komentář se na něj přesune i s celou diskusí (Esc výběr zruší). Smí to autor projektu u kteréhokoli vlákna a autor komentáře u svého.",
+      },
+    ],
+  },
+  {
     id: 17,
     date: "27. 7. 2026",
     title: "Novinky už nevyskakují pořád",

@@ -455,6 +455,54 @@
       repositionTimer = null;
       repositionAll();
     }, 150);
+    scheduleAnchorReport();
+  }
+
+  // ---- hlášení stavu kotev (M9 v1.1, Stupeň 2 osiřelosti) ------------------
+
+  // Server při uploadu ověří jen existenci STRÁNKY; jestli na ní žije i
+  // konkrétní PRVEK, pozná až běžící stránka. Po ustálení DOM proto pošleme
+  // rodiči, které kotvy se našly a které ne.
+  //
+  // „Nenašla se" = selektor nevrátil NIC. Prvek nalezený, ale skrytý nebo
+  // překrytý modalem, se počítá jako NALEZENÝ — existuje, jen není vidět.
+  var anchorReportTimer = null;
+  var lastAnchorReport = "";
+  var readyAt = Date.now();
+
+  function reportAnchorStatus() {
+    // Nejdřív ~3 s po načtení — prototypy dorovnávají obsah JavaScriptem a
+    // dřívější hlášení by bylo planým poplachem.
+    if (Date.now() - readyAt < 3000) {
+      scheduleAnchorReport();
+      return;
+    }
+    var missing = [];
+    var present = [];
+    for (var i = 0; i < pins.length; i++) {
+      var pin = pins[i];
+      if (!pin || typeof pin.commentId !== "number") continue;
+      if (resolveAnchor(pin)) present.push(pin.commentId);
+      else missing.push(pin.commentId);
+    }
+    // Stejný výsledek podruhé neposílat (šetří zápisy i síť).
+    var signature = missing.join(",") + "|" + present.join(",");
+    if (signature === lastAnchorReport) return;
+    lastAnchorReport = signature;
+    post("anchors.status", {
+      pagePath: currentPagePath(),
+      missing: missing,
+      present: present,
+    });
+  }
+
+  function scheduleAnchorReport() {
+    if (anchorReportTimer) clearTimeout(anchorReportTimer);
+    // Delší klid než u repositionu — čekáme na ustálení celé stránky.
+    anchorReportTimer = setTimeout(function () {
+      anchorReportTimer = null;
+      reportAnchorStatus();
+    }, 2500);
   }
 
   // ---- režim komentování ---------------------------------------------------
@@ -609,6 +657,8 @@
     } else if (d.type === "pins.update") {
       pins = Array.isArray(d.pins) ? d.pins : [];
       renderPins();
+      // Nová sada špendlíků → po ustálení ohlásit, které kotvy na stránce žijí.
+      scheduleAnchorReport();
     } else if (d.type === "presence.markers") {
       typingMarkers = Array.isArray(d.markers) ? d.markers : [];
       renderMarkers();
@@ -657,6 +707,7 @@
 
     // Po navigaci na jinou stránku se skript načte znovu → ready → rodič
     // pošle aktuální režim + špendlíky té stránky.
+    readyAt = Date.now();
     post("ready", { pagePath: currentPagePath() });
   }
 

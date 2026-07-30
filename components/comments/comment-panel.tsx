@@ -12,6 +12,7 @@ import {
   MoreVertical,
   MousePointer2,
   Pencil,
+  Pin,
   RotateCcw,
   SmilePlus,
   Sparkles,
@@ -192,6 +193,8 @@ export function CommentPanel({
   onActivateThread,
   onChanged,
   currentUserId,
+  isAuthor,
+  onRepin,
   canComment,
   canSeeInternal,
   isCommenting,
@@ -220,6 +223,11 @@ export function CommentPanel({
   onActivateThread: (thread: CommentThread) => void;
   onChanged: () => Promise<void>;
   currentUserId: number;
+  // Autor projektu — smí znovu připnout i cizí komentář (M9 v1.1).
+  isAuthor: boolean;
+  // Spustí výběr nového prvku pro osiřelé vlákno. Chybí = připínat nelze
+  // (starší verze jsou read-only).
+  onRepin?: (threadId: number) => void;
   canComment: boolean;
   canSeeInternal: boolean;
   // Je zapnutý režim komentování? Řídí navádění v prázdném panelu.
@@ -364,6 +372,8 @@ export function CommentPanel({
               onActivate={() => onActivateThread(activeThread)}
               onChanged={onChanged}
               currentUserId={currentUserId}
+              isAuthor={isAuthor}
+              onRepin={onRepin}
               canComment={canComment}
               canSeeInternal={canSeeInternal}
               members={members}
@@ -436,6 +446,8 @@ export function CommentPanel({
                 onActivate={() => onActivateThread(thread)}
                 onChanged={onChanged}
                 currentUserId={currentUserId}
+                isAuthor={isAuthor}
+                onRepin={onRepin}
                 canComment={canComment}
                 canSeeInternal={canSeeInternal}
                 members={members}
@@ -1020,6 +1032,8 @@ function ThreadCard({
   onActivate,
   onChanged,
   currentUserId,
+  isAuthor = false,
+  onRepin,
   canComment,
   canSeeInternal,
   members,
@@ -1038,6 +1052,9 @@ function ThreadCard({
   onActivate: () => void;
   onChanged: () => Promise<void>;
   currentUserId: number;
+  // M9 v1.1 — znovu připnout smí autor projektu nebo autor komentáře.
+  isAuthor?: boolean;
+  onRepin?: (threadId: number) => void;
   canComment: boolean;
   canSeeInternal: boolean;
   members: MentionMember[];
@@ -1136,6 +1153,23 @@ function ThreadCard({
             prvek už neexistuje
           </Badge>
         )}
+        {/* M9 v1.1 — osiřelý komentář lze připnout k jinému prvku. Smí autor
+            projektu (rovná kotvy po nahrání nové verze) nebo autor komentáře. */}
+        {thread.isOrphaned &&
+          onRepin &&
+          (isAuthor || thread.author.id === currentUserId) && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRepin(thread.id);
+              }}
+              className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50"
+            >
+              <Pin size={11} aria-hidden="true" />
+              Znovu připnout
+            </button>
+          )}
       </div>
 
       {typingNames.length > 0 && (

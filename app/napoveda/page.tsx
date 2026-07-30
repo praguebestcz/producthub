@@ -9,6 +9,7 @@ import {
   Map,
   MessageSquare,
   MousePointer2,
+  Pin,
   Smile,
   Sparkles,
   Users,
@@ -62,6 +63,17 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "Filtr nahoře přepíná Nevyřešené / Vyřešené / Vše. Výchozí je Nevyřešené.",
       "Špendlíky na stránce se řídí stejným filtrem — vyřešené se běžně nezobrazují.",
       "Svůj komentář nebo odpověď upravíte nebo smažete přes kebab menu (tři tečky ⋮ vpravo u komentáře) - jen v nejnovější verzi. Vlákno s odpověďmi nejde smazat, aby se neztratila cizí diskuse - jde upravit text.",
+    ],
+  },
+  {
+    icon: Pin,
+    title: "Když prvek po nové verzi zmizí",
+    points: [
+      "Po nahrání nové verze se přenesené komentáře připnou na odpovídající prvky. Když se prvek na stránce nenajde, dostane vlákno v panelu odznak prvek už neexistuje a nemá špendlík.",
+      "Odznak nasadí až prohlížeč po načtení stránky, a jen u komentářů přenesených z předchozí verze - komentáře napsané v aktuální verzi se takto neoznačují.",
+      "Když se prvek objeví později (třeba po otevření modalu), odznak sám zmizí a špendlík naskočí. Není tedy třeba nic dělat.",
+      "Když prvek opravdu zanikl, klikněte u vlákna na Znovu připnout, vyberte ve specifikaci nový prvek a komentář se na něj přesune i s celou diskusí. Klávesa Esc výběr zruší.",
+      "Znovu připnout smí autor projektu (u kteréhokoli vlákna) a autor komentáře (u svého), a jen v nejnovější verzi dokumentu.",
     ],
   },
   {

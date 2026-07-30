@@ -86,6 +86,32 @@ export const commentStatusSchema = z.object({
   status: z.enum(["RESOLVED", "REOPENED"]),
 });
 
+// M9 v1.1 — hlášení prohlížeče o kotvách na stránce (Stupeň 2 osiřelosti).
+// `missing` = kotvy, které se na stránce nenašly, `present` = našly (i skryté).
+// Stropy polí odpovídají počtu špendlíků na jedné stránce s velkou rezervou.
+export const anchorStatusSchema = z.object({
+  versionId: z.number().int().positive(),
+  pagePath: z.string().min(1).max(500),
+  missing: z.array(z.number().int().positive()).max(500),
+  present: z.array(z.number().int().positive()).max(500),
+});
+
+// M9 v1.1 — znovu připnutí komentáře na jiný prvek. Limity délek stejné jako
+// u vzniku komentáře (commentCreateSchema). Aspoň jedna kotva je povinná,
+// jinak by komentář zůstal bez špendlíku i po připnutí.
+export const commentAnchorSchema = z
+  .object({
+    pagePath: z.string().min(1).max(500),
+    dataReviewId: z.string().trim().min(1).max(200).optional(),
+    domPath: z.string().min(1).max(2_000).optional(),
+    elementHtml: z.string().min(1).max(20_000).optional(),
+    viewportWidth: z.number().int().positive().max(20_000).optional(),
+    viewportHeight: z.number().int().positive().max(20_000).optional(),
+  })
+  .refine((v) => v.dataReviewId !== undefined || v.domPath !== undefined, {
+    message: "Chybí kotva na prvek",
+  });
+
 // Reakce emoji — omezená sada (security review: NE libovolný string, obrana
 // proti XSS/obřím hodnotám). Frontend posílá přesně tyto hodnoty.
 export const REACTION_EMOJIS = ["👍", "✅", "👀", "❤️", "🎉", "🙏"] as const;

@@ -14,6 +14,8 @@
 
 ## Revize
 
+* **2026-07-30**
+  * **M9 v1.1 - osiřelé komentáře.** Doplněn **Stupeň 2** (osiřelost potvrzuje běžící stránka): prohlížeč po ustálení DOM hlásí serveru, které kotvy na stránce našel a které ne. Odznak „prvek už neexistuje" dostane **jen komentář přenesený z předchozí verze** (pozná se podle času vzniku staršího než verze) a **sám zmizí**, jakmile se prvek objeví (např. po otevření modalu) - nově psané komentáře se nikdy neoznačí, aby odznak neproblikával u prvků uvnitř zavřených modalů. Nově akce **„Znovu připnout"**: osiřelé vlákno lze přiřadit k jinému prvku (i na jiné stránce), smí ji autor projektu nebo autor komentáře, odpovědi se přesunou s kořenem. Bez migrace DB (sloupec `isOrphaned` existuje od M1). - Hana Ortmannová
 * **2026-07-27**
   * **Přehled (dashboard)** jako samostatná stránka `/dashboard` (položka menu „Přehled"): pruh souhrnu (otevřené komentáře, čekající zadání jen internímu týmu, upozornění pro mě, počet projektů) + feed poslední aktivity napříč projekty (nové komentáře / odpovědi / @zmínky / vyřešená vlákna), respektuje viditelnost interních a jen nejnovější verze (M9). Seznam projektů zůstává samostatně na `/`. Detailní spec: outputs/dashboard-spec.md - Hana Ortmannová
   * **Sbalitelné skupiny klientů** v seznamu projektů: skupinu klienta lze sbalit/rozbalit, stav se pamatuje (localStorage, per klient). Výchozí: jeden klient rozbaleno, víc klientů sbaleno; hlavička nese počet projektů + odznak nevyřešených i ve sbaleném stavu. - Hana Ortmannová
@@ -150,7 +152,7 @@ Reálné specifikace PragueBest NEJSOU statické stránky - jsou to klikací HTM
 * GitHub integrace (Issues, větve, PR) - v2
 * E‑mailové notifikace - v2
 * Úprava HTML obsahu specifikace v aplikaci - uživatelé NEMOHOU editovat dokumenty
-* Backlog (samostatné zadání, až na ně dojde): aplikační logy, přehledový dashboard, čítače na kartě projektu, mapování projekt ↔ repozitář, akce „znovu připnout" osiřelý komentář (v1.1)
+* Backlog (samostatné zadání, až na ně dojde): aplikační logy, čítače na kartě projektu, mapování projekt ↔ repozitář
 
 > ⚠️ **Poznámka:** Cokoli mimo „V scope" vyžaduje samostatnou specifikaci a samostatné odsouhlasení.
 
@@ -178,7 +180,7 @@ Aplikace je nasazená na produkci a milníky M0-M5 jsou hotové a otestované
 | M6 | Komentáře nad elementy + vlákna | 🟠 implementováno - čeká na ruční test Hany |
 | M7 | Notifikace (zvoneček) + realtime (SSE) | 🟠 zvoneček, přítomnost, živé komentáře i volba notifikací hotové; zvoneček naživo zbývá |
 | M8 | Požadavky + Claude prompt | 🟠 plánováno |
-| M9 | Přenos komentářů mezi verzemi | 🟠 v1 hotovo (přenos nevyřešených, read-only starší verze, osiřelost dle chybějící stránky); Stupeň 2 + znovu připnout = v1.1 |
+| M9 | Přenos komentářů mezi verzemi | 🟢 v1 (přenos nevyřešených, read-only starší verze, osiřelost dle chybějící stránky) + v1.1 (Stupeň 2 za běhu, znovu připnout) |
 
 DB schéma pro komentáře (`Comment`, `Mention`), požadavky (`Requirement`, `RequirementComment`) i notifikace (`Notification`) existuje od M1 - milníky M6-M8 NEVYŽADUJÍ migraci.
 
@@ -248,7 +250,7 @@ Páteř aplikace - hlavní tok od nahrání specifikace po implementaci. U kr
   * Formulář nového komentáře po výběru elementu: čitelný popis prvku, textarea s @našeptávačem členů, checkbox Interní (jen pro interní členy).
 * 🟠 M6 - špendlíky: číslované značky na komentovaných elementech uvnitř iframe. Špendlík skrytého elementu (zavřený modal) se schová a objeví se, až je element vidět. Klik na špendlík (v obou režimech) aktivuje vlákno v panelu.
 * 🟢 M7 Fáze 2 - přítomnost + živé komentáře: kdo je u dokumentu + kdo píše (avatar u prvku / panel / lišta, barva per uživatel; klik na avatar skočí na místo psaní); nový komentář/odpověď se u ostatních objeví bez refreshe; externí nevidí interní; 🟠 zvoneček naživo zbývá
-* 🟠 M9 - prohlížení starých verzí read-only, badge „prvek už neexistuje" u osiřelých komentářů.
+* 🟢 M9 (v1 + v1.1) - prohlížení starých verzí read-only; odznak osiřelosti nasazuje prohlížeč po ustálení stránky (jen u přenesených vláken, sám mizí, když se prvek objeví) a osiřelé vlákno lze přes akci Znovu připnout přiřadit k jinému prvku. Badge „prvek už neexistuje" u osiřelých komentářů.
 
 ### Požadavky (`/projects/[id]/requirements`) 🟠 M8
 
@@ -346,12 +348,19 @@ Aplikace nemá oddělený admin systém - administrace jsou stránky uvnitř apl
 * **Kroky:** 1. Otevře vyřešené vlákno. 2. „Vytvořit požadavek" - předvyplní se z diskuse. 3. Doplní akceptační kritéria, schválí. 4. „Vygenerovat prompt" → zkopíruje do schránky. 5. Po implementaci označí **Zapracováno**, pak **Uzavřeno**.
 * **Výsledek:** prompt obsahuje kontext projektu, omezení, HTML element, kritéria jako checklist a přepis diskuse (jen veřejné komentáře).
 
-### UC5 - Nová verze a osiřelý komentář (M9) 🟠
+### UC5 - Nová verze a osiřelý komentář (M9) 🟢
 
 * **Kdo:** Autor
 * **Předpoklady:** verze 1 má tři komentáře: element se zachovaným `data-review-id`, element posunutý v DOM, element odstraněný
 * **Kroky:** 1. Nahraje verzi 2. 2. Systém spáruje kotvy po stránkách (server staticky, prohlížeč autoritativně za běhu).
 * **Výsledek:** první dva komentáře se přenesou, třetí dostane badge „prvek už neexistuje". Verze 1 dál zobrazuje původní špendlíky.
+
+### UC5b - Záchrana osiřelého komentáře (M9 v1.1) 🟢
+
+* **Kdo:** Autor projektu (nebo autor komentáře u vlastního vlákna)
+* **Předpoklady:** vlákno s odznakem „prvek už neexistuje" v nejnovější verzi
+* **Kroky:** 1. V panelu klikne „Znovu připnout". 2. Prohlížeč se přepne do výběru prvku (jantarový banner, Esc ruší). 3. Klikne na prvek, ke kterému komentář patří.
+* **Výsledek:** vlákno má novou kotvu, odznak zmizí, špendlík naskočí a panel se otevře na vláknu. Odpovědi se přesunou s kořenem (i na jinou stránku). Když na cílovém prvku už jedno vlákno je, systém připnutí odmítne (jeden prvek = jedno vlákno).
 
 ## Nefunkční požadavky
 

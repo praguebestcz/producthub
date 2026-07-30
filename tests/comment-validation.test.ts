@@ -3,6 +3,8 @@ import {
   commentCreateSchema,
   commentStatusSchema,
   reactionCreateSchema,
+  anchorStatusSchema,
+  commentAnchorSchema,
 } from "@/lib/validation";
 
 // Platný kořenový vstup — základ, který testy obměňují.
@@ -147,5 +149,68 @@ describe("reactionCreateSchema", () => {
       false,
     );
     expect(reactionCreateSchema.safeParse({ emoji: "" }).success).toBe(false);
+  });
+});
+
+describe("anchorStatusSchema (M9 v1.1 — hlášení kotev z prohlížeče)", () => {
+  const valid = { versionId: 3, pagePath: "index.html", missing: [1], present: [2] };
+
+  it("přijme platné hlášení i prázdné seznamy", () => {
+    expect(anchorStatusSchema.parse(valid).versionId).toBe(3);
+    expect(
+      anchorStatusSchema.safeParse({ ...valid, missing: [], present: [] }).success,
+    ).toBe(true);
+  });
+
+  it("odmítne přetečené seznamy a nesmyslná ID", () => {
+    const tooMany = Array.from({ length: 501 }, (_, i) => i + 1);
+    expect(anchorStatusSchema.safeParse({ ...valid, missing: tooMany }).success).toBe(
+      false,
+    );
+    expect(anchorStatusSchema.safeParse({ ...valid, present: [0] }).success).toBe(
+      false,
+    );
+    expect(anchorStatusSchema.safeParse({ ...valid, pagePath: "" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("commentAnchorSchema (M9 v1.1 — znovu připnutí)", () => {
+  it("přijme kotvu přes data-review-id i přes domPath", () => {
+    expect(
+      commentAnchorSchema.safeParse({
+        pagePath: "wf.html",
+        dataReviewId: "question-submit",
+      }).success,
+    ).toBe(true);
+    expect(
+      commentAnchorSchema.safeParse({
+        pagePath: "wf.html",
+        domPath: "body > div:nth-child(2)",
+        elementHtml: "<button>Odeslat</button>",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("odmítne vstup bez kotvy — komentář by zůstal bez špendlíku", () => {
+    expect(commentAnchorSchema.safeParse({ pagePath: "wf.html" }).success).toBe(
+      false,
+    );
+  });
+
+  it("hlídá limity délek", () => {
+    expect(
+      commentAnchorSchema.safeParse({
+        pagePath: "wf.html",
+        dataReviewId: "x".repeat(201),
+      }).success,
+    ).toBe(false);
+    expect(
+      commentAnchorSchema.safeParse({
+        pagePath: "wf.html",
+        domPath: "d".repeat(2_001),
+      }).success,
+    ).toBe(false);
   });
 });

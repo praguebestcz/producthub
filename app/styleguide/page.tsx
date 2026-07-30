@@ -37,6 +37,7 @@ import {
   Lock,
   MessageSquarePlus,
   MousePointer2,
+  Pin,
 } from "lucide-react";
 import { PresenceBar } from "@/components/presence/presence-bar";
 import { userColor } from "@/lib/presence/colors";
@@ -308,10 +309,32 @@ export default async function StyleguidePage() {
             <History size={16} aria-hidden="true" />
             <span>Starší verze - jen ke čtení (info, modrá).</span>
           </div>
+          <div className="flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white shadow-sm">
+            <Pin size={16} aria-hidden="true" />
+            <span>Znovu připnutí - klikněte na prvek, ke kterému komentář patří.</span>
+          </div>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           Komentování = PB červená (pozor, kliky vybírají), procházení = tmavá
-          (neutrální), starší verze = modrá (info).
+          (neutrální), starší verze = modrá (info), znovu připnutí = jantarová
+          (rozdělaná oprava kotvy).
+        </p>
+      </Section>
+
+      <Section title="Osiřelý komentář a znovu připnutí">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline" className="text-[11px] text-muted-foreground">
+            prvek už neexistuje
+          </Badge>
+          <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+            <Pin size={11} aria-hidden="true" />
+            Znovu připnout
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Odznak nasadí prohlížeč, když se kotva přeneseného komentáře na
+          stránce nenajde; zmizí sám, jakmile se prvek objeví. Tlačítko vidí
+          autor projektu a autor komentáře.
         </p>
       </Section>
 

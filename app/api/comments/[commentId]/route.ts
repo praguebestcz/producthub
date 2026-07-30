@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSessionUser, requireProjectRole } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canViewComment } from "@/lib/comments/visibility";
 import { invalidMentionIds } from "@/lib/comments/mentions";
 import { signalCommentsChanged } from "@/lib/presence/hub";
-import { latestVersionId } from "@/lib/documents/store";
+import { loadCommentForAction, type CommentForAction } from "@/lib/comments/access";
 
 // Úprava (PATCH) a smazání (DELETE) komentáře. Jen VLASTNÍ (authorId = session)
 // a jen v NEJNOVĚJŠÍ verzi dokumentu (starší jsou read-only, M9). Kořen vlákna
@@ -16,62 +15,23 @@ const editSchema = z.object({
   mentions: z.array(z.number().int().positive()).max(20).optional(),
 });
 
-async function loadOwnComment(commentId: number, userId: number) {
-  if (!Number.isInteger(commentId) || commentId <= 0) return null;
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-    select: {
-      id: true,
-      projectId: true,
-      documentId: true,
-      documentVersionId: true,
-      parentId: true,
-      authorId: true,
-      visibility: true,
-    },
-  });
-  if (!comment) return null;
-  const member = await requireProjectRole(userId, comment.projectId, "COMMENTER");
-  // Nečlen i neinterní člen nad INTERNAL vláknem → 404 (neprozrazovat existenci).
-  if (!member || !canViewComment(member, comment)) return null;
-  return { comment };
-}
-
-// Společné kontroly vlastnictví + read-only verze.
+// Společné kontroly (viditelnost, vlastnictví, read-only starší verze) žijí
+// v lib/comments/access.ts — sdílí je i routa pro znovu připnutí. Tady se jen
+// výsledek převede na odpověď.
 async function guard(
   commentId: number,
   userId: number,
 ): Promise<
-  | { ok: true; comment: NonNullable<Awaited<ReturnType<typeof loadOwnComment>>>["comment"] }
-  | { ok: false; res: NextResponse }
+  { ok: true; comment: CommentForAction } | { ok: false; res: NextResponse }
 > {
-  const ctx = await loadOwnComment(commentId, userId);
-  if (!ctx) {
+  const access = await loadCommentForAction(commentId, userId, "own");
+  if (!access.ok) {
     return {
       ok: false,
-      res: NextResponse.json({ error: "Komentář nenalezen" }, { status: 404 }),
+      res: NextResponse.json({ error: access.error }, { status: access.status }),
     };
   }
-  if (ctx.comment.authorId !== userId) {
-    return {
-      ok: false,
-      res: NextResponse.json(
-        { error: "Upravit nebo smazat můžete jen svůj komentář." },
-        { status: 403 },
-      ),
-    };
-  }
-  const latest = await latestVersionId(ctx.comment.documentId);
-  if (ctx.comment.documentVersionId !== latest) {
-    return {
-      ok: false,
-      res: NextResponse.json(
-        { error: "Upravit lze jen komentáře v nejnovější verzi dokumentu." },
-        { status: 409 },
-      ),
-    };
-  }
-  return { ok: true, comment: ctx.comment };
+  return { ok: true, comment: access.comment };
 }
 
 export async function PATCH(
