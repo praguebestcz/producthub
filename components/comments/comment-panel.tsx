@@ -290,14 +290,22 @@ export function CommentPanel({
     // specifikace i se svými špendlíky zmizela pod ním.
     <div
       className={cn(
-        "flex shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200",
-        open
-          ? "w-[min(26rem,60%)] border-l"
-          : "pointer-events-none w-0 border-l-0",
+        "relative shrink-0 overflow-hidden bg-background transition-[width] duration-200",
+        open ? "w-[26rem] max-w-[60%] border-l" : "pointer-events-none w-0 border-l-0",
       )}
       aria-hidden={!open}
       inert={!open}
     >
+      {/* Obsah má PEVNOU šířku a je pozicovaný ABSOLUTNĚ uvnitř ořezávajícího
+          rámu. Dva důvody:
+          1. pevná šířka — zavřený panel má nulovou šířku a text by se jinak
+             zalomil do pár pixelů širokého sloupce (karty by narostly do
+             desítek tisíc pixelů);
+          2. absolutní pozice — v běžném toku prosakovala výška obsahu až do
+             stránky (ta pak měla vlastní posuvník do prázdna), přestože rám
+             obsah vizuálně ořezal.
+          Bonus: panel se takhle vysouvá, místo aby se obsah mačkal. */}
+      <div className="absolute inset-y-0 right-0 flex w-[26rem] flex-col">
       {/* Hlavička panelu */}
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
         <span className="flex items-center gap-1.5 text-sm font-medium">
@@ -491,6 +499,7 @@ export function CommentPanel({
           </Button>
         </div>
       )}
+      </div>
     </div>
   );
 }

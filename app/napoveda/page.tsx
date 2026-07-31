@@ -194,13 +194,20 @@ function HelpShot({
 
 // Zvýrazněná místa v prohlížeči dokumentu (pozice odpovídají public/napoveda/prohlizec.png).
 const VIEWER_SPOTS: Spot[] = [
-  { l: 68.5, t: 17.8, w: 17.2, h: 5.6, label: "Přepínač Procházení / Komentování" },
-  { l: 85.6, t: 18.6, w: 13.2, h: 4.2, label: "Panel komentářů a Předaná zadání" },
+  { l: 69.4, t: 18.2, w: 16.6, h: 4.9, label: "Přepínač Procházení / Komentování" },
+  { l: 86.7, t: 19.1, w: 12.5, h: 3.1, label: "Panel komentářů a Předaná zadání" },
   {
-    l: 76.6,
-    t: 49.6,
-    w: 3.4,
-    h: 3.6,
+    l: 14.2,
+    t: 29.9,
+    w: 8,
+    h: 3.2,
+    label: "Navigace mezi stránkami specifikace",
+  },
+  {
+    l: 78.2,
+    t: 44.5,
+    w: 1.6,
+    h: 2.6,
     label: "Zaškrtávátka — výběr komentářů do promptu",
   },
 ];
