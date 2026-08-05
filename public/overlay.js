@@ -190,6 +190,21 @@
     return el;
   }
 
+  // Kontejnerové prvky, u kterých klik do jejich VELKÉ plochy znamená „prázdno",
+  // ne konkrétní obsah (pozadí SVG diagramu, plocha sekce, buňky mřížky…).
+  // Bez toho klik/hover mezi uzly diagramu orámoval celé SVG — vypadalo to,
+  // že se označil celý diagram (zpětná vazba Hany). Obsahové prvky (obrázek,
+  // odstavec, tvar v diagramu) sem NEpatří — velký screenshot komentovat jde.
+  var CONTAINER_TAGS = {
+    DIV: 1, SECTION: 1, ARTICLE: 1, MAIN: 1, HEADER: 1, FOOTER: 1,
+    NAV: 1, ASIDE: 1, UL: 1, OL: 1, TABLE: 1, TBODY: 1, THEAD: 1,
+    FORM: 1, FIELDSET: 1,
+    svg: 1, g: 1, // SVG má tagName malými písmeny
+  };
+  function isEmptyArea(el) {
+    return !!CONTAINER_TAGS[el.tagName] && !isCompactAnchor(el);
+  }
+
   // CSS cesta od elementu nahoru: stop na nejbližším #id (CSS.escape),
   // jinak tag:nth-of-type(n); spojeno " > ". Vyhodnotitelné querySelectorem.
   function computeDomPath(el) {
@@ -391,6 +406,31 @@
     return false;
   }
 
+  // Je prvek vyscrollovaný mimo viditelnou výseč předka s posuvníkem (např.
+  // uzel diagramu v kontejneru s vodorovným scrollem)? Špendlík takového prvku
+  // se schová — jinak se přilepí na okraj stránky a „plave" nad cizím obsahem
+  // (zpětná vazba Hany). Částečně viditelný prvek špendlík má.
+  function isClippedFromView(el) {
+    var r = el.getBoundingClientRect();
+    var node = el.parentElement;
+    while (node && node !== document.body && node !== document.documentElement) {
+      var style = getComputedStyle(node);
+      if (style.overflowX !== "visible" || style.overflowY !== "visible") {
+        var c = node.getBoundingClientRect();
+        if (
+          r.right <= c.left ||
+          r.left >= c.right ||
+          r.bottom <= c.top ||
+          r.top >= c.bottom
+        ) {
+          return true;
+        }
+      }
+      node = node.parentElement;
+    }
+    return false;
+  }
+
   // Vzdálenost, na které se dva špendlíky ještě považují za překrývající se.
   var PIN_GAP = 28;
 
@@ -415,6 +455,12 @@
       }
       // Prvek překrytý modalem → špendlík se schová (nemá prosvítat přes modal).
       if (isCoveredByOther(el, rect)) {
+        btn.setAttribute("data-hidden", "");
+        continue;
+      }
+      // Prvek odscrollovaný mimo viditelnou výseč kontejneru → špendlík se
+      // schová (objeví se, až uživatel kontejner doscrolluje k prvku).
+      if (isClippedFromView(el)) {
         btn.setAttribute("data-hidden", "");
         continue;
       }
@@ -605,7 +651,12 @@
       return;
     }
     // Stejná kotva jako při kliknutí — rámeček ukazuje přesně to, co se vybere.
-    placeBox(hoverBox, documentRect(pickAnchor(target)));
+    var hoverAnchor = pickAnchor(target);
+    if (isEmptyArea(hoverAnchor)) {
+      hoverBox.style.display = "none";
+      return;
+    }
+    placeBox(hoverBox, documentRect(hoverAnchor));
   }
 
   // Myš opustila stránku (např. cestou k panelu komentářů) → rámeček zmizí.
@@ -631,6 +682,13 @@
 
     // Kotva: kompaktní předek s data-review-id, jinak přímo kliknutý prvek.
     var anchorEl = pickAnchor(target);
+    // Prázdná plocha velkého kontejneru (pozadí diagramu, plocha sekce) se
+    // nevybírá — chová se jako klik do pozadí stránky (zavře bublinu).
+    if (isEmptyArea(anchorEl)) {
+      clearSelection();
+      post("background.clicked");
+      return;
+    }
     var html = anchorEl.outerHTML || "";
     var anchorViewportRect = viewportRect(anchorEl);
 
