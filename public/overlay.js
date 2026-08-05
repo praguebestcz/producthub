@@ -406,29 +406,32 @@
     return false;
   }
 
-  // Je prvek vyscrollovaný mimo viditelnou výseč předka s posuvníkem (např.
-  // uzel diagramu v kontejneru s vodorovným scrollem)? Špendlík takového prvku
-  // se schová — jinak se přilepí na okraj stránky a „plave" nad cizím obsahem
-  // (zpětná vazba Hany). Částečně viditelný prvek špendlík má.
-  function isClippedFromView(el) {
+  // VIDITELNÁ část prvku (viewport souřadnice): rect prvku oříznutý o všechny
+  // předky s posuvníkem/ořezem (overflow ≠ visible), např. diagram s vodorovným
+  // scrollem. Vrací null, když z prvku není vidět nic. Špendlík se umísťuje
+  // k viditelné části — jinak se u prvku vyscrollovaného z výseče (nebo většího
+  // než výseč) přilepil na okraj stránky a „plaval" v prázdnu (zpětná vazba
+  // Hany, procesní diagram 3600 px).
+  function visibleRectOf(el) {
     var r = el.getBoundingClientRect();
+    var top = r.top;
+    var left = r.left;
+    var right = r.right;
+    var bottom = r.bottom;
     var node = el.parentElement;
     while (node && node !== document.body && node !== document.documentElement) {
       var style = getComputedStyle(node);
       if (style.overflowX !== "visible" || style.overflowY !== "visible") {
         var c = node.getBoundingClientRect();
-        if (
-          r.right <= c.left ||
-          r.left >= c.right ||
-          r.bottom <= c.top ||
-          r.top >= c.bottom
-        ) {
-          return true;
-        }
+        if (c.left > left) left = c.left;
+        if (c.right < right) right = c.right;
+        if (c.top > top) top = c.top;
+        if (c.bottom < bottom) bottom = c.bottom;
+        if (right <= left || bottom <= top) return null;
       }
       node = node.parentElement;
     }
-    return false;
+    return { top: top, left: left, right: right, bottom: bottom };
   }
 
   // Vzdálenost, na které se dva špendlíky ještě považují za překrývající se.
@@ -460,19 +463,21 @@
       }
       // Prvek odscrollovaný mimo viditelnou výseč kontejneru → špendlík se
       // schová (objeví se, až uživatel kontejner doscrolluje k prvku).
-      if (isClippedFromView(el)) {
+      var vis = visibleRectOf(el);
+      if (!vis) {
         btn.setAttribute("data-hidden", "");
         continue;
       }
       btn.removeAttribute("data-hidden");
-      // Špendlík k pravému hornímu rohu elementu; u prvků přes celou šířku by
-      // ale přetekl za pravý okraj a ořízl se, tak ho podržíme uvnitř stránky.
+      // Špendlík k pravému hornímu rohu VIDITELNÉ části prvku (viewport →
+      // dokumentové souřadnice); u prvků přes celou šířku by přetekl za pravý
+      // okraj a ořízl se, tak ho podržíme uvnitř stránky.
       var docWidth =
         document.documentElement.scrollWidth || document.documentElement.clientWidth;
-      var left = rect.left + rect.width - 10;
+      var left = vis.right + window.scrollX - 10;
       if (left > docWidth - 28) left = docWidth - 28;
       if (left < 2) left = 2;
-      var top = rect.top - 10;
+      var top = vis.top + window.scrollY - 10;
       // Prvky přes celou šířku mají špendlíky ve stejném svislém sloupci; když
       // jsou dva prvky blízko pod sebou, špendlíky by se slepily. Uhni novým
       // doleva, a když už není kam, o řádek níž.
