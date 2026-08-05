@@ -45,14 +45,15 @@ const GUIDE: { icon: LucideIcon; title: string; points: string[] }[] = [
       "Mezi stránkami se pohybujete drobečkovou navigací v horní liště rámu dokumentu.",
       "Když otevřete panel komentářů, dokument se zúží (nezmizí pod panelem) - špendlíky tak zůstanou vidět.",
       "Nahoře přepínáte verze dokumentu. Při nahrání nové verze se nevyřešené komentáře volitelně přenesou na odpovídající prvky; starší verze jsou jen ke čtení.",
+      "Tlačítko Celá obrazovka roztáhne prohlížeč přes celé okno - hodí se na velké dokumenty (diagramy). Zpět se vrátíte stejným tlačítkem nebo klávesou Esc.",
     ],
   },
   {
     icon: MessageSquare,
     title: "Komentování prvků",
     points: [
-      "Přepněte na režim Komentování. Kliknutím vyberete konkrétní prvek ve specifikaci.",
-      "U prvku se otevře bublina — napíšete komentář a uložíte. Vznikne špendlík s avatarem autora; u vlákna s odpověďmi ukáže i počet zpráv. Špendlíky blízkých prvků se navzájem uhnou, aby se nepřekrývaly.",
+      "Přepněte na režim Komentování. Kliknutím vyberete konkrétní prvek ve specifikaci - jde to i uvnitř diagramů a velkých bloků (komentujete přesně ten prvek, na který kliknete; rámeček při najetí myší ukazuje, co se vybere).",
+      "Bublina komentáře se otevře přímo u místa kliknutí a je vždy celá vidět — napíšete komentář a uložíte. Vznikne špendlík s avatarem autora; u vlákna s odpověďmi ukáže i počet zpráv. Špendlíky blízkých prvků se navzájem uhnou, aby se nepřekrývaly.",
       "Jeden prvek má jedno vlákno; další příspěvky k němu jsou odpovědi.",
     ],
   },

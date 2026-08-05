@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Check,
   CornerDownRight,
@@ -50,6 +56,7 @@ import {
 import { usePresenceTyping } from "@/components/presence/typing-context";
 import { userColor } from "@/lib/presence/colors";
 import { cn } from "@/lib/utils";
+import { computeBubblePosition } from "@/lib/comments/bubble-position";
 import {
   matchesStatusFilter,
   type StatusFilter,
@@ -174,6 +181,9 @@ export type BubblePosition = {
   height: number;
   bottom: number;
   right: number;
+  // Bod kliknutí uvnitř prohlížeče — bublina se otevře u kurzoru. U starších
+  // zpráv z overlaye chybí, pak se použije poloha prvku.
+  point?: { x: number; y: number } | null;
 };
 
 // Postranní panel = sloupec vedle dokumentu (otevřením se dokument zúží, panel
@@ -531,28 +541,35 @@ export function CommentBubble({
   members: MentionMember[];
 }) {
   const BUBBLE_W = 320;
-  const BUBBLE_H = 200; // odhad výšky pro clamp do viditelné oblasti
-  const MARGIN = 8;
-  // Vodorovně: zarovnat s prvkem, ale nevylézt z kontejneru.
-  let left = position.left;
-  if (left + BUBBLE_W > container.width - MARGIN) {
-    left = container.width - BUBBLE_W - MARGIN;
-  }
-  if (left < MARGIN) left = MARGIN;
-  // Svisle: pod prvek; když by se dole nevešlo, nad prvek.
-  let top = position.bottom + MARGIN;
-  if (top + BUBBLE_H > container.height && position.top - BUBBLE_H - MARGIN > 0) {
-    top = position.top - BUBBLE_H - MARGIN;
-  }
-  // Clamp do viditelné oblasti — když prvek vyscrolluje k okraji, bublina
-  // zůstane vidět (neodjede mimo, „nezmizí").
-  top = Math.max(MARGIN, Math.min(top, container.height - BUBBLE_H));
-  const style: React.CSSProperties = { left, top, width: BUBBLE_W };
+  const boxRef = useRef<HTMLDivElement>(null);
+  // Skutečná výška formuláře, ne odhad — s odhadem se spodek s tlačítkem
+  // „Odeslat" dostal pod okraj plochy a nešlo se k němu doscrollovat.
+  // 200 je jen startovní hodnota pro první průchod, hned se přeměří.
+  const [bubbleHeight, setBubbleHeight] = useState(200);
+
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const measure = () => setBubbleHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const { left, top, maxHeight } = computeBubblePosition({
+    point: position.point ?? null,
+    rect: position,
+    container,
+    bubbleWidth: BUBBLE_W,
+    bubbleHeight,
+  });
 
   return (
     <div
-      className="absolute z-30"
-      style={style}
+      ref={boxRef}
+      className="absolute z-30 overflow-y-auto"
+      style={{ left, top, width: BUBBLE_W, maxHeight }}
       onKeyDown={(e) => {
         if (e.key === "Escape") onClose();
       }}

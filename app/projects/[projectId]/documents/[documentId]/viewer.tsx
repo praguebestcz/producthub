@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -10,8 +16,10 @@ import {
   History,
   Home,
   Loader2,
+  Maximize2,
   MessageSquare,
   MessageSquarePlus,
+  Minimize2,
   MousePointer2,
   Pencil,
   Pin,
@@ -82,9 +90,10 @@ type Version = {
 
 // Bezpečně převede viewportRect z overlaye na pozici bubliny (obrana proti
 // chybějícím/nečíselným hodnotám z postMessage).
-function normalizeRect(r: unknown): BubblePosition {
+function normalizeRect(r: unknown, point?: unknown): BubblePosition {
   const o = (r ?? {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === "number" ? v : 0);
+  const p = (point ?? null) as Record<string, unknown> | null;
   return {
     top: num(o.top),
     left: num(o.left),
@@ -92,6 +101,12 @@ function normalizeRect(r: unknown): BubblePosition {
     height: num(o.height),
     bottom: num(o.bottom),
     right: num(o.right),
+    // Bod kliknutí — bublina se otevře u kurzoru. Bez něj (starší overlay)
+    // se použije poloha prvku.
+    point:
+      p && typeof p.x === "number" && typeof p.y === "number"
+        ? { x: p.x, y: p.y }
+        : null,
   };
 }
 
@@ -161,6 +176,13 @@ export function DocumentViewer({
   // Kontejner prohlížeče (pro umístění bubliny podle pozice prvku).
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDims, setContainerDims] = useState({ width: 0, height: 0 });
+  // Celá obrazovka: prohlížeč i s ovládáním překryje stránku. Vědomě CSS, ne
+  // nativní requestFullscreen — dialogy a toasty se portálují do <body> a
+  // v nativním fullscreenu vnitřního prvku by nebyly vidět.
+  const [fullscreen, setFullscreen] = useState(false);
+  // Rám prohlížeče — výška se měří, ať nikdy nepřeteče pod okraj okna.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [frameHeight, setFrameHeight] = useState<number | null>(null);
   // Drobečková navigace: cesta stránkami specifikace, jak jimi uživatel prošel.
   const [pageTrail, setPageTrail] = useState<string[]>([]);
   // Refs pro handler zpráv (registruje se jednou, nesmí číst zastaralý stav).
@@ -273,6 +295,16 @@ export function DocumentViewer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [repinFor, postToOverlay]);
+
+  // Esc ukončí celou obrazovku (když zrovna neprobíhá připínání — to má Esc svůj).
+  useEffect(() => {
+    if (!fullscreen || repinFor !== null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setFullscreen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen, repinFor]);
 
   // Načte vlákna VŠECH stránek (panel filtruje lokálně) a srovná špendlíky.
   const loadComments = useCallback(async () => {
@@ -684,12 +716,12 @@ export function DocumentViewer({
                 ? d.viewport
                 : { width: 0, height: 0 },
           },
-          position: normalizeRect(d.viewportRect),
+          position: normalizeRect(d.viewportRect, d.point),
         });
       } else if (d.type === "anchor.moved") {
         // Prvek se posunul (scroll) → drž bublinu u něj.
         setBubble((b) =>
-          b ? { ...b, position: normalizeRect(d.viewportRect) } : b,
+          b ? { ...b, position: normalizeRect(d.viewportRect, d.point) } : b,
         );
       } else if (d.type === "background.clicked") {
         // Klik do prázdna ve specifikaci → zavři bublinu.
@@ -735,6 +767,26 @@ export function DocumentViewer({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Výška rámu prohlížeče se MĚŘÍ, nepočítá z odhadu výšky hlavičky. S pevným
+  // `calc(100vh-18rem)` rám při vyšší hlavičce (dlouhý název, banner) přetekl
+  // pod okraj okna, stránka dostala posuvník a spodek bubliny nebyl vidět.
+  // V celé obrazovce výšku řeší flexbox (frameHeight = null).
+  useLayoutEffect(() => {
+    // V celé obrazovce se naměřená výška nepoužívá (řídí ji flexbox),
+    // není co měřit.
+    if (fullscreen) return;
+    const measure = () => {
+      const el = frameRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setFrameHeight(Math.max(320, window.innerHeight - top - 16));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+    // Bannery a lišta mění svou výšku → rám se musí přeměřit.
+  }, [fullscreen, canComment, mode, repinFor, isReadOnlyVersion, versionId]);
 
   // Proklik ze zvonečku — přečti ?comment=<rootId> z URL (jednou, na klientu).
   useEffect(() => {
@@ -903,6 +955,14 @@ export function DocumentViewer({
         )}
       </div>
 
+      {/* Shell prohlížeče: lišta + bannery + rám. V celé obrazovce překryje
+          stránku (CSS, ne requestFullscreen — dialogy/toasty jsou v <body>). */}
+      <div
+        className={cn(
+          fullscreen &&
+            "fixed inset-0 z-40 flex flex-col overflow-hidden bg-background px-4 pb-4",
+        )}
+      >
       {/* Lišta: přepínač verzí + info + režim + tlačítko Komentáře */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Select
@@ -1016,6 +1076,16 @@ export function DocumentViewer({
             Zadání{exportCount > 0 ? ` (${exportCount})` : ""}
           </Button>
         )}
+
+        {/* Celá obrazovka — víc místa na specifikaci (přání kolegy). */}
+        <Button
+          variant={fullscreen ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setFullscreen((f) => !f)}
+        >
+          {fullscreen ? <Minimize2 /> : <Maximize2 />}
+          {fullscreen ? "Ukončit (Esc)" : "Celá obrazovka"}
+        </Button>
       </div>
 
 
@@ -1086,14 +1156,23 @@ export function DocumentViewer({
           nepřekryje ho (jinak se pravá část specifikace i s špendlíky schová).
           Bublina zůstává překryvem NAD dokumentem, proto vlastní `relative`. */}
       <div
+        ref={frameRef}
         className={cn(
           "mt-3 flex overflow-hidden rounded-xl border bg-white transition-all",
-          // Banner (u kohokoli, kdo smí komentovat) ubere kus výšky.
+          // V celé obrazovce výšku řídí flexbox; jinak se měří (frameHeight),
+          // startovní odhad drží rám do prvního přeměření.
+          fullscreen
+            ? "min-h-0 flex-1"
+            : frameHeight === null && "h-[calc(100vh-18rem)]",
           // Barevný rámeček podle rozdělané práce (vybíráš prvky).
-          canComment ? "h-[calc(100vh-18rem)]" : "h-[calc(100vh-15rem)]",
           canCommentNow && mode === "comment" && "ring-2 ring-pb/40",
           repinFor !== null && "ring-2 ring-amber-500/50",
         )}
+        style={
+          !fullscreen && frameHeight !== null
+            ? { height: frameHeight }
+            : undefined
+        }
       >
         {/* Sloupec dokumentu: navigace stránkami + iframe + bublina */}
         <div className="flex min-w-0 flex-1 flex-col">
@@ -1232,6 +1311,7 @@ export function DocumentViewer({
           members={members}
           typingByThread={typingByThread}
         />
+      </div>
       </div>
 
       {/* M8 — okno vytvoření zadání (prompt z výběru komentářů) */}

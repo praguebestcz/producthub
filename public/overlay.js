@@ -6,7 +6,8 @@
  *
  * Protokol iframe → parent (source: "producthub-overlay"):
  *   ready            {pagePath}                — při každém načtení stránky
- *   element.selected {pagePath, dataReviewId, domPath, rect, elementHtml, viewport}
+ *   element.selected {pagePath, dataReviewId, domPath, rect, viewportRect, point, elementHtml, viewport}
+ *   anchor.moved     {viewportRect, point}     — prvek se posunul (scroll/resize)
  *   pin.clicked      {commentId}
  * Protokol parent → iframe (source: "producthub-parent"):
  *   mode            {commenting: boolean}
@@ -29,6 +30,10 @@
   // Bez toho rámeček skákal po stránce cestou myši k panelu (zpětná vazba Hany).
   var selectionActive = false;
   var selectedEl = null; // vybraný prvek — rodič u něj drží bublinu komentáře
+  // Kam přesně uživatel klikl, relativně k levému hornímu rohu vybraného prvku.
+  // Rodič podle toho otevře bublinu U KURZORU (ne pod celým prvkem) a po scrollu
+  // ji drží na stejném místě prvku.
+  var selectedPointOffset = null;
 
   // Cesta stránky uvnitř balíku = část URL za /view/{token}/.
   function currentPagePath() {
@@ -140,6 +145,7 @@
   function clearSelection() {
     selectionActive = false;
     selectedEl = null;
+    selectedPointOffset = null;
     selBox.style.display = "none";
   }
 
@@ -147,8 +153,14 @@
   // ať u prvku zůstane i bublina komentáře.
   function reportSelectionMove() {
     if (!selectionActive || !selectedEl) return;
+    var vr = viewportRect(selectedEl);
     placeBox(selBox, documentRect(selectedEl));
-    post("anchor.moved", { viewportRect: viewportRect(selectedEl) });
+    post("anchor.moved", {
+      viewportRect: vr,
+      point: selectedPointOffset
+        ? { x: vr.left + selectedPointOffset.dx, y: vr.top + selectedPointOffset.dy }
+        : null,
+    });
   }
 
   function isOwn(el) {
@@ -156,6 +168,27 @@
   }
 
   // ---- kotva elementu ------------------------------------------------------
+
+  // Nejbližší předek s data-review-id je PŘEDNOSTNÍ kotva (pravidlo PB pro
+  // specifikace — přežije nahrání nové verze). Bere se ale jen tehdy, když je
+  // KOMPAKTNÍ (tlačítko, pole, karta). Velké obaly (sekce, rám diagramu) by
+  // spolkly celý svůj obsah: jeden diagram = jedno vlákno a jednotlivé uzly by
+  // nešly komentovat vůbec. U nich je kotvou přímo kliknutý prvek (domPath).
+  var ANCHOR_MAX_AREA_RATIO = 0.25; // podíl plochy viewportu
+
+  function isCompactAnchor(el) {
+    var viewport = window.innerWidth * window.innerHeight;
+    if (!viewport) return true;
+    var r = el.getBoundingClientRect();
+    return r.width * r.height <= viewport * ANCHOR_MAX_AREA_RATIO;
+  }
+
+  // Společná pro klik i hover — rámeček tak ukazuje přesně to, co se vybere.
+  function pickAnchor(el) {
+    var reviewEl = el.closest ? el.closest("[data-review-id]") : null;
+    if (reviewEl && (reviewEl === el || isCompactAnchor(reviewEl))) return reviewEl;
+    return el;
+  }
 
   // CSS cesta od elementu nahoru: stop na nejbližším #id (CSS.escape),
   // jinak tag:nth-of-type(n); spojeno " > ". Vyhodnotitelné querySelectorem.
@@ -206,6 +239,18 @@
     UL: "seznam",
     OL: "seznam",
     FORM: "formulář",
+    // SVG (diagramy) — tagName je u SVG malými písmeny, proto vlastní klíče.
+    // Bez nich by popisek vlákna v panelu byl jen „rect" nebo „path".
+    rect: "prvek diagramu",
+    path: "prvek diagramu",
+    circle: "prvek diagramu",
+    ellipse: "prvek diagramu",
+    polygon: "prvek diagramu",
+    line: "spojnice",
+    text: "text",
+    tspan: "text",
+    g: "skupina",
+    svg: "diagram",
   };
   function elementLabel(el) {
     var name = TAG_NAMES[el.tagName] || el.tagName.toLowerCase();
@@ -559,7 +604,8 @@
       hoverBox.style.display = "none";
       return;
     }
-    placeBox(hoverBox, documentRect(target));
+    // Stejná kotva jako při kliknutí — rámeček ukazuje přesně to, co se vybere.
+    placeBox(hoverBox, documentRect(pickAnchor(target)));
   }
 
   // Myš opustila stránku (např. cestou k panelu komentářů) → rámeček zmizí.
@@ -583,27 +629,33 @@
       return;
     }
 
-    // Přednostní kotva: nejbližší [data-review-id] (pravidlo PB specifikací).
-    var reviewEl = target.closest("[data-review-id]");
-    var anchorEl = reviewEl || target;
+    // Kotva: kompaktní předek s data-review-id, jinak přímo kliknutý prvek.
+    var anchorEl = pickAnchor(target);
     var html = anchorEl.outerHTML || "";
+    var anchorViewportRect = viewportRect(anchorEl);
 
     // Výběr zůstane orámovaný, dokud rodič nepošle selection.clear.
     selectionActive = true;
     selectedEl = anchorEl;
+    selectedPointOffset = {
+      dx: e.clientX - anchorViewportRect.left,
+      dy: e.clientY - anchorViewportRect.top,
+    };
     hoverBox.style.display = "none";
     placeBox(selBox, documentRect(anchorEl));
     post("element.selected", {
       pagePath: currentPagePath(),
-      dataReviewId: reviewEl
-        ? reviewEl.getAttribute("data-review-id")
-        : null,
+      dataReviewId: anchorEl.getAttribute("data-review-id"),
       // domPath se počítá VŽDY (fallback kotva pro přenos mezi verzemi).
       domPath: computeDomPath(anchorEl),
       label: elementLabel(anchorEl),
       rect: documentRect(anchorEl),
       // viewportRect = pozice v prohlížeči → bublina komentáře u prvku.
-      viewportRect: viewportRect(anchorEl),
+      viewportRect: anchorViewportRect,
+      // Bod kliknutí → bublina se otevře U KURZORU. U velkých prvků (diagram,
+      // dlouhá sekce) by pozice podle rectu skončila daleko od místa, které
+      // uživatel komentuje.
+      point: { x: e.clientX, y: e.clientY },
       elementHtml: html.slice(0, MAX_ELEMENT_HTML),
       viewport: { width: window.innerWidth, height: window.innerHeight },
     });
@@ -716,6 +768,18 @@
     // Scroll/resize → přepočítat pozici bubliny u vybraného prvku.
     window.addEventListener("scroll", reportSelectionMove, { passive: true });
     window.addEventListener("resize", reportSelectionMove);
+    // Scroll VNOŘENÉHO kontejneru (např. diagram s vlastním vodorovným
+    // posuvníkem) nebublá — chytáme ho v capture fázi. Bez toho špendlíky
+    // i rámeček výběru zůstanou stát, zatímco obsah pod nimi ujede.
+    document.addEventListener(
+      "scroll",
+      function (e) {
+        if (e.target === document || e.target === window) return; // řeší window listener
+        reportSelectionMove();
+        scheduleReposition();
+      },
+      { capture: true, passive: true },
+    );
 
     // Špendlíky se srovnávají po změnách DOM (JS-generované elementy, modaly).
     var observer = new MutationObserver(function (mutations) {

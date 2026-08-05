@@ -44,6 +44,31 @@ export type Release = {
 // Vydání od nejnovějšího po nejstarší (nejnovější první).
 export const RELEASES: Release[] = [
   {
+    id: 20,
+    date: "5. 8. 2026",
+    title: "Komentování v diagramech, bublina u kurzoru a celá obrazovka",
+    items: [
+      {
+        icon: "message",
+        title: "Komentovat jde i jednotlivé prvky uvnitř diagramů",
+        description:
+          "Dřív klik dovnitř diagramu nebo velkého bloku vybral celý blok - a protože jeden prvek má jedno vlákno, druhý komentář do diagramu už nešel přidat. Teď se vybere přesně ten prvek, na který kliknete; rámeček při najetí myší ukazuje, co se vybere.",
+      },
+      {
+        icon: "eye",
+        title: "Bublina komentáře se otevírá u místa kliknutí",
+        description:
+          "Bublina nového komentáře se objeví přímo u kurzoru a je vždy celá vidět - tlačítko Odeslat už nikdy nekončí pod okrajem obrazovky. Špendlíky navíc drží na svém místě i při posouvání diagramu s vlastním posuvníkem.",
+      },
+      {
+        icon: "sparkles",
+        title: "Celá obrazovka",
+        description:
+          "Nové tlačítko v liště prohlížeče roztáhne dokument i panel komentářů přes celé okno. Zpět se vrátíte stejným tlačítkem nebo klávesou Esc.",
+      },
+    ],
+  },
+  {
     id: 19,
     date: "30. 7. 2026",
     title: "Přehlednější prohlížeč specifikace",
