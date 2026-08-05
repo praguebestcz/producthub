@@ -394,11 +394,18 @@
     if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) {
       return false;
     }
+    // Uvnitř SVG (diagramy) žádné modaly nejsou — tvar uzlu má ve svém středu
+    // typicky svůj textový popisek (sourozenec), a ten NENÍ překrytí.
+    var ownSvg = el.closest ? el.closest("svg") : null;
     var stack = document.elementsFromPoint(cx, cy);
     for (var i = 0; i < stack.length; i++) {
       var e = stack[i];
       // Přeskoč vlastní vrstvy overlaye (špendlíky, rámečky).
       if (e.closest && e.closest("[data-ph-overlay]")) continue;
+      // Prvky z TÉHOŽ SVG se navzájem nepřekrývají „jako modal".
+      if (ownSvg && e.closest && e.closest("svg") === ownSvg) {
+        return false;
+      }
       // První „cizí" prvek odshora: pokud to je náš prvek (nebo příbuzný),
       // je navrchu = vidět. Jinak ho něco překrývá (modal) → schovat špendlík.
       return !(e === el || el.contains(e) || e.contains(el));
@@ -839,7 +846,9 @@
       function (e) {
         if (e.target === document || e.target === window) return; // řeší window listener
         reportSelectionMove();
-        scheduleReposition();
+        // Rovnou, bez debounce — s ním špendlíky během scrollu kontejneru
+        // stály na starém místě a pak skočily („lítají", zpětná vazba Hany).
+        repositionAll();
       },
       { capture: true, passive: true },
     );

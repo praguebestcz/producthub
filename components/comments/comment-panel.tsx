@@ -694,7 +694,11 @@ function CommentBlock({
   }
 
   return (
-    <div onClick={(e) => e.stopPropagation()}>
+    // POZOR: žádný stopPropagation na celém bloku — klik kamkoli na text
+    // komentáře či odpovědi musí probublat na dlaždici a přepnout vlákno
+    // (zpětná vazba Hany). Zastavují se jen skutečně interaktivní části
+    // (kebab menu, editační formulář).
+    <div>
       <div className="flex items-center gap-2">
         <Avatar size="sm" style={{ boxShadow: `0 0 0 2px ${color}` }}>
           {author.avatarUrl && <AvatarImage src={author.avatarUrl} alt="" />}
@@ -707,6 +711,7 @@ function CommentBlock({
           {formatTime(createdAt)}
         </span>
         {canEdit && isOwn && !editing && (
+          <span onClick={(e) => e.stopPropagation()} className="contents">
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -739,6 +744,7 @@ function CommentBlock({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </span>
         )}
       </div>
 
@@ -750,7 +756,7 @@ function CommentBlock({
       )}
 
       {editing ? (
-        <div className="mt-1 space-y-1.5">
+        <div className="mt-1 space-y-1.5" onClick={(e) => e.stopPropagation()}>
           <Textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
